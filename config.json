@@ -1,0 +1,11 @@
+{
+  "mapFolder": "map.w3x",
+  "minifyScript": false,
+  "gameExecutable": "D:\\Warcraft III\\_retail_\\x86_64\\Warcraft III.exe",
+  "outputFolder": "./maps/w3c_maps",
+  "launchArgs": [
+    "-launch",
+    "-windowmode",
+    "windowed"
+  ]
+}
