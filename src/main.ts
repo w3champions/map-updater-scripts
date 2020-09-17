@@ -1,7 +1,25 @@
 import { File, Camera, MapPlayer } from "w3ts";
 import { addScriptHook, W3TS_HOOK } from "w3ts/hooks";
 
-function cameraZoomInit() {
+function init(){
+  enableCameraZoom();
+  enableBadPing();
+
+}
+
+function enableBadPing(){
+  let badPingTrigger = CreateTrigger();
+
+  for (let i = 0; i < bj_MAX_PLAYERS; i++) {
+    TriggerRegisterPlayerChatEvent(badPingTrigger, Player(i), "-badping", false);
+  }
+
+  TriggerAddAction(badPingTrigger, () => {
+    EndGame(true)
+  });
+}
+
+function enableCameraZoom() {
   let zoomTrigger = CreateTrigger();
 
   for (let i = 0; i < bj_MAX_PLAYERS; i++) {
@@ -30,6 +48,7 @@ function cameraZoomInit() {
     File.write("w3cZoomFFA.txt", zoomNumber.toString());
   });
 
+
   const fileText = File.read("w3cZoomFFA.txt");
 
   if (fileText && Number(fileText) > 0) {
@@ -54,4 +73,4 @@ function setCameraZoom(zoomLevel: number) {
   print(`|cff00ff00[W3C]:|r Zoom is set to|cffffff00 ${zoomLevel}|r.`);
 }
 
-addScriptHook(W3TS_HOOK.MAIN_AFTER, cameraZoomInit);
+addScriptHook(W3TS_HOOK.MAIN_AFTER, init);
