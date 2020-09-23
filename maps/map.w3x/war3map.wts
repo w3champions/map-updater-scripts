@@ -45,7 +45,7 @@ Force 1
 
 STRING 10
 {
-Twilight Ruins [NoChat]
+Twilight Ruins LV
 }
 
 STRING 11
@@ -60,11 +60,6 @@ This sunken island holds many perilous opportunities for adventurous parties to 
 
 STRING 13
 {
-W3Champions - v1
-}
-
-STRING 14
-{
-[W3C] Based off of the preferences of the players in this game, chat has been |cffff0000disabled |r|rfor this match.
+Blizzard (customized by W3C)
 }
 

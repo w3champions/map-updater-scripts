@@ -1,12 +1,18 @@
 #!/bin/bash
 mapExtractionPath=".\\maps\\map.w3x"
-mapPath=".\\maps\\w3c_maps"
-for filename in "$mapPath"/*.w3x; do
+cleanMapPath=".\\maps\\w3c_maps\\clean_maps"
+outputMapPath=".\\maps\\w3c_maps\\output"
+    
+rm -rfv "$outputMapPath" && mkdir "$outputMapPath"
+for filename in "$cleanMapPath"/*.w3x; do
     echo "$filename"
+    basename "$filename"
+    f="$(basename -- $filename)"
     rm -rfv "$mapExtractionPath" && mkdir "$mapExtractionPath"
-    "$mapPath"/MPQEditor.exe extract "$filename" "*" "$mapExtractionPath" "/fp"
+    "$cleanMapPath"/MPQEditor.exe extract "$filename" "*" "$mapExtractionPath" "/fp"
     rm -rf dist/ && npm run build
-    mv "$mapPath"/map.w3x "$filename"
+    echo "MOVING TO $outputMapPath\\$f"
+    mv ".\\maps\w3c_maps\\map.w3x" "$outputMapPath\\$f"
 done
 
 echo "Map updates completed successfully"

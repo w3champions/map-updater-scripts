@@ -1,7 +1,0 @@
-[FrameDef]
-CHAT_RECIPIENT_ALL=                                                                                                                                                                                                                                                
-CHAT_RECIPIENT_ALLIES=                                                                                                                                                                                                                                                
-CHAT_RECIPIENT_OBSERVERS=                                                                                                                                                                                                                                                
-CHAT_RECIPIENT_PRIVATE=                                                                                                                                                                                                                                                
-CHAT_RECIPIENT_REFEREES=                                                                                                                                                                                                                                                
-

@@ -1,7 +1,4 @@
-conversation.json
-Sound\Interface\InGameChatWhat1.wav
 war3map.doo
-war3map.imp
 war3map.lua
 war3map.mmp
 war3map.shd
@@ -14,5 +11,5 @@ war3map.wpm
 war3map.wtg
 war3map.wts
 war3mapMap.blp
-war3mapSkin.txt
 war3mapUnits.doo
+conversation.json
