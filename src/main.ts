@@ -26,8 +26,8 @@ function enableBadPing() {
       players.push(triggerPlayer.name);
       let remainingPlayers = playerCount - players.length;
 
-      if (players.length == 0) {
-        print(`|cff00ff00[W3C]:|r|cffFF4500 ${triggerPlayer.name}|r is proposing to cancel this game. ${remainingPlayers} vote(s) needed. Type |cffffff00 -badping|r to cancel the game.`);
+      if (players.length == 1) {
+        print(`|cff00ff00[W3C]:|r|cffFF4500 ${triggerPlayer.name}|r is proposing to cancel this game due to bad ping. \nType |cffffff00 -badping|r to cancel the game.  ${remainingPlayers} vote(s) needed.`);
       } else if (players.length < playerCount) {
         print(`|cff00ff00[W3C]:|r|cffFF4500 ${triggerPlayer.name}|r votes to cancel this game. ${remainingPlayers} vote(s) needed.`);
       }
