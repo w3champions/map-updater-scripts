@@ -1,4 +1,4 @@
-import { File, Camera, MapPlayer } from "w3ts";
+import { File, Camera, MapPlayer, getElapsedTime } from "w3ts";
 import { addScriptHook, W3TS_HOOK } from "w3ts/hooks";
 
 function init() {
@@ -10,26 +10,30 @@ function enableBadPing() {
   let badPingTrigger = CreateTrigger();
   let players = [];
   let playerCount = 0;
-
   for (let i = 0; i < bj_MAX_PLAYERS; i++) {
     if (GetPlayerSlotState(Player(i)) == PLAYER_SLOT_STATE_PLAYING) {
       playerCount++;
       TriggerRegisterPlayerChatEvent(badPingTrigger, Player(i), "-badping", false);
-      DisplayTextToPlayer(Player(i), 0, 0, `|cff00ff00[W3C]:|r If you would like to cancel this game due to bad ping, type |cffffff00 -badping|r. `);
+      DisplayTextToPlayer(Player(i), 0, 0, `|cff00ff00[W3C]:|r To cancel this game due to bad ping, all players must use|cffffff00 -badping|r.\nThis command expires in 2 minutes.`);
     }
   }
 
   TriggerAddAction(badPingTrigger, () => {
     let triggerPlayer = MapPlayer.fromEvent();
 
+    if(getElapsedTime() > 120){
+      DisplayTextToPlayer(triggerPlayer.handle, 0, 0, `|cff00ff00[W3C]:|r The|cffffff00 -badping|r command is disabled after two minutes of gameplay.`);
+      return;
+    }
+
     if (players.indexOf(triggerPlayer.name) == -1) {
       players.push(triggerPlayer.name);
       let remainingPlayers = playerCount - players.length;
 
       if (players.length == 1) {
-        print(`|cff00ff00[W3C]:|r|cffFF4500 ${triggerPlayer.name}|r is proposing to cancel this game due to bad ping. \nType |cffffff00 -badping|r to cancel the game.  ${remainingPlayers} vote(s) needed.`);
+        print(`|cff00ff00[W3C]:|r|cffFF4500 ${triggerPlayer.name}|r is proposing to cancel this game. \nType|cffffff00 -badping|r to cancel the game. ${remainingPlayers} player(s) remaining.`);
       } else if (players.length < playerCount) {
-        print(`|cff00ff00[W3C]:|r|cffFF4500 ${triggerPlayer.name}|r votes to cancel this game. ${remainingPlayers} vote(s) needed.`);
+        print(`|cff00ff00[W3C]:|r|cffFF4500 ${triggerPlayer.name}|r votes to cancel this game. ${remainingPlayers} player(s) remaining.`);
       }
     }
 
