@@ -18,6 +18,15 @@ function enableBadPing() {
     }
   }
 
+  let requiredPlayers = playerCount;
+
+  if (playerCount == 4) {
+    requiredPlayers = 3;
+  }
+  else if (playerCount == 8) {
+    requiredPlayers = 6;
+  }
+
   TriggerAddAction(badPingTrigger, () => {
     let triggerPlayer = MapPlayer.fromEvent();
 
@@ -28,16 +37,16 @@ function enableBadPing() {
 
     if (players.indexOf(triggerPlayer.name) == -1) {
       players.push(triggerPlayer.name);
-      let remainingPlayers = playerCount - players.length;
+      let remainingPlayers = requiredPlayers - players.length;
 
       if (players.length == 1) {
         print(`|cff00ff00[W3C]:|r|cffFF4500 ${triggerPlayer.name}|r is proposing to cancel this game. \nType|cffffff00 -badping|r to cancel the game. ${remainingPlayers} player(s) remaining.`);
-      } else if (players.length < playerCount) {
+      } else if (players.length < requiredPlayers) {
         print(`|cff00ff00[W3C]:|r|cffFF4500 ${triggerPlayer.name}|r votes to cancel this game. ${remainingPlayers} player(s) remaining.`);
       }
     }
 
-    if (players.length == playerCount) {
+    if (players.length == requiredPlayers) {
       for (let i = 0; i < bj_MAX_PLAYERS; i++) {
         RemovePlayerPreserveUnitsBJ(Player(i), PLAYER_GAME_RESULT_NEUTRAL, false);
       }

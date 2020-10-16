@@ -1,65 +1,47 @@
 ﻿STRING 1
 {
-Player 1
+Vile Reef
 }
 
 STRING 2
 {
-Player 2
+2v2 or FFA
 }
 
 STRING 3
 {
-Player 3
+Goblins have abandoned their shipyards. Stranglethorn Vale creatures rampage through the Vile Reef once again! Mrgrlglrl!
+
+Utilize boats to micro units, scout the map and ambush enemy bases.
 }
 
 STRING 4
 {
-Player 4
+JaleVeliki, W3Champions
 }
 
 STRING 5
 {
-Player 5
+Player 1
 }
 
 STRING 6
 {
-Player 6
+Force 1
 }
 
 STRING 7
 {
-Player 7
+Player 2
 }
 
 STRING 8
 {
-Player 8
+Player 3
 }
 
 STRING 9
 {
-Force 1
-}
-
-STRING 10
-{
-Twilight Ruins LV
-}
-
-STRING 11
-{
-2v2 - 4v4 or FFA
-}
-
-STRING 12
-{
-This sunken island holds many perilous opportunities for adventurous parties to besiege and conquer their opponents.
-}
-
-STRING 13
-{
-Blizzard (customized by W3C)
+Player 4
 }
 
