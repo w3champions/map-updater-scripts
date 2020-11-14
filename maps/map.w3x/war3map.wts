@@ -1,47 +1,36 @@
 ﻿STRING 1
 {
-Vile Reef
+Player 1
 }
 
 STRING 2
 {
-2v2 or FFA
+Force 1
 }
 
 STRING 3
 {
-Goblins have abandoned their shipyards. Stranglethorn Vale creatures rampage through the Vile Reef once again! Mrgrlglrl!
-
-Utilize boats to micro units, scout the map and ambush enemy bases.
+Amazonia
 }
 
 STRING 4
 {
-JaleVeliki, W3Champions
+1v1
 }
 
 STRING 5
 {
-Player 1
+Welcome to the dark side of the Amazon Forest... beware! 
+Strange things may lie deep in the murky dark waters...
 }
 
 STRING 6
 {
-Force 1
+Nery (customized by W3C)
 }
 
 STRING 7
 {
 Player 2
-}
-
-STRING 8
-{
-Player 3
-}
-
-STRING 9
-{
-Player 4
 }
 
