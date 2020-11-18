@@ -2,9 +2,25 @@ import { File, Camera, MapPlayer, getElapsedTime } from "w3ts";
 import { addScriptHook, W3TS_HOOK } from "w3ts/hooks";
 
 function init() {
+  enableShowCommandsTrigger();
   enableCameraZoom();
   enableBadPing();
   enableWorkerCount();
+}
+
+function enableShowCommandsTrigger() {
+  let showCommandsTrigger = CreateTrigger();
+
+  for (let i = 0; i < bj_MAX_PLAYERS; i++) {
+    TriggerRegisterPlayerChatEvent(showCommandsTrigger, Player(i), "-commands", true);
+    DisplayTextToPlayer(Player(i), 0, 0, `|cff00ff00[W3C]:|r To see available W3C commands, type|cffffff00 -commands|r.`);
+  }
+
+  TriggerAddAction(showCommandsTrigger, () => {
+    DisplayTextToPlayer(GetTriggerPlayer(), 25, 0, `|cff00ff00[W3C]:|r To cancel this game due to bad ping, all players must use|cffffff00 -badping|r.\nThis command expires 2 minutes into the game.`);
+    print("\n");
+    DisplayTextToPlayer(GetTriggerPlayer(), 0, 0, "|cff00ff00[W3C]:|r Type|cffffff00 -zoom <VALUE>|r to change your zoom level. Default: 1650 \n Minimum zoom: 1650 | Maximum zoom: 3000");
+  });
 }
 
 function enableBadPing() {
@@ -14,8 +30,8 @@ function enableBadPing() {
   for (let i = 0; i < bj_MAX_PLAYERS; i++) {
     if (GetPlayerSlotState(Player(i)) == PLAYER_SLOT_STATE_PLAYING) {
       playerCount++;
-      TriggerRegisterPlayerChatEvent(badPingTrigger, Player(i), "-badping", false);
-      DisplayTextToPlayer(Player(i), 0, 0, `|cff00ff00[W3C]:|r To cancel this game due to bad ping, all players must use|cffffff00 -badping|r.\nThis command expires in 2 minutes.`);
+      TriggerRegisterPlayerChatEvent(badPingTrigger, Player(i), "-badping", true);
+      // DisplayTextToPlayer(Player(i), 0, 0, `|cff00ff00[W3C]:|r To cancel this game due to bad ping, all players must use|cffffff00 -badping|r.\nThis command expires in 2 minutes.`);
     }
   }
 
@@ -61,23 +77,15 @@ function enableCameraZoom() {
   for (let i = 0; i < bj_MAX_PLAYERS; i++) {
     let isLocalPlayer = MapPlayer.fromHandle(Player(i)).name == MapPlayer.fromLocal().name;
 
-    // If the player is an observer, we will set a static zoom level.
-    // As of right now, observer chat events are not picked up by the ChatEvent hook from above.
-    /*** DESYNC ISSUES CURRENTLY WITH OBSERVERS ***/
-    // if (isLocalPlayer && IsPlayerObserver(Player(i))) {
-    //   setCameraZoom(1950, Player(i));
-    //   return;
-    // }
-
-    // Else if the player is not an observer, then read from the file.
+    // If the player is not an observer, then read from the file.
     if (isLocalPlayer) {
       const fileText = File.read("w3cZoomFFA.txt");
 
       if (fileText && Number(fileText) > 0) {
         setCameraZoom(Number(fileText), MapPlayer.fromLocal().handle);
       } else {
-        print("\n");
-        print("|cff00ff00[W3C] Tip:|r Type|cffffff00 -zoom <VALUE>|r to change your zoom level. Default: 1650 \n Minimum zoom: 1650 | Maximum zoom: 3000");
+        // print("\n");
+        // print("|cff00ff00[W3C] Tip:|r Type|cffffff00 -zoom <VALUE>|r to change your zoom level. Default: 1650 \n Minimum zoom: 1650 | Maximum zoom: 3000");
       }
     }
     TriggerRegisterPlayerChatEvent(zoomTrigger, Player(i), "-zoom", false);
@@ -240,7 +248,6 @@ function updateMineText(mine) {
     SetTextTagColorBJ(textTag, 100, 100, 30, 10);
   }
   SetTextTagVisibility(textTag, mine.workers > 0 && !IsPlayerEnemy(GetTriggerPlayer(), GetLocalPlayer()));
-  // SetTextTagVisibility(textTag, true);
   mine.textTag = textTag;
 }
 
