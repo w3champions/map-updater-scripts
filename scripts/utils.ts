@@ -90,7 +90,7 @@ export function processScriptIncludes(contents: string) {
 /**
  * 
  */
-export function                                                                                                                                                                                                                                                                                                                                                                                                                                             compileMap(config: IProjectConfig) {
+export function compileMap(config: IProjectConfig) {
   if (!config.mapFolder) {
     logger.error(`Could not find key "mapFolder" in config.json`);
     return false;

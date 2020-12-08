@@ -11,7 +11,7 @@ function main() {
   }
 
   const cwd = process.cwd();
-  const filename = `${cwd}/maps/w3c_maps/map.w3x`;
+  const filename = `${cwd}/dist/map.w3x`;
 
   logger.info(`Launching map "${filename.replace(/\\/g, "/")}"...`);
 
