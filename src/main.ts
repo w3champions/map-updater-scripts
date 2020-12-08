@@ -1,4 +1,7 @@
-import { File, Camera, MapPlayer, getElapsedTime } from "w3ts";
+import { MapPlayer } from "w3ts/handles/player";
+import { Camera } from "w3ts/handles/camera";
+import { getElapsedTime } from "w3ts/system/gametime";
+import { File } from "w3ts/system/file";
 import { addScriptHook, W3TS_HOOK } from "w3ts/hooks";
 
 function init() {
@@ -30,7 +33,7 @@ function enableBadPing() {
   TriggerAddAction(badPingTrigger, () => {
     let triggerPlayer = MapPlayer.fromEvent();
 
-    if(getElapsedTime() > 120){
+    if (getElapsedTime() > 120) {
       DisplayTextToPlayer(triggerPlayer.handle, 0, 0, `|cff00ff00[W3C]:|r The|cffffff00 -badping|r command is disabled after two minutes of gameplay.`);
       return;
     }
