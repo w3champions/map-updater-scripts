@@ -7,8 +7,9 @@ import { addScriptHook, W3TS_HOOK } from "w3ts/hooks";
 function init() {
   enableCameraZoom();
   enableBadPing();
-  enableUnitDeny();
-  enableCreepLastHit();
+  enableUnitDenyTrigger();
+  enableCreepLastHitTrigger();
+  enableItemSoldTrigger();
 }
 
 function enableBadPing() {
@@ -157,7 +158,7 @@ function showExclamationOverDyingUnit() {
   SetTextTagFadepointBJ(tag, 1.50)
 }
 
-function enableUnitDeny() {
+function enableUnitDenyTrigger() {
   // Returns TRUE if the unit that was killed belongs to the same player who killed it
   let checkDyingUnitBelongsToKiller = () => { return GetOwningPlayer(GetDyingUnit()) == GetOwningPlayer(GetKillingUnitBJ()) }
 
@@ -167,7 +168,7 @@ function enableUnitDeny() {
   TriggerAddAction(unitDenyTrigger, showExclamationOverDyingUnit)
 }
 
-function enableCreepLastHit() {
+function enableCreepLastHitTrigger() {
   let checkDyingUnitIsCreepAndLocalPlayerIsObserverAndEnemyIsNearby = () => {
     // Returns FALSE if dying unit it NOT a creep, or when local player is NOT an observer
     if (GetOwningPlayer(GetDyingUnit()) != Player(PLAYER_NEUTRAL_AGGRESSIVE) || GetPlayerState(GetLocalPlayer(), PLAYER_STATE_OBSERVER) == 0)
@@ -186,4 +187,20 @@ function enableCreepLastHit() {
   TriggerRegisterAnyUnitEventBJ(creepLastHitTriger, EVENT_PLAYER_UNIT_DEATH)
   TriggerAddCondition(creepLastHitTriger, Condition(checkDyingUnitIsCreepAndLocalPlayerIsObserverAndEnemyIsNearby))
   TriggerAddAction(creepLastHitTriger, showExclamationOverDyingUnit)
+}
+
+function enableItemSoldTrigger() {
+  let stackCounter: number = 0
+  let itemSoldTrigger: trigger = CreateTrigger()
+  TriggerRegisterAnyUnitEventBJ(itemSoldTrigger, EVENT_PLAYER_UNIT_PAWN_ITEM)
+  TriggerAddCondition(itemSoldTrigger, Condition(() => { return GetPlayerState(GetLocalPlayer(), PLAYER_STATE_OBSERVER) == 1}))
+  
+  TriggerAddAction(itemSoldTrigger, () => {
+    stackCounter = ModuloReal(stackCounter + 1, 3.00)
+    let col: number[] = getPlayerRGBCode(GetOwningPlayer(GetSellingUnit()))
+    CreateTextTagUnitBJ("Sold \"" + GetItemName(GetSoldItem()) + "\"", GetSellingUnit(), (-50.00 + (-50.00 * stackCounter)), 10, col[0], col[1], col[2], 0)
+    SetTextTagPermanentBJ(GetLastCreatedTextTag(), false)
+    SetTextTagLifespanBJ(GetLastCreatedTextTag(), 2.00)
+    SetTextTagFadepointBJ(GetLastCreatedTextTag(), 1.50)
+  })
 }
