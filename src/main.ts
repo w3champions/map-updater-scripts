@@ -149,52 +149,41 @@ function getPlayerRGBCode(whichPlayer: player) {
   else                                                             return [18.04, 17.65, 18.04]
 }
 
-function enableUnitDeny() {
-  let unitDenyTrigger: trigger = CreateTrigger()
+function showExclamationOverDyingUnit() {
+  let col: number[] = getPlayerRGBCode(GetOwningPlayer(GetKillingUnitBJ()))
+  let tag: texttag  = CreateTextTagUnitBJ("!", GetDyingUnit(), -50.00, 10, col[0], col[1], col[2], 0)
+  SetTextTagPermanentBJ(tag, false)
+  SetTextTagLifespanBJ(tag, 2.00)
+  SetTextTagFadepointBJ(tag, 1.50)
+}
 
-  // Check that the unit that was killed belongs to the same player who killed it
+function enableUnitDeny() {
+  // Returns TRUE if the unit that was killed belongs to the same player who killed it
   let checkDyingUnitBelongsToKiller = () => { return GetOwningPlayer(GetDyingUnit()) == GetOwningPlayer(GetKillingUnitBJ()) }
 
+  let unitDenyTrigger: trigger = CreateTrigger()
   TriggerRegisterAnyUnitEventBJ(unitDenyTrigger, EVENT_PLAYER_UNIT_DEATH)
   TriggerAddCondition(unitDenyTrigger, Condition(checkDyingUnitBelongsToKiller))
-  TriggerAddAction(unitDenyTrigger, showExclamationMarkIfVisibleEnemyIsNearby)
+  TriggerAddAction(unitDenyTrigger, showExclamationOverDyingUnit)
 }
 
 function enableCreepLastHit() {
+  let checkDyingUnitIsCreepAndLocalPlayerIsObserverAndEnemyIsNearby = () => {
+    // Returns FALSE if dying unit it NOT a creep, or when local player is NOT an observer
+    if (GetOwningPlayer(GetDyingUnit()) != Player(PLAYER_NEUTRAL_AGGRESSIVE) || GetPlayerState(GetLocalPlayer(), PLAYER_STATE_OBSERVER) == 0)
+      return false
+
+    // Returns FALSE when no enemy units are nearby (e.g. range 800 = coil range)
+    let atLeast1EnemyNearby: boolean = false
+    ForGroupBJ(GetUnitsInRangeOfLocAll(1000.00, GetUnitLoc(GetDyingUnit())), () => {
+      if (IsUnitEnemy(GetEnumUnit(), GetOwningPlayer(GetKillingUnitBJ())) == true && GetOwningPlayer(GetEnumUnit()) != Player(PLAYER_NEUTRAL_AGGRESSIVE))
+        atLeast1EnemyNearby = true
+    })
+    return atLeast1EnemyNearby
+  }
+
   let creepLastHitTriger: trigger = CreateTrigger()
-
-  // Check that the unit that was killed is a creep & local player is just an observer
-  let checkDyingUnitBelongsToCreepsAndLocalPlayerIsObserver = () => {
-    return GetOwningPlayer(GetDyingUnit()) == Player(PLAYER_NEUTRAL_AGGRESSIVE) &&
-      GetPlayerState(GetLocalPlayer(), PLAYER_STATE_OBSERVER) == 1
-  }
-
   TriggerRegisterAnyUnitEventBJ(creepLastHitTriger, EVENT_PLAYER_UNIT_DEATH)
-  TriggerAddCondition(creepLastHitTriger, Condition(checkDyingUnitBelongsToCreepsAndLocalPlayerIsObserver))
-  TriggerAddAction(creepLastHitTriger, showExclamationMarkIfVisibleEnemyIsNearby)
-}
-
-function showExclamationMarkIfVisibleEnemyIsNearby() {
-  let killingUnitPlayer: player = GetOwningPlayer(GetKillingUnitBJ())
-  let dyingUnitPlayer: player   = GetOwningPlayer(GetDyingUnit())
-  let col: number[] = getPlayerRGBCode(killingUnitPlayer)
-
-  // Detect enemy units nearby (range 800 = coil range)
-  let atLeast1EnemyNearby: boolean = false
-  ForGroupBJ(GetUnitsInRangeOfLocAll(800.00, GetUnitLoc(GetDyingUnit())), () => {
-    if (IsUnitEnemy(GetEnumUnit(),     killingUnitPlayer) == true  &&
-        IsUnitInvisible(GetEnumUnit(), killingUnitPlayer) == false &&
-        IsUnitFogged(GetEnumUnit(),    killingUnitPlayer) == false &&
-        IsUnitMasked(GetEnumUnit(),    killingUnitPlayer) == false &&
-        (GetOwningPlayer(GetEnumUnit()) != Player(PLAYER_NEUTRAL_AGGRESSIVE) || (killingUnitPlayer == Player(PLAYER_NEUTRAL_AGGRESSIVE) && dyingUnitPlayer == Player(PLAYER_NEUTRAL_AGGRESSIVE)))
-    ) atLeast1EnemyNearby = true
-  })
-
-  // Only show text if an enemy unit is nearby
-  if (atLeast1EnemyNearby) {
-    let tag: texttag = CreateTextTagUnitBJ("!", GetDyingUnit(), -50.00, 10, col[0], col[1], col[2], 0)
-    SetTextTagPermanentBJ(tag, false)
-    SetTextTagLifespanBJ(tag, 2.00)
-    SetTextTagFadepointBJ(tag, 1.50)
-  }
+  TriggerAddCondition(creepLastHitTriger, Condition(checkDyingUnitIsCreepAndLocalPlayerIsObserverAndEnemyIsNearby))
+  TriggerAddAction(creepLastHitTriger, showExclamationOverDyingUnit)
 }
