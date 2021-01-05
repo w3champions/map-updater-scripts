@@ -7,6 +7,8 @@ import { addScriptHook, W3TS_HOOK } from "w3ts/hooks";
 function init() {
   enableCameraZoom();
   enableBadPing();
+  enableUnitDeny();
+  enableCreepLastHit();
 }
 
 function enableBadPing() {
@@ -118,3 +120,83 @@ function setCameraZoom(zoomLevel: number, player: player) {
 }
 
 addScriptHook(W3TS_HOOK.MAIN_AFTER, init);
+
+function getPlayerRGBCode(whichPlayer: player) {
+  if (GetPlayerColor(whichPlayer) == PLAYER_COLOR_RED)
+    return [100, 1.17, 1.17]
+  else if (GetPlayerColor(whichPlayer) == PLAYER_COLOR_BLUE)
+    return [0, 25.88, 100]
+  else if (GetPlayerColor(whichPlayer) == PLAYER_COLOR_CYAN)  // TEAL
+    return [10.98, 90.20, 72.55]
+  else if (GetPlayerColor(whichPlayer) == PLAYER_COLOR_PURPLE)
+    return [31.37, 0, 50.59]
+  else if (GetPlayerColor(whichPlayer) == PLAYER_COLOR_YELLOW)
+    return [100, 100, 0.39]
+  else if (GetPlayerColor(whichPlayer) == PLAYER_COLOR_ORANGE)
+    return [99.6, 54.12, 5.49]
+  else if (GetPlayerColor(whichPlayer) == PLAYER_COLOR_GREEN)
+    return [12.55, 75.30, 0]
+  else if (GetPlayerColor(whichPlayer) == PLAYER_COLOR_PINK)
+    return [89.80, 35.69, 69.02]
+  else if (GetPlayerColor(whichPlayer) == PLAYER_COLOR_LIGHT_GRAY)
+    return [58.43, 58.82, 59.22]
+  else if (GetPlayerColor(whichPlayer) == PLAYER_COLOR_LIGHT_BLUE)
+    return [49.41, 74.9, 94.51]
+  else if (GetPlayerColor(whichPlayer) == PLAYER_COLOR_EMERALD)  // DARK GREEN
+    return [6.27, 38.43, 27.45]
+  else if (GetPlayerColor(whichPlayer) == PLAYER_COLOR_BROWN)
+    return [29.02, 16, 47, 1.57]
+  else
+    return [10, 10, 10]
+
+  // TODO: Add all remaining colours
+}
+
+function enableUnitDeny() {
+  let unitDenyTrigger: trigger = CreateTrigger()
+
+  // Check that the unit that was killed belongs to the same player who killed it
+  let checkDyingUnitBelongsToKiller = () => { return GetOwningPlayer(GetDyingUnit()) == GetOwningPlayer(GetKillingUnitBJ()) }
+
+  TriggerRegisterAnyUnitEventBJ(unitDenyTrigger, EVENT_PLAYER_UNIT_DEATH)
+  TriggerAddCondition(unitDenyTrigger, Condition(checkDyingUnitBelongsToKiller))
+  TriggerAddAction(unitDenyTrigger, showExclamationMarkIfVisibleEnemyIsNearby)
+}
+
+function enableCreepLastHit() {
+  let creepLastHitTriger: trigger = CreateTrigger()
+
+  // Check that the unit that was killed is a creep & local player is just an observer
+  let checkDyingUnitBelongsToCreepsAndLocalPlayerIsObserver = () => {
+    return GetOwningPlayer(GetDyingUnit()) == Player(PLAYER_NEUTRAL_AGGRESSIVE) &&
+           GetPlayerState(GetLocalPlayer(), PLAYER_STATE_OBSERVER) == 1
+  }
+
+  TriggerRegisterAnyUnitEventBJ(creepLastHitTriger, EVENT_PLAYER_UNIT_DEATH)
+  TriggerAddCondition(creepLastHitTriger, Condition(checkDyingUnitBelongsToCreepsAndLocalPlayerIsObserver))
+  TriggerAddAction(creepLastHitTriger, showExclamationMarkIfVisibleEnemyIsNearby)
+}
+
+function showExclamationMarkIfVisibleEnemyIsNearby() {
+  let killingPlayer: player = GetOwningPlayer(GetKillingUnitBJ())
+  let col: number[] = getPlayerRGBCode(killingPlayer)
+
+  // Detect enemy units nearby (range 800 = coil range)
+  let atLeast1EnemyNearby: boolean = false
+  ForGroupBJ(GetUnitsInRangeOfLocAll(800.00, GetUnitLoc(GetDyingUnit())), () => {
+    if (IsUnitEnemy(GetEnumUnit(), killingPlayer) == true &&
+      IsUnitInvisible(GetEnumUnit(), killingPlayer) == false &&
+      IsUnitFogged(GetEnumUnit(), killingPlayer) == false &&
+      IsUnitMasked(GetEnumUnit(), killingPlayer) == false &&
+      (GetOwningPlayer(GetEnumUnit()) != Player(PLAYER_NEUTRAL_AGGRESSIVE))
+    ) atLeast1EnemyNearby = true
+  })
+
+  // Only show text if an enemy unit is nearby
+  if (atLeast1EnemyNearby) {
+    let tag: texttag = CreateTextTagUnitBJ("!", GetDyingUnit(), -50.00, 10, col[0], col[1], col[2], 0)
+    SetTextTagPermanentBJ(tag, false)
+    SetTextTagLifespanBJ(tag, 2.00)
+    SetTextTagFadepointBJ(tag, 1.50)
+  }
+}
