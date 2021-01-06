@@ -152,7 +152,7 @@ function getPlayerRGBCode(whichPlayer: player) {
 
 function showExclamationOverDyingUnit() {
   let col: number[] = getPlayerRGBCode(GetOwningPlayer(GetKillingUnitBJ()))
-  let tag: texttag  = CreateTextTagUnitBJ("!", GetDyingUnit(), -50.00, 10, col[0], col[1], col[2], 0)
+  let tag: texttag  = CreateTextTagUnitBJ("!", GetDyingUnit(), -50.00, 12, col[0], col[1], col[2], 0)
   SetTextTagPermanentBJ(tag, false)
   SetTextTagLifespanBJ(tag, 2.00)
   SetTextTagFadepointBJ(tag, 1.50)
