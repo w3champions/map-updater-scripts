@@ -132,13 +132,13 @@ function updateMineText(mine) {
         textTag = mine.textTag;
     }
 
-    SetTextTagTextBJ(textTag, mine.workers + "/5", 12);
-    SetTextTagPos(textTag, GetUnitX(mine.id), GetUnitY(mine.id) - 150, 0);
+    SetTextTagTextBJ(textTag, mine.workers + "/5", 16);
+    SetTextTagPos(textTag, GetUnitX(mine.id) - 50, GetUnitY(mine.id) - 250, 0);
 
     if (mine.workers == 5) {
-        SetTextTagColorBJ(textTag, 0, 100, 0, 10);
+        SetTextTagColorBJ(textTag, 0, 100, 0, 100);
     } else {
-        SetTextTagColorBJ(textTag, 100, 100, 30, 10);
+        SetTextTagColorBJ(textTag, 100, 100, 30, 100);
     }
     SetTextTagVisibility(textTag, mine.workers > 0 && !IsPlayerEnemy(GetTriggerPlayer(), GetLocalPlayer()));
     mine.textTag = textTag;
