@@ -16,6 +16,9 @@ function main() {
   if (!fs.existsSync(config.outputFolder)) {
     fs.mkdirSync(config.outputFolder);
   }
+  console.log(`Output: ${config.outputFolder}/${config.mapFolder}`);
+  console.log(`Directory to create archive from: ./dist/${config.mapFolder}`);
+
   createMapFromDir(`${config.outputFolder}/${config.mapFolder}`, `./dist/${config.mapFolder}`);
 }
 
