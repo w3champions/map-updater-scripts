@@ -121,7 +121,6 @@ function setCameraZoom(zoomLevel: number, player: MapPlayer) {
   }
 }
 
-
 function getPlayerRGBCode(whichPlayer: MapPlayer) {
   return playerColors[GetHandleId(whichPlayer.color)];
 }
@@ -138,7 +137,6 @@ function showExclamationOverDyingUnit(type: string) {
   tt.setPermanent(false);
   tt.setLifespan(2.00);
   tt.setFadepoint(1.50);
-
 
   if (type == "UNIT_DENY") {
     // Only show if the player actually has vision of the dying unit (or if player is observer);
