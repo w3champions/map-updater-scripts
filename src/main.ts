@@ -210,6 +210,7 @@ function enableItemSoldTrigger() {
     let col: number[] = getPlayerRGBCode(GetOwningPlayer(GetSellingUnit()))
     CreateTextTagUnitBJ("Sold \"" + GetItemName(GetSoldItem()) + "\"", GetSellingUnit(), (-50.00 + (-50.00 * stackCounter)), 10, col[0], col[1], col[2], 0)
     SetTextTagPermanentBJ(GetLastCreatedTextTag(), false)
+    SetTextTagVelocityBJ(GetLastCreatedTextTag(), 30, (50.00 + (-50.00 * stackCounter)))
     SetTextTagLifespanBJ(GetLastCreatedTextTag(), 2.00)
     SetTextTagFadepointBJ(GetLastCreatedTextTag(), 1.50)
   })
