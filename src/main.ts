@@ -159,12 +159,22 @@ function showExclamationOverDyingUnit() {
 }
 
 function enableUnitDenyTrigger() {
-  // Returns TRUE if the unit that was killed belongs to the same player who killed it
-  let checkDyingUnitBelongsToKiller = () => { return GetOwningPlayer(GetDyingUnit()) == GetOwningPlayer(GetKillingUnitBJ()) }
+  // Returns TRUE if the unit that was killed belongs to the same player who killed it and
+  //              if the local player actually has vision of both the dying unit & killing unit
+  //              (so that players won't see denies in fog of war)
+  let checkDyingUnitBelongsToKillerAndLocalPlayerCanSeeDeny = () => {
+      return GetOwningPlayer(GetDyingUnit()) == GetOwningPlayer(GetKillingUnitBJ()) &&
+             IsUnitInvisible(GetDyingUnit(),   GetLocalPlayer()) == false &&
+             IsUnitInvisible(GetKillingUnit(), GetLocalPlayer()) == false &&
+             IsUnitFogged   (GetDyingUnit(),   GetLocalPlayer()) == false &&
+             IsUnitFogged   (GetKillingUnit(), GetLocalPlayer()) == false &&
+             IsUnitMasked   (GetDyingUnit(),   GetLocalPlayer()) == false &&
+             IsUnitMasked   (GetKillingUnit(), GetLocalPlayer()) == false
+    }
 
   let unitDenyTrigger: trigger = CreateTrigger()
   TriggerRegisterAnyUnitEventBJ(unitDenyTrigger, EVENT_PLAYER_UNIT_DEATH)
-  TriggerAddCondition(unitDenyTrigger, Condition(checkDyingUnitBelongsToKiller))
+  TriggerAddCondition(unitDenyTrigger, Condition(checkDyingUnitBelongsToKillerAndLocalPlayerCanSeeDeny))
   TriggerAddAction(unitDenyTrigger, showExclamationOverDyingUnit)
 }
 
