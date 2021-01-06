@@ -150,38 +150,41 @@ function getPlayerRGBCode(whichPlayer: player) {
   else                                                             return [18.04, 17.65, 18.04]
 }
 
-function showExclamationOverDyingUnit() {
+function showExclamationOverDyingUnit(type: string) {
   let col: number[] = getPlayerRGBCode(GetOwningPlayer(GetKillingUnitBJ()))
   let tag: texttag  = CreateTextTagUnitBJ("!", GetDyingUnit(), -50.00, 12, col[0], col[1], col[2], 0)
   SetTextTagPermanentBJ(tag, false)
   SetTextTagLifespanBJ(tag, 2.00)
   SetTextTagFadepointBJ(tag, 1.50)
+
+  if (type == "UNIT_DENY") {
+    // Only show if the player actually has vision of the dying unit (or if player is observer);
+    // that way players won't see denies in fog of war
+    SetTextTagVisibility(tag, (IsUnitInvisible(GetDyingUnit(), GetLocalPlayer()) == false &&
+                               IsUnitFogged   (GetDyingUnit(), GetLocalPlayer()) == false &&
+                               IsUnitMasked   (GetDyingUnit(), GetLocalPlayer()) == false) ||
+                              GetPlayerState(GetLocalPlayer(), PLAYER_STATE_OBSERVER) == 1)
+  }
+  else if (type == "CREEP_LAST_HIT") {
+    // Only show if the player is an observer
+    SetTextTagVisibility(tag, GetPlayerState(GetLocalPlayer(), PLAYER_STATE_OBSERVER) == 1)
+  }
 }
 
 function enableUnitDenyTrigger() {
-  // Returns TRUE if the unit that was killed belongs to the same player who killed it and
-  //              if the local player actually has vision of both the dying unit & killing unit
-  //              (so that players won't see denies in fog of war)
-  let checkDyingUnitBelongsToKillerAndLocalPlayerCanSeeDeny = () => {
-      return GetOwningPlayer(GetDyingUnit()) == GetOwningPlayer(GetKillingUnitBJ()) &&
-             IsUnitInvisible(GetDyingUnit(),   GetLocalPlayer()) == false &&
-             IsUnitInvisible(GetKillingUnit(), GetLocalPlayer()) == false &&
-             IsUnitFogged   (GetDyingUnit(),   GetLocalPlayer()) == false &&
-             IsUnitFogged   (GetKillingUnit(), GetLocalPlayer()) == false &&
-             IsUnitMasked   (GetDyingUnit(),   GetLocalPlayer()) == false &&
-             IsUnitMasked   (GetKillingUnit(), GetLocalPlayer()) == false
-    }
+  // Returns TRUE if the unit that was killed belongs to the same player who killed it
+  let checkDyingUnitBelongsToKiller = () => { return GetOwningPlayer(GetDyingUnit()) == GetOwningPlayer(GetKillingUnitBJ()) }
 
   let unitDenyTrigger: trigger = CreateTrigger()
   TriggerRegisterAnyUnitEventBJ(unitDenyTrigger, EVENT_PLAYER_UNIT_DEATH)
-  TriggerAddCondition(unitDenyTrigger, Condition(checkDyingUnitBelongsToKillerAndLocalPlayerCanSeeDeny))
-  TriggerAddAction(unitDenyTrigger, showExclamationOverDyingUnit)
+  TriggerAddCondition(unitDenyTrigger, Condition(checkDyingUnitBelongsToKiller))
+  TriggerAddAction(unitDenyTrigger, () => showExclamationOverDyingUnit("UNIT_DENY"))
 }
 
 function enableCreepLastHitTrigger() {
   let checkDyingUnitIsCreepAndLocalPlayerIsObserverAndEnemyIsNearby = () => {
-    // Returns FALSE if dying unit it NOT a creep, or when local player is NOT an observer
-    if (GetOwningPlayer(GetDyingUnit()) != Player(PLAYER_NEUTRAL_AGGRESSIVE) || GetPlayerState(GetLocalPlayer(), PLAYER_STATE_OBSERVER) == 0)
+    // Returns FALSE if dying unit is NOT a creep
+    if (GetOwningPlayer(GetDyingUnit()) != Player(PLAYER_NEUTRAL_AGGRESSIVE))
       return false
 
     // Returns FALSE when no enemy units are nearby (e.g. range 800 = coil range)
@@ -196,22 +199,24 @@ function enableCreepLastHitTrigger() {
   let creepLastHitTriger: trigger = CreateTrigger()
   TriggerRegisterAnyUnitEventBJ(creepLastHitTriger, EVENT_PLAYER_UNIT_DEATH)
   TriggerAddCondition(creepLastHitTriger, Condition(checkDyingUnitIsCreepAndLocalPlayerIsObserverAndEnemyIsNearby))
-  TriggerAddAction(creepLastHitTriger, showExclamationOverDyingUnit)
+  TriggerAddAction(creepLastHitTriger, () => showExclamationOverDyingUnit("CREEP_LAST_HIT"))
 }
 
 function enableItemSoldTrigger() {
   let stackCounter: number = 0
   let itemSoldTrigger: trigger = CreateTrigger()
   TriggerRegisterAnyUnitEventBJ(itemSoldTrigger, EVENT_PLAYER_UNIT_PAWN_ITEM)
-  TriggerAddCondition(itemSoldTrigger, Condition(() => { return GetPlayerState(GetLocalPlayer(), PLAYER_STATE_OBSERVER) == 1}))
   
   TriggerAddAction(itemSoldTrigger, () => {
     stackCounter = ModuloReal(stackCounter + 1, 3.00)
     let col: number[] = getPlayerRGBCode(GetOwningPlayer(GetSellingUnit()))
-    CreateTextTagUnitBJ("Sold \"" + GetItemName(GetSoldItem()) + "\"", GetSellingUnit(), (-50.00 + (-50.00 * stackCounter)), 10, col[0], col[1], col[2], 0)
-    SetTextTagPermanentBJ(GetLastCreatedTextTag(), false)
-    SetTextTagVelocityBJ(GetLastCreatedTextTag(), 30, (50.00 + (-50.00 * stackCounter)))
-    SetTextTagLifespanBJ(GetLastCreatedTextTag(), 2.00)
-    SetTextTagFadepointBJ(GetLastCreatedTextTag(), 1.50)
+    let tag: texttag = CreateTextTagUnitBJ("Sold \"" + GetItemName(GetSoldItem()) + "\"", GetSellingUnit(), (-50.00 + (-50.00 * stackCounter)), 10, col[0], col[1], col[2], 0)
+    SetTextTagPermanentBJ(tag, false)
+    SetTextTagVelocityBJ(tag, 30, (50.00 + (-50.00 * stackCounter)))
+    SetTextTagLifespanBJ(tag, 2.00)
+    SetTextTagFadepointBJ(tag, 1.50)
+
+    // Only show if the local player is an observer
+    SetTextTagVisibility(tag, GetPlayerState(GetLocalPlayer(), PLAYER_STATE_OBSERVER) == 1)
   })
 }
