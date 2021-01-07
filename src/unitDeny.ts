@@ -1,14 +1,43 @@
 import { getPlayerRGBCode } from "utils";
-import { Unit, MapPlayer, Trigger } from "w3ts/index";
+import { Unit, MapPlayer, Trigger, File } from "w3ts/index";
 
 export function enableUnitDenyTrigger() {
-  const t = new Trigger()
-  t.registerAnyUnitEvent(EVENT_PLAYER_UNIT_DEATH);
-  t.addCondition(() => Unit.fromEvent().owner.isPlayerAlly(Unit.fromHandle(GetKillingUnit()).owner));  // Returns TRUE if the unit that was killed belongs to the same player who killed it
-  t.addAction(() => showExclamationOverDyingUnit("UNIT_DENY"));
+  const denyToggleTrigger = new Trigger()
+  let isDenyEnabled: boolean = true
+
+  for (let i = 0; i < bj_MAX_PLAYERS; i++) {
+    // If the player is not an observer, then read settings from file
+    if (!MapPlayer.fromHandle(Player(i)).isObserver()) {
+      const fileText = File.read("w3cUnitDeny.txt")
+
+      if (fileText)
+        isDenyEnabled = (fileText == "true")
+    }
+
+    denyToggleTrigger.registerPlayerChatEvent(MapPlayer.fromHandle(Player(i)), "-deny", true)
+  }
+
+  denyToggleTrigger.addAction(() => {
+    let triggerPlayer = MapPlayer.fromEvent()
+    let localPlayer = MapPlayer.fromLocal()
+
+    // Making sure that enable/disable only if the local player is the one who called the command
+    if (triggerPlayer.name != localPlayer.name) {
+      return;
+    }
+
+    isDenyEnabled = !isDenyEnabled
+    DisplayTextToPlayer(triggerPlayer.handle, 0, 0, `|cff00ff00[W3C]:|r Unit Deny is now |cffffff00` + (isDenyEnabled ? `ENABLED` : `DISABLED`) + `|r.`);
+    File.write("w3cUnitDeny.txt", isDenyEnabled.toString())
+  })
+
+  const denyTrigger = new Trigger()
+  denyTrigger.registerAnyUnitEvent(EVENT_PLAYER_UNIT_DEATH);
+  denyTrigger.addCondition(() => Unit.fromEvent().owner.isPlayerAlly(Unit.fromHandle(GetKillingUnit()).owner));  // Returns TRUE if the unit that was killed belongs to the same player who killed it
+  denyTrigger.addAction(() => showExclamationOverDyingUnit(isDenyEnabled, "UNIT_DENY"));
 }
 
-export function showExclamationOverDyingUnit(type: string) {
+export function showExclamationOverDyingUnit(isDenyEnabled: boolean, type: string) {
   const dyingUnit = Unit.fromHandle(GetDyingUnit());
   const localPlayer = MapPlayer.fromLocal();
   const color = getPlayerRGBCode(Unit.fromHandle(GetKillingUnit()).owner)
@@ -22,7 +51,7 @@ export function showExclamationOverDyingUnit(type: string) {
   if (type == "UNIT_DENY") {
     // Only show if the player actually has vision of the dying unit (or if player is observer);
     // that way players won't see denies in fog of war
-    SetTextTagVisibility(tag, (dyingUnit.isVisible(localPlayer) && !dyingUnit.isFogged(localPlayer) && !dyingUnit.isMasked(localPlayer)) || localPlayer.isObserver());
+    SetTextTagVisibility(tag, (isDenyEnabled && dyingUnit.isVisible(localPlayer) && !dyingUnit.isFogged(localPlayer) && !dyingUnit.isMasked(localPlayer)) || localPlayer.isObserver());
   }
   else if (type == "CREEP_LAST_HIT") {
     // Only show if the player is an observer

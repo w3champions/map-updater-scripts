@@ -25,5 +25,5 @@ export function enableCreepLastHitTrigger() {
   const t = new Trigger()
   t.registerAnyUnitEvent(EVENT_PLAYER_UNIT_DEATH)
   t.addCondition(() => checkDyingUnitIsCreepAndEnemyIsNearby())
-  t.addAction(() => showExclamationOverDyingUnit("CREEP_LAST_HIT"))
+  t.addAction(() => showExclamationOverDyingUnit(true, "CREEP_LAST_HIT"))
 }
