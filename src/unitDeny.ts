@@ -4,7 +4,7 @@ import { Unit, MapPlayer, TextTag, Trigger } from "w3ts/index";
 export function enableUnitDenyTrigger() {
   const t = new Trigger()
   t.registerAnyUnitEvent(EVENT_PLAYER_UNIT_DEATH);
-  t.addCondition(() => Unit.fromEvent().owner === Unit.fromHandle(GetKillingUnit()).owner);  // Returns TRUE if the unit that was killed belongs to the same player who killed it
+  t.addCondition(() => Unit.fromEvent().owner.isPlayerAlly(Unit.fromHandle(GetKillingUnit()).owner));  // Returns TRUE if the unit that was killed belongs to the same player who killed it
   t.addAction(() => showExclamationOverDyingUnit("UNIT_DENY"));
 }
 
