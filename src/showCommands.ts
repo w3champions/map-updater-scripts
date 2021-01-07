@@ -7,8 +7,10 @@ export function enableShowCommandsTrigger() {
     }
 
     TriggerAddAction(showCommandsTrigger, () => {
-        DisplayTextToPlayer(GetTriggerPlayer(), 25, 0, `|cff00ff00[W3C]:|r To cancel this game due to bad ping, all players must use|cffffff00 -badping|r.\nThis command expires 2 minutes into the game.`);
         print("\n");
-        DisplayTextToPlayer(GetTriggerPlayer(), 0, 0, "|cff00ff00[W3C]:|r Type|cffffff00 -zoom <VALUE>|r to change your zoom level. Default: 1650 \n Minimum zoom: 1650 | Maximum zoom: 3000");
+        DisplayTextToPlayer(GetTriggerPlayer(), 25, 0, `|cff00ff00[W3C]:|r Command List:`);
+        DisplayTextToPlayer(GetTriggerPlayer(), 25, 0, `  |cffffff00•|r To cancel this game due to bad ping, all players must use|cffffff00 -badping|r.\n      This command expires 2 minutes into the game.`);
+        DisplayTextToPlayer(GetTriggerPlayer(), 0, 0,  `  |cffffff00•|r Type|cffffff00 -zoom <VALUE>|r to change your zoom level. Default: 1650\n      Minimum zoom: 1650 | Maximum zoom: 3000`);
+        DisplayTextToPlayer(GetTriggerPlayer(), 0, 0,  `  |cffffff00•|r Type|cffffff00 -deny|r to either enable or disable showing |cffffff00 !|r when a player's unit is denied`);
     });
 }
