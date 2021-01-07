@@ -27,7 +27,7 @@ export function enableUnitDenyTrigger() {
     }
 
     isDenyEnabled = !isDenyEnabled
-    DisplayTextToPlayer(triggerPlayer.handle, 0, 0, `|cff00ff00[W3C]:|r Unit Deny is now |cffffff00` + (isDenyEnabled ? `ENABLED` : `DISABLED`) + `|r.`);
+    DisplayTextToPlayer(triggerPlayer.handle, 0, 0, `\n|cff00ff00[W3C]:|r Showing |cffffff00 !|r when a player's unit is denied is now |cffffff00 ` + (isDenyEnabled ? `ENABLED` : `DISABLED`) + `|r.`);
     File.write("w3cUnitDeny.txt", isDenyEnabled.toString())
   })
 
