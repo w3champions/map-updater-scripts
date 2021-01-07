@@ -12,7 +12,7 @@ export function enableItemSoldTrigger() {
 
     stackCounter = ModuloReal(stackCounter + 1, 3.00)
     const color = getPlayerRGBCode(sellingUnit.owner)
-    let tag: texttag = CreateTextTagUnitBJ("Sold \"" + item.name + "\"", sellingUnit.handle, -50.00 + (-50.00 * stackCounter), 10, color.red, color.green, color.blue, 0)
+    let tag: texttag = CreateTextTagUnitBJ("Sold \"" + item.name + "\"", sellingUnit.handle, -50.00 + (-50.00 * stackCounter), 10, color[0], color[1], color[2], 0)
     SetTextTagPermanentBJ(tag, false)
     SetTextTagVelocityBJ(tag, 30, 50.00 + (-50.00 * stackCounter))
     SetTextTagLifespanBJ(tag, 2.50)
