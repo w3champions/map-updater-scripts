@@ -1,5 +1,6 @@
 import { getPlayerRGBCode } from "utils";
 import { Unit, MapPlayer, Trigger, File } from "w3ts/index";
+import { Players } from "w3ts/globals/index";
 
 export function enableUnitDenyTrigger() {
   const denyToggleTrigger = new Trigger()
@@ -31,9 +32,15 @@ export function enableUnitDenyTrigger() {
     File.write("w3cUnitDeny.txt", isDenyEnabled.toString())
   })
 
+  // Returns TRUE if the unit that was killed belongs to the same player/team who killed it, or when the killer is a creep
+  let checkKillerIsAllyOfDyingUnitOrKillerIsACreep = () => {
+    return Unit.fromEvent().owner.isPlayerAlly(Unit.fromHandle(GetKillingUnit()).owner) ||
+      Unit.fromHandle(GetKillingUnit()).owner == Players[PLAYER_NEUTRAL_AGGRESSIVE]
+  }
+
   const denyTrigger = new Trigger()
   denyTrigger.registerAnyUnitEvent(EVENT_PLAYER_UNIT_DEATH);
-  denyTrigger.addCondition(() => Unit.fromEvent().owner.isPlayerAlly(Unit.fromHandle(GetKillingUnit()).owner));  // Returns TRUE if the unit that was killed belongs to the same player who killed it
+  denyTrigger.addCondition(checkKillerIsAllyOfDyingUnitOrKillerIsACreep);
   denyTrigger.addAction(() => showExclamationOverDyingUnit(isDenyEnabled, "UNIT_DENY"));
 }
 

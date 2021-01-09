@@ -7,8 +7,8 @@ export function enableCreepLastHitTrigger() {
     const dyingUnit = Unit.fromHandle(GetDyingUnit())
     const killingPlayer = Unit.fromHandle(GetKillingUnitBJ()).owner
 
-    // Returns FALSE if dying unit is NOT a creep
-    if (dyingUnit.owner != Players[PLAYER_NEUTRAL_AGGRESSIVE]) {
+    // Returns FALSE if dying unit is NOT a creep, or when killing unit is a creep
+    if (dyingUnit.owner != Players[PLAYER_NEUTRAL_AGGRESSIVE] || killingPlayer == Players[PLAYER_NEUTRAL_AGGRESSIVE]) {
       return false
     }
 
