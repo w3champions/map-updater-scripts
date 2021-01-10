@@ -1,5 +1,6 @@
 import { enableBadPing } from "badping";
-import { enableCreepLastHitTrigger } from "creepLastHit";
+import { enableLastHitOnCreepTrigger } from "lastHitOnCreep";
+import { enableBuildingCancelTrigger } from "buildingCancel";
 import { enableItemSoldTrigger } from "itemSold";
 import { enableShowCommandsTrigger } from "showCommands";
 import { enableUnitDenyTrigger } from "unitDeny";
@@ -13,8 +14,11 @@ function init() {
   enableBadPing();
   enableWorkerCount();
   enableUnitDenyTrigger();
+
+  // Observer-Only Features
   enableItemSoldTrigger();
-  enableCreepLastHitTrigger();
+  enableLastHitOnCreepTrigger();
+  enableBuildingCancelTrigger();
 }
 
 addScriptHook(W3TS_HOOK.MAIN_AFTER, init);
