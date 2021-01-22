@@ -1,20 +1,30 @@
 import { MapPlayer, File, Camera } from "w3ts/index";
 
+let currentZoomLevel = 1650;
+
 export function enableCameraZoom() {
     let zoomTrigger = CreateTrigger();
+    let obsResetZoomTrigger = CreateTrigger();
 
     for (let i = 0; i < bj_MAX_PLAYERS; i++) {
+        let localPlayer = MapPlayer.fromLocal().handle;
         let isLocalPlayer = MapPlayer.fromHandle(Player(i)).name == MapPlayer.fromLocal().name;
 
-        // If the player is not an observer, then read from the file.
         if (isLocalPlayer) {
             const fileText = File.read("w3cZoomFFA.txt");
-
-            if (fileText && Number(fileText) > 0) {
-                setCameraZoom(Number(fileText), MapPlayer.fromLocal().handle);
+            currentZoomLevel = Number(fileText);
+            if (fileText && currentZoomLevel > 0) {
+                setCameraZoom(currentZoomLevel, MapPlayer.fromLocal().handle);
             } else {
-                // print("\n");
-                // print("|cff00ff00[W3C] Tip:|r Type|cffffff00 -zoom <VALUE>|r to change your zoom level. Default: 1650 \n Minimum zoom: 1650 | Maximum zoom: 3000");
+                if (IsPlayerObserver(localPlayer)) {
+                    currentZoomLevel = 1950;
+                    setCameraZoom(1950, localPlayer);
+                }
+            }
+
+            if (IsPlayerObserver(localPlayer)) {
+                TriggerRegisterTimerEvent(obsResetZoomTrigger, 15, true);
+                TriggerAddAction(obsResetZoomTrigger, observerResetZoom);
             }
         }
         TriggerRegisterPlayerChatEvent(zoomTrigger, Player(i), "-zoom", false);
@@ -22,7 +32,7 @@ export function enableCameraZoom() {
 
     TriggerAddAction(zoomTrigger, () => {
         let triggerPlayer = MapPlayer.fromEvent();
-        let localPlayer = MapPlayer.fromLocal();;
+        let localPlayer = MapPlayer.fromLocal();
 
         // Making sure that we only set our zoom level only if the local player is the one who called the command
         if (triggerPlayer.name != localPlayer.name) {
@@ -36,7 +46,11 @@ export function enableCameraZoom() {
     });
 }
 
-function setCameraZoom(zoomLevel: number, player: player) {
+function observerResetZoom() {
+    setCameraZoom(currentZoomLevel, MapPlayer.fromLocal().handle, false);
+}
+
+function setCameraZoom(zoomLevel: number, player: player, shouldDisplayText: boolean = true) {
     const maxZoom = 3000;
     const minZoom = 1650;
 
@@ -47,7 +61,9 @@ function setCameraZoom(zoomLevel: number, player: player) {
     }
 
     if (player == MapPlayer.fromLocal().handle) {
-        DisplayTextToPlayer(player, 0, 0, `|cff00ff00[W3C]:|r Zoom is set to|cffffff00 ${zoomLevel}|r.`);
+        if (shouldDisplayText) {
+            DisplayTextToPlayer(player, 0, 0, `|cff00ff00[W3C]:|r Zoom is set to|cffffff00 ${zoomLevel}|r.`);
+        }
         Camera.setField(CAMERA_FIELD_TARGET_DISTANCE, zoomLevel, 0.0);
     }
 }
