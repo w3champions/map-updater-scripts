@@ -43,6 +43,7 @@ export function enableWorkerCount() {
         DisplayTextToPlayer(triggerPlayer.handle, 0, 0, `\n|cff00ff00[W3C]:|r Worker count feature is now |cffffff00 ` + (isWorkerCountEnabled ? `ENABLED` : `DISABLED`) + `|r.`)
 
         mines.forEach(mine => {
+            SetTextTagVisibility(mine.textTagBlack, isWorkerCountEnabled && mine.workers > 0 && !IsPlayerEnemy(GetTriggerPlayer(), GetLocalPlayer()));
             SetTextTagVisibility(mine.textTag, isWorkerCountEnabled && mine.workers > 0 && !IsPlayerEnemy(GetTriggerPlayer(), GetLocalPlayer()));
         });
         File.write("w3cWorkerCount.txt", isWorkerCountEnabled.toString())
