@@ -1,6 +1,15 @@
 import { MapPlayer, Unit } from "w3ts/index";
+import { Players } from "w3ts/globals/index";
 
 export function getPlayerRGBCode(whichPlayer: MapPlayer) {
+  if (GetAllyColorFilterState() == 2 && MapPlayer.fromLocal().isObserver() == false)
+  {
+    if      (whichPlayer == Players[PLAYER_NEUTRAL_AGGRESSIVE]) return [18.04, 17.65,  18.04]  // Creeps: Grey
+    else if (whichPlayer == MapPlayer.fromLocal())              return [ 0.00, 25.88, 100.00]  // Self:   PLAYER_COLOR_BLUE
+    else if (whichPlayer.isPlayerAlly(MapPlayer.fromLocal()))   return [10.59, 90.59,  72.94]  // Ally:   PLAYER_COLOR_CYAN
+    else                                                        return [100.00, 1.18,   1.18]  // Enemy:  PLAYER_COLOR_RED
+  }
+
   if      (whichPlayer.color == PLAYER_COLOR_RED)        return [100.00, 1.18, 1.18]
   else if (whichPlayer.color == PLAYER_COLOR_BLUE)       return [0.00, 25.88, 100.00]
   else if (whichPlayer.color == PLAYER_COLOR_CYAN)       return [10.59, 90.59, 72.94]
