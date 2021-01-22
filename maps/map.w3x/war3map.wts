@@ -1,23 +1,21 @@
 ﻿STRING 1
 {
-Vile Reef
+Wellspring Temple
 }
 
 STRING 2
 {
-2v2 or FFA
+4v4 or FFA
 }
 
 STRING 3
 {
-Goblins have abandoned their shipyards. Stranglethorn Vale creatures rampage through the Vile Reef once again! Mrgrlglrl!
-
-Utilize boats to micro units, scout the map and ambush enemy bases.
+A mysterious well originates in the center of this abandoned temple, providing fertility to the surrounding planes. But look out! You might not be the only contender striving to control these promising lands.
 }
 
 STRING 4
 {
-JaleVeliki, W3Champions
+Kaer, W3Champions
 }
 
 STRING 5
@@ -43,5 +41,25 @@ Player 3
 STRING 9
 {
 Player 4
+}
+
+STRING 10
+{
+Player 5
+}
+
+STRING 11
+{
+Player 6
+}
+
+STRING 12
+{
+Player 7
+}
+
+STRING 13
+{
+Player 8
 }
 

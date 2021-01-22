@@ -22,10 +22,10 @@ export function enableCameraZoom() {
                 }
             }
 
-            if (IsPlayerObserver(localPlayer)) {
-                TriggerRegisterTimerEvent(obsResetZoomTrigger, 15, true);
-                TriggerAddAction(obsResetZoomTrigger, observerResetZoom);
-            }
+            // if (IsPlayerObserver(localPlayer)) {
+            //     TriggerRegisterTimerEvent(obsResetZoomTrigger, 15, true);
+            //     TriggerAddAction(obsResetZoomTrigger, observerResetZoom);
+            // }
         }
         TriggerRegisterPlayerChatEvent(zoomTrigger, Player(i), "-zoom", false);
     }
