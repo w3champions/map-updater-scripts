@@ -8,8 +8,9 @@ export function enableShowCommandsTrigger() {
 
     TriggerAddAction(showCommandsTrigger, () => {
         DisplayTextToPlayer(GetTriggerPlayer(), 0, 0, `\n|cff00ff00[W3C Commands]:|r\n` +
-                                                      `  |cffffff00•|r To cancel game due to bad ping, all players must use|cffffff00 -badping|r.\n      This command expires 2 minutes into the game.\n` +
-                                                      `  |cffffff00•|r Type|cffffff00 -zoom <VALUE>|r to change your zoom level.\n       Default Value: 1650 | Minimum: 1650 | Maximum: 3000\n` + 
-                                                      `  |cffffff00•|r Type|cffffff00 -deny|r to either enable (or disable) showing |cffffff00 !|r when\n      a player's unit is denied`);
+            `  |cffffff00•|r Type|cffffff00 -badping|r to cancel game. Expires after 2 minutes.\n` +
+            `  |cffffff00•|r Type|cffffff00 -zoom <VALUE>|r to change your zoom level. (1650 - 3000)\n` +
+            `  |cffffff00•|r Type|cffffff00 -deny|r to show/hide|cffffff00 !|r when a player's unit is denied.\n` +
+            `  |cffffff00•|r Type|cffffff00 -workercount|r to show/hide goldmine worker count.`);
     });
 }

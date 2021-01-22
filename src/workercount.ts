@@ -1,13 +1,24 @@
+import { File, MapPlayer, Trigger } from "w3ts/index";
 
+let isWorkerCountEnabled = true;
 
 export function enableWorkerCount() {
+    let workerCountTrigger = new Trigger();
     let issuedTargetOrderTrigger = CreateTrigger();
     let issuedOrder = CreateTrigger();
     let issuedPointOrder = CreateTrigger();
     let lossOfUnitTrigger = CreateTrigger();
 
-
     for (let i = 0; i < bj_MAX_PLAYERS; i++) {
+        let isLocalPlayer = MapPlayer.fromHandle(Player(i)).name == MapPlayer.fromLocal().name;
+        if (isLocalPlayer) {
+            const fileText = File.read("w3cWorkerCount.txt")
+
+            if (fileText) {
+                isWorkerCountEnabled = (fileText == "true");
+            }
+        }
+        workerCountTrigger.registerPlayerChatEvent(MapPlayer.fromHandle(Player(i)), "-workercount", true);
         TriggerRegisterPlayerUnitEventSimple(issuedTargetOrderTrigger, Player(i), EVENT_PLAYER_UNIT_ISSUED_TARGET_ORDER);
         TriggerRegisterPlayerUnitEventSimple(issuedOrder, Player(i), EVENT_PLAYER_UNIT_ISSUED_UNIT_ORDER);
         TriggerRegisterPlayerUnitEventSimple(issuedPointOrder, Player(i), EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER);
@@ -19,6 +30,23 @@ export function enableWorkerCount() {
     TriggerAddAction(issuedOrder, action_issuedOrder);
     TriggerAddAction(issuedPointOrder, action_issuedOrder);
     TriggerAddAction(lossOfUnitTrigger, action_lossOfUnit);
+
+    workerCountTrigger.addAction(() => {
+        let triggerPlayer = MapPlayer.fromEvent()
+        let localPlayer = MapPlayer.fromLocal()
+
+        // Making sure that enable/disable only if the local player is the one who called the command
+        if (triggerPlayer.name != localPlayer.name)
+            return
+
+        isWorkerCountEnabled = !isWorkerCountEnabled
+        DisplayTextToPlayer(triggerPlayer.handle, 0, 0, `\n|cff00ff00[W3C]:|r Worker count feature is now |cffffff00 ` + (isWorkerCountEnabled ? `ENABLED` : `DISABLED`) + `|r.`)
+
+        mines.forEach(mine => {
+            SetTextTagVisibility(mine.textTag, isWorkerCountEnabled && mine.workers > 0 && !IsPlayerEnemy(GetTriggerPlayer(), GetLocalPlayer()));
+        });
+        File.write("w3cWorkerCount.txt", isWorkerCountEnabled.toString())
+    });
 }
 
 function action_lossOfUnit() {
@@ -38,7 +66,7 @@ function action_issuedOrder() {
 }
 
 function unitIsWorker(whichUnit) {
-    const workerIds = [FourCC('ngir'), FourCC('hpea'), FourCC('opeo'), FourCC('uaco'), FourCC('ugho'), FourCC('ewsp')];
+    const workerIds = [FourCC('ngir'), FourCC('hpea'), FourCC('opeo'), FourCC('uaco'), FourCC('ewsp')];
     if (workerIds.some(x => x == GetUnitTypeId(whichUnit))) {
         return true;
     }
@@ -96,11 +124,33 @@ function unitCanGatherTarget(unit, target, isUnit) {
         }
     } else {
         // Gold
-        if (unitIsWorker(unit) && targetIsGold(target)) {
+        if (unitIsWorker(unit) && targetIsGold(target) && unitCanGatherAppropriateGoldMine(GetUnitName(target), GetUnitTypeId(unit))) {
             return true;
         }
     }
     return false;
+}
+
+function unitCanGatherAppropriateGoldMine(goldMineName, workerTypeId) {
+    switch (workerTypeId) {
+        case FourCC("uaco"): {
+            if (goldMineName == "Haunted Gold Mine") {
+                return true;
+            } else return false;
+        }
+        case FourCC("ewsp"):{
+            if (goldMineName == "Entangled Gold Mine") {
+                return true;
+            } else return false;
+        }
+        default: {
+            if(goldMineName == "Gold Mine"){
+                return true;
+            } else {
+                return false;
+            }
+        }
+    }
 }
 
 function unitOrderedToGather(orderId, targetName) {
@@ -140,7 +190,7 @@ function updateMineText(mine) {
     } else {
         SetTextTagColorBJ(textTag, 100, 100, 30, 100);
     }
-    SetTextTagVisibility(textTag, mine.workers > 0 && !IsPlayerEnemy(GetTriggerPlayer(), GetLocalPlayer()));
+    SetTextTagVisibility(textTag, isWorkerCountEnabled && mine.workers > 0 && !IsPlayerEnemy(GetTriggerPlayer(), GetLocalPlayer()));
     mine.textTag = textTag;
 }
 
