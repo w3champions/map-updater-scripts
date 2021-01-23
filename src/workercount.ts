@@ -43,6 +43,7 @@ export function enableWorkerCount() {
         DisplayTextToPlayer(triggerPlayer.handle, 0, 0, `\n|cff00ff00[W3C]:|r Worker count feature is now |cffffff00 ` + (isWorkerCountEnabled ? `ENABLED` : `DISABLED`) + `|r.`)
 
         mines.forEach(mine => {
+            SetTextTagVisibility(mine.textTagBlack, isWorkerCountEnabled && mine.workers > 0 && !IsPlayerEnemy(GetTriggerPlayer(), GetLocalPlayer()));
             SetTextTagVisibility(mine.textTag, isWorkerCountEnabled && mine.workers > 0 && !IsPlayerEnemy(GetTriggerPlayer(), GetLocalPlayer()));
         });
         File.write("w3cWorkerCount.txt", isWorkerCountEnabled.toString())
@@ -188,21 +189,31 @@ function addWorkerToMine(worker, mine) {
 }
 
 function updateMineText(mine) {
+    let textTagBlack = CreateTextTag();
     let textTag = CreateTextTag();
 
     if (mine.textTag) {
+        textTagBlack = mine.textTagBlack;
         textTag = mine.textTag;
     }
 
-    SetTextTagTextBJ(textTag, mine.workers + "/5", 16);
-    SetTextTagPos(textTag, GetUnitX(mine.id) - 50, GetUnitY(mine.id) - 250, 0);
+    SetTextTagTextBJ(textTagBlack, mine.workers + "/5", 13.5);
+    SetTextTagTextBJ(textTag, mine.workers + "/5", 13);
+    SetTextTagPos(textTagBlack, GetUnitX(mine.id) - 32, GetUnitY(mine.id) - 139, 0);
+    SetTextTagPos(textTag, GetUnitX(mine.id) - 30, GetUnitY(mine.id) - 140, 0);
 
     if (mine.workers == 5) {
+        SetTextTagColorBJ(textTagBlack, 0, 0, 0, 0);
         SetTextTagColorBJ(textTag, 0, 100, 0, 100);
     } else {
+        SetTextTagColorBJ(textTagBlack, 0, 0, 0, 0);
         SetTextTagColorBJ(textTag, 100, 100, 30, 100);
     }
+
+    SetTextTagVisibility(textTagBlack, isWorkerCountEnabled && mine.workers > 0 && !IsPlayerEnemy(GetTriggerPlayer(), GetLocalPlayer()));
     SetTextTagVisibility(textTag, isWorkerCountEnabled && mine.workers > 0 && !IsPlayerEnemy(GetTriggerPlayer(), GetLocalPlayer()));
+
+    mine.textTagBlack = textTagBlack;
     mine.textTag = textTag;
 }
 
