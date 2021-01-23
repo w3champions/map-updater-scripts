@@ -138,13 +138,13 @@ function unitCanGatherAppropriateGoldMine(goldMineName, workerTypeId) {
                 return true;
             } else return false;
         }
-        case FourCC("ewsp"):{
+        case FourCC("ewsp"): {
             if (goldMineName == "Entangled Gold Mine") {
                 return true;
             } else return false;
         }
         default: {
-            if(goldMineName == "Gold Mine"){
+            if (goldMineName == "Gold Mine") {
                 return true;
             } else {
                 return false;
@@ -168,6 +168,18 @@ let workersMineMap = {};
 function addWorkerToMine(worker, mine) {
     for (let i = 0; i < mines.length; i++) {
         if (mines[i].id == mine && workersMineMap[worker] != mine) {
+
+            // If worker was currently working another mine...
+            if (workersMineMap[worker]) {
+                for (let j = 0; j < mines.length; j++) {
+                    let currentMine = mines[j];
+                    if (currentMine.id == workersMineMap[worker]) {
+                        mines[j].workers = mines[j].workers - 1;
+                        updateMineText(mines[j]);
+                    }
+                }
+            }
+
             workersMineMap[worker] = mine;
             mines[i].workers += 1;
             updateMineText(mines[i]);
