@@ -17,7 +17,7 @@ function init() {
 
   // Observer-Only Features
   enableItemSoldBoughtTrigger();
-  enableLastHitOnCreepTrigger();
+  //enableLastHitOnCreepTrigger();
   enableBuildingCancelTrigger();
 }
 
