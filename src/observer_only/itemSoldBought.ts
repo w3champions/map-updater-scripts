@@ -15,7 +15,7 @@ export function enableItemSoldBoughtTrigger() {
     SetTextTagFadepointBJ(tag, 2.00)
 
     // Only show if the local player is an observer
-    SetTextTagVisibility(tag, true || MapPlayer.fromLocal().isObserver())
+    SetTextTagVisibility(tag, MapPlayer.fromLocal().isObserver())
   }
 
   const sellTrigger = new Trigger()
