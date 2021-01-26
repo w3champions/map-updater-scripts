@@ -60,7 +60,7 @@ function action_issuedOrder() {
     let triggerUnit = GetTriggerUnit();
     let orderId = GetIssuedOrderId();
 
-    if (unitIsWorker(triggerUnit) && (!isUnitReturningGold(orderId) && !unitOrderedToGather(orderId, GetUnitName(GetOrderTargetUnit())))) {
+    if (unitIsWorker(triggerUnit) && (!isUnitReturningGold(orderId) && !unitOrderedToGather(orderId, GetUnitTypeId(GetOrderTargetUnit())))) {
         removeWorkerFromMine(triggerUnit);
     }
 }
@@ -124,27 +124,27 @@ function unitCanGatherTarget(unit, target, isUnit) {
         }
     } else {
         // Gold
-        if (unitIsWorker(unit) && targetIsGold(target) && unitCanGatherAppropriateGoldMine(GetUnitName(target), GetUnitTypeId(unit))) {
+        if (unitIsWorker(unit) && targetIsGold(target) && unitCanGatherAppropriateGoldMine(target, GetUnitTypeId(unit))) {
             return true;
         }
     }
     return false;
 }
 
-function unitCanGatherAppropriateGoldMine(goldMineName, workerTypeId) {
+function unitCanGatherAppropriateGoldMine(mine, workerTypeId) {
     switch (workerTypeId) {
         case FourCC("uaco"): {
-            if (goldMineName == "Haunted Gold Mine") {
+            if (GetUnitTypeId(mine) == FourCC('ugol')) {
                 return true;
             } else return false;
         }
         case FourCC("ewsp"): {
-            if (goldMineName == "Entangled Gold Mine") {
+            if (GetUnitTypeId(mine) == FourCC('egol')) {
                 return true;
             } else return false;
         }
         default: {
-            if (goldMineName == "Gold Mine") {
+            if (GetUnitTypeId(mine) == FourCC('ngol')) {
                 return true;
             } else {
                 return false;
@@ -153,9 +153,9 @@ function unitCanGatherAppropriateGoldMine(goldMineName, workerTypeId) {
     }
 }
 
-function unitOrderedToGather(orderId, targetName) {
+function unitOrderedToGather(orderId, unitTypeId) {
     return [852018, 851970].some(x => x == orderId) ||
-        (orderId == 851971 && (targetName == "Gold Mine" || targetName == "Entangled Gold Mine" || targetName == "Haunted Gold Mine"));
+        (orderId == 851971 && (unitTypeId == FourCC('ugol') || unitTypeId == FourCC('egol') || unitTypeId == FourCC('ngol')));
 }
 
 function isUnitReturningGold(orderId) {
@@ -231,7 +231,7 @@ function doesMineExist(mine) {
 }
 
 function targetedOrder(unit, target, orderId, isUnit) {
-    if (unitIsWorker(unit) && unitCanGatherTarget(unit, target, isUnit) && unitOrderedToGather(orderId, GetUnitName(target)) && isUnit) {
+    if (unitIsWorker(unit) && unitCanGatherTarget(unit, target, isUnit) && unitOrderedToGather(orderId, GetUnitTypeId(target)) && isUnit) {
         if (!doesMineExist(target)) {
             mines.push({ id: target, workers: 0 });
         }
@@ -239,7 +239,7 @@ function targetedOrder(unit, target, orderId, isUnit) {
         addWorkerToMine(unit, target);
         return;
     }
-
+    
     if (!isUnitReturningGold(orderId)) {
         removeWorkerFromMine(unit);
     }

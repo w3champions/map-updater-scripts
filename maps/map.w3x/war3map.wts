@@ -1,21 +1,21 @@
 ﻿STRING 1
 {
-Autumn Leaves 1.6.1
+Wellspring Temple
 }
 
 STRING 2
 {
-2
+4v4 or FFA
 }
 
 STRING 3
 {
-The falling leaves drift by the window, the seasons are changing. All sorts of creatures are starting to search for a warm place for the upcomming winter 
+A mysterious well originates in the center of this abandoned temple, providing fertility to the surrounding planes. But look out! You might not be the only contender striving to control these promising lands.
 }
 
 STRING 4
 {
-Tenshi, W3Champions
+Kaer, W3Champions
 }
 
 STRING 5
@@ -33,9 +33,33 @@ STRING 7
 Player 2
 }
 
-STRING 10
-// Units: nvil (RocketBeans "Feiner Kerl"), Name (Name)
+STRING 8
 {
-RocketBeans "Feiner Kerl"
+Player 3
+}
+
+STRING 9
+{
+Player 4
+}
+
+STRING 10
+{
+Player 5
+}
+
+STRING 11
+{
+Player 6
+}
+
+STRING 12
+{
+Player 7
+}
+
+STRING 13
+{
+Player 8
 }
 
