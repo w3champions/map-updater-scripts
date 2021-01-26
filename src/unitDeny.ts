@@ -7,13 +7,10 @@ export function enableUnitDenyTrigger() {
   let isDenyEnabled: boolean = true
 
   for (let i = 0; i < bj_MAX_PLAYERS; i++) {
-    // If the player is not an observer, then read settings from file
-    if (!MapPlayer.fromHandle(Player(i)).isObserver()) {
-      const fileText = File.read("w3cUnitDeny.txt")
+    const fileText = File.read("w3cUnitDeny.txt")
 
-      if (fileText)
-        isDenyEnabled = (fileText == "true")
-    }
+    if (fileText)
+      isDenyEnabled = (fileText == "true")
 
     denyToggleTrigger.registerPlayerChatEvent(MapPlayer.fromHandle(Player(i)), "-deny", true)
   }
@@ -33,8 +30,9 @@ export function enableUnitDenyTrigger() {
 
   // Returns TRUE if the unit that was killed belongs to the same player/team who killed it, or when the killer is a creep
   let checkKillerIsAllyOfDyingUnitOrKillerIsACreep = () => {
-    return Unit.fromEvent().owner.isPlayerAlly(Unit.fromHandle(GetKillingUnit()).owner) ||
-      Unit.fromHandle(GetKillingUnit()).owner == Players[PLAYER_NEUTRAL_AGGRESSIVE]
+    return (Unit.fromEvent().owner.isPlayerAlly(Unit.fromHandle(GetKillingUnit()).owner) ||
+      Unit.fromHandle(GetKillingUnit()).owner == Players[PLAYER_NEUTRAL_AGGRESSIVE]) &&
+      Unit.fromEvent().owner != Players[PLAYER_NEUTRAL_PASSIVE]
   }
 
   const denyTrigger = new Trigger()
