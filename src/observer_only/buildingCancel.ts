@@ -1,5 +1,5 @@
 import { showMessageOverUnit } from "utils";
-import { Unit, Trigger } from "w3ts/index";
+import { Unit, MapPlayer, Trigger } from "w3ts/index";
 import { Players } from "w3ts/globals/index";
 
 export function enableBuildingCancelTrigger() {
@@ -20,5 +20,5 @@ export function enableBuildingCancelTrigger() {
   const t = new Trigger()
   t.registerAnyUnitEvent(EVENT_PLAYER_UNIT_CONSTRUCT_CANCEL)
   t.addCondition(() => checkEnemyIsNearby())
-  t.addAction(() => showMessageOverUnit(Unit.fromHandle(GetTriggerUnit()), Players[PLAYER_NEUTRAL_AGGRESSIVE], "cancel", 8, false))
+  t.addAction(() => showMessageOverUnit(Unit.fromHandle(GetTriggerUnit()), Players[PLAYER_NEUTRAL_AGGRESSIVE], "cancel", 8, MapPlayer.fromLocal().isObserver()))
 }

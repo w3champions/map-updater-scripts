@@ -46,9 +46,7 @@ export function showMessageOverUnit(textUnit: Unit, colourPlayer: MapPlayer, mes
     SetTextTagLifespanBJ(tag, 2.00)
     SetTextTagFadepointBJ(tag, 1.50)
 
-    // Only show if
-    // 1) showToLocalPlayer is TRUE & local player actually has vision of the dying unit
-    //    (that way players won't see denies in fog of war), or
-    // 2) Player is an observer
-    SetTextTagVisibility(tag, (showToLocalPlayer && textUnit.isVisible(localPlayer) && !textUnit.isFogged(localPlayer) && !textUnit.isMasked(localPlayer)) || localPlayer.isObserver());
+    // Only show if showToLocalPlayer is TRUE & local player actually has vision of the dying unit
+    // (that way players won't see denies in fog of war)
+    SetTextTagVisibility(tag, showToLocalPlayer && ((textUnit.isVisible(localPlayer) && !textUnit.isFogged(localPlayer) && !textUnit.isMasked(localPlayer)) || localPlayer.isObserver()));
 }
