@@ -25,7 +25,7 @@ export function enableWorkerCount() {
         TriggerRegisterPlayerUnitEventSimple(issuedPointOrder, Player(i), EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER);
         TriggerRegisterPlayerUnitEventSimple(lossOfUnitTrigger, Player(i), EVENT_PLAYER_UNIT_DEATH);
         TriggerRegisterPlayerUnitEventSimple(lossOfUnitTrigger, Player(i), EVENT_PLAYER_UNIT_CHANGE_OWNER);
-    }   
+    }
 
     TriggerAddAction(issuedTargetOrderTrigger, action_issuedTargetOrderTrigger);
     TriggerAddAction(issuedOrder, action_issuedOrder);
@@ -44,7 +44,7 @@ export function enableWorkerCount() {
         DisplayTextToPlayer(triggerPlayer.handle, 0, 0, `\n|cff00ff00[W3C]:|r Worker count feature is now |cffffff00 ` + (isWorkerCountEnabled ? `ENABLED` : `DISABLED`) + `|r.`)
 
         mines.forEach(mine => {
-            SetTextTagVisibility(mine.textTag, isWorkerCountEnabled && mine.workers > 0 && !IsPlayerEnemy(GetTriggerPlayer(), GetLocalPlayer()));
+            SetTextTagVisibility(mine.textTag, isWorkerCountEnabled && mine.workers > 0 && (IsPlayerObserver(GetLocalPlayer()) || !IsPlayerEnemy(GetTriggerPlayer(), GetLocalPlayer())));
         });
         File.write("w3cWorkerCount.txt", isWorkerCountEnabled.toString());
     });
@@ -60,12 +60,8 @@ function action_lossOfUnit() {
 function action_issuedOrder() {
     let triggerUnit = GetTriggerUnit();
     let orderId = GetIssuedOrderId();
-    localPrint(`Issued Order: ${orderId}`);
-    localPrint(`${unitIsWorker(triggerUnit)} | ${!isUnitReturningGold(orderId)} | ${!unitOrderedToGather(orderId, GetUnitTypeId(GetOrderTargetUnit()))}`);
-
 
     if (unitIsWorker(triggerUnit) && !isUnitReturningGold(orderId) && !unitOrderedToGather(orderId, GetUnitTypeId(GetOrderTargetUnit()))) {
-        localPrint("Issued Order: Remove");
         removeWorkerFromMine(triggerUnit);
     }
 }
@@ -159,8 +155,6 @@ function unitCanGatherAppropriateGoldMine(mine, workerTypeId) {
 }
 
 function unitOrderedToGather(orderId, unitTypeId) {
-    localPrint(`Gather OrderID: ${orderId}`);
-    localPrint(GetUnitTypeId(GetOrderTargetUnit()));
     let target = GetUnitTypeId(GetOrderTargetUnit());
     return ([852018, 851970].some(x => x == orderId) && target != 0) ||
         (orderId == 851971 && (unitTypeId == FourCC('ugol') || unitTypeId == FourCC('egol') || unitTypeId == FourCC('ngol')));
@@ -247,10 +241,7 @@ function localPrint(text) {
 }
 
 function targetedOrder(unit, target, orderId, isUnit) {
-    localPrint("Issued Targeted Order: " + orderId);
-
     if (unitIsWorker(unit) && unitCanGatherTarget(unit, target, isUnit) && unitOrderedToGather(orderId, GetUnitTypeId(target)) && isUnit) {
-        localPrint("Issued Targeted Order: Added");
         if (!doesMineExist(target)) {
             mines.push({ id: target, workers: 0 });
         }
@@ -260,7 +251,6 @@ function targetedOrder(unit, target, orderId, isUnit) {
     }
 
     if (!isUnitReturningGold(orderId)) {
-        localPrint("Issued Targeted Order: Removed");
         removeWorkerFromMine(unit);
     }
 }
