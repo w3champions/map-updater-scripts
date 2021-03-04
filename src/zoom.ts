@@ -4,6 +4,7 @@ let currentZoomLevel = 1650;
 
 export function enableCameraZoom() {
     let zoomTrigger = CreateTrigger();
+    let zoomResetTrigger = CreateTrigger();
     let obsResetZoomTrigger = CreateTrigger();
 
     for (let i = 0; i < bj_MAX_PLAYERS; i++) {
@@ -21,15 +22,16 @@ export function enableCameraZoom() {
                     setCameraZoom(1950, localPlayer);
                 }
             }
-
-            // if (IsPlayerObserver(localPlayer)) {
-            //     TriggerRegisterTimerEvent(obsResetZoomTrigger, 15, true);
-            //     TriggerAddAction(obsResetZoomTrigger, observerResetZoom);
-            // }
         }
+
         TriggerRegisterPlayerChatEvent(zoomTrigger, Player(i), "-zoom", false);
+        TriggerRegisterPlayerChatEvent(zoomResetTrigger, Player(i), "-z", true);
+        BlzTriggerRegisterPlayerKeyEvent(zoomResetTrigger, Player(i), OSKEY_F5, 0, true);
     }
 
+    TriggerRegisterTimerEvent(obsResetZoomTrigger, 15, true);
+    TriggerAddAction(obsResetZoomTrigger, observerResetZoom);
+    TriggerAddAction(zoomResetTrigger, resetZoom);
     TriggerAddAction(zoomTrigger, () => {
         let triggerPlayer = MapPlayer.fromEvent();
         let localPlayer = MapPlayer.fromLocal();
@@ -41,13 +43,20 @@ export function enableCameraZoom() {
 
         let zoomLevel = GetEventPlayerChatString().split('-zoom')[1].trim();
         let zoomNumber: number = Number(zoomLevel);
+        currentZoomLevel = zoomNumber;
         setCameraZoom(zoomNumber, triggerPlayer.handle);
         File.write("w3cZoomFFA.txt", zoomNumber.toString());
     });
 }
 
 function observerResetZoom() {
-    setCameraZoom(currentZoomLevel, MapPlayer.fromLocal().handle, false);
+    if (IsPlayerObserver(GetLocalPlayer())) {
+        setCameraZoom(currentZoomLevel, MapPlayer.fromLocal().handle, false);
+    }
+}
+
+function resetZoom() {
+    setCameraZoom(currentZoomLevel, GetTriggerPlayer(), false);
 }
 
 function setCameraZoom(zoomLevel: number, player: player, shouldDisplayText: boolean = true) {
