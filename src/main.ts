@@ -7,7 +7,7 @@ import { addScriptHook, W3TS_HOOK } from "w3ts/hooks";
 import { enableWorkerCount } from "workercount";
 import { enableCameraZoom } from "zoom";
 import { initMatchEndTimers } from "tournamentMatch";
-// import { MeleeDoVictoryEnum} from "w3ts/index";
+import { getPlayerCount } from "utils";
 
 function init() {
   enableShowCommandsTrigger();
@@ -32,14 +32,5 @@ function init() {
 
 }
 
-function getPlayerCount() {
-  let count = 0;
-  for (let i = 0; i < bj_MAX_PLAYERS; i++) {
-    if (GetPlayerSlotState(Player(i)) == PLAYER_SLOT_STATE_PLAYING && !IsPlayerObserver(Player(i))) {
-      count += 1;
-    }
-  }
-  return count;
-}
 
 addScriptHook(W3TS_HOOK.MAIN_AFTER, init);

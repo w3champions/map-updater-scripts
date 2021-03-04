@@ -50,3 +50,13 @@ export function showMessageOverUnit(textUnit: Unit, colourPlayer: MapPlayer, mes
     // (that way players won't see denies in fog of war)
     SetTextTagVisibility(tag, showToLocalPlayer && ((textUnit.isVisible(localPlayer) && !textUnit.isFogged(localPlayer) && !textUnit.isMasked(localPlayer)) || localPlayer.isObserver()));
 }
+
+export function getPlayerCount() {
+    let count = 0;
+    for (let i = 0; i < bj_MAX_PLAYERS; i++) {
+        if (GetPlayerSlotState(Player(i)) == PLAYER_SLOT_STATE_PLAYING && !IsPlayerObserver(Player(i))) {
+            count += 1;
+        }
+    }
+    return count;
+}
