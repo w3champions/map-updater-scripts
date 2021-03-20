@@ -3,7 +3,7 @@ import { Players } from "w3ts/globals/index";
 
 export function getPlayerRGBCode(whichPlayer: MapPlayer) {
     if (GetAllyColorFilterState() == 2 && MapPlayer.fromLocal().isObserver() == false) {
-        if (whichPlayer == Players[PLAYER_NEUTRAL_AGGRESSIVE]) return [18.04, 17.65, 18.04]  // Creeps: Grey
+        if (whichPlayer == Players[PLAYER_NEUTRAL_AGGRESSIVE]) return [50, 50, 50]  // Creeps: Grey
         else if (whichPlayer == MapPlayer.fromLocal()) return [0.00, 25.88, 100.00]  // Self:   PLAYER_COLOR_BLUE
         else if (whichPlayer.isPlayerAlly(MapPlayer.fromLocal())) return [10.59, 90.59, 72.94]  // Ally:   PLAYER_COLOR_CYAN
         else return [100.00, 1.18, 1.18]  // Enemy:  PLAYER_COLOR_RED
@@ -33,7 +33,7 @@ export function getPlayerRGBCode(whichPlayer: MapPlayer) {
     else if (whichPlayer.color == PLAYER_COLOR_SNOW) return [92.55, 94.12, 100.00]
     else if (whichPlayer.color == PLAYER_COLOR_EMERALD) return [0.00, 47.06, 11.76]
     else if (whichPlayer.color == PLAYER_COLOR_PEANUT) return [64.71, 43.53, 20.39]
-    else return [18.04, 17.65, 18.04]
+    else return [50, 50, 50]
 }
 
 export function showMessageOverUnit(textUnit: Unit, colourPlayer: MapPlayer, message: string, fontSize: number, showToLocalPlayer: boolean) {

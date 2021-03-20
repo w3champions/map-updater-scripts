@@ -32,7 +32,9 @@ export function enableUnitDenyTrigger() {
   let checkKillerIsAllyOfDyingUnitOrKillerIsACreep = () => {
     return (Unit.fromEvent().owner.isPlayerAlly(Unit.fromHandle(GetKillingUnit()).owner) ||
       Unit.fromHandle(GetKillingUnit()).owner == Players[PLAYER_NEUTRAL_AGGRESSIVE]) &&
-      Unit.fromEvent().owner != Players[PLAYER_NEUTRAL_PASSIVE]
+      Unit.fromEvent().owner != Players[PLAYER_NEUTRAL_PASSIVE] &&
+      Unit.fromHandle(GetKillingUnit()).typeId != FourCC("usap") &&  // Sacrificial Pit (when an acolyte is sacrificed)
+      Unit.fromHandle(GetKillingUnit()).typeId != FourCC("otot")     // Stasis Trap (when it sets itself off)
   }
 
   const denyTrigger = new Trigger()
