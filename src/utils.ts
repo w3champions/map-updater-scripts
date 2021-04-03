@@ -1,9 +1,16 @@
 import { MapPlayer, Unit } from "w3ts/index";
 import { Players } from "w3ts/globals/index";
 
+export function getPlayerHexCode(whichPlayer: MapPlayer) {
+    return 'cff' + getPlayerRGBCode(whichPlayer).map(x => {
+        const hex = R2I(x / 100 * 255).toString(16)
+        return hex.length === 1 ? '0' + hex : hex
+    }).join('')
+}
+
 export function getPlayerRGBCode(whichPlayer: MapPlayer) {
     let color = whichPlayer.color
-    
+
     if (GetAllyColorFilterState() == 2) {
         if (MapPlayer.fromLocal().isObserver() == false) {
             if (whichPlayer == Players[PLAYER_NEUTRAL_AGGRESSIVE]) return [50, 50, 50]  // Creeps: Grey
@@ -12,15 +19,14 @@ export function getPlayerRGBCode(whichPlayer: MapPlayer) {
             else return [100.00, 1.18, 1.18]  // Enemy:  PLAYER_COLOR_RED
         } else {
             for (let i = 0; i < bj_MAX_PLAYERS; i++) {
-                if (whichPlayer.isPlayerAlly(MapPlayer.fromIndex(i)))
-                {
+                if (whichPlayer.isPlayerAlly(MapPlayer.fromIndex(i))) {
                     color = MapPlayer.fromIndex(i).color
                     break;
                 }
             }
         }
     }
-    
+
     if (color == PLAYER_COLOR_RED) return [100.00, 1.18, 1.18]
     else if (color == PLAYER_COLOR_BLUE) return [0.00, 25.88, 100.00]
     else if (color == PLAYER_COLOR_CYAN) return [10.59, 90.59, 72.94]

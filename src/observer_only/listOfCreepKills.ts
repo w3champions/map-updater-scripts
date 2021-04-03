@@ -1,4 +1,4 @@
-import { showMessageOverUnit } from "utils";
+import { getPlayerRGBCode, getPlayerHexCode } from "utils";
 import { Players } from "w3ts/globals/index";
 import { Unit, Trigger, MapPlayer, Quest, Item } from "w3ts/index";
 
@@ -7,7 +7,6 @@ export function enableListOfCreepKills() {
   q.setTitle("Creep Kills")
   q.setDescription("")
   q.setIcon("ReplaceableTextures\\CommandButtons\\BTNTomeBrown.blp")
-  q.enabled = MapPlayer.fromLocal().isObserver()
   
   const getFormattedIngameTime = () => {
     const timeOfDay = GetTimeOfDay()
@@ -30,16 +29,30 @@ export function enableListOfCreepKills() {
     const killingUnit   = Unit.fromHandle(GetKillingUnitBJ())
     const killingPlayer = killingUnit.owner
     
-    let message = `|cff808080[${getFormattedIngameTime()}]|r `
-    if (killingUnit.owner == Players[PLAYER_NEUTRAL_AGGRESSIVE])
-      message += `${killingUnit.name} |cff808080(Creep)|r |cffff0000denied|r ${dyingUnit.name} |cff808080(Creep)|r`
-    else if (killingUnit.isUnitType(UNIT_TYPE_STRUCTURE))
-      message += `${killingUnit.name} |cff808080(${killingPlayer.name})|r |cffff0000denied|r ${dyingUnit.name} |cff808080(Creep)|r`
-    else
-      message += `${killingUnit.name} |cff808080(${killingPlayer.name})|r |cff00ff00killed|r ${dyingUnit.name} |cff808080(Creep)|r`
+    if (MapPlayer.fromLocal().isObserver())
+    {
+      let message = `|cff808080[${getFormattedIngameTime()}]|r `
+      if (killingUnit.owner == Players[PLAYER_NEUTRAL_AGGRESSIVE])
+        message += `${killingUnit.name} |cff808080(Creep)|r |cffff6666denied|r ${dyingUnit.name} |cff808080(Creep)|r`
+      else if (killingUnit.isUnitType(UNIT_TYPE_STRUCTURE))
+        message += `${killingUnit.name} |${getPlayerHexCode(killingPlayer)}(${killingPlayer.name})|r |cffff6666denied|r ${dyingUnit.name} |cff808080(Creep)|r`
+      else
+        message += `${killingUnit.name} |${getPlayerHexCode(killingPlayer)}(${killingPlayer.name})|r killed ${dyingUnit.name} |cff808080(Creep)|r`
 
-    creepKillList = `${message}\n${creepKillList}`
-    q.setDescription(creepKillList)
+      creepKillList = `${message}\n${creepKillList}`
+      q.setDescription(creepKillList)
+    }
+    else if (killingUnit.owner.isPlayerAlly(MapPlayer.fromLocal()))
+    {
+      let message = `|cff808080[${getFormattedIngameTime()}]|r `
+      if (killingUnit.isUnitType(UNIT_TYPE_STRUCTURE))
+        message += `${killingUnit.name} |${getPlayerHexCode(killingPlayer)}(${killingPlayer.name})|r |cffff6666denied|r ${dyingUnit.name} |cff808080(Creep)|r`
+      else
+        message += `${killingUnit.name} |${getPlayerHexCode(killingPlayer)}(${killingPlayer.name})|r killed ${dyingUnit.name} |cff808080(Creep)|r`
+
+      creepKillList = `${message}\n${creepKillList}`
+      q.setDescription(creepKillList)      
+    }
   }
 
   const t = new Trigger()
