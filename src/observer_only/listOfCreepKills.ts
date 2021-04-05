@@ -1,4 +1,4 @@
-import { getPlayerRGBCode, getPlayerHexCode } from "utils";
+import { getPlayerNameWithoutNumber, getPlayerHexCode } from "utils";
 import { Players } from "w3ts/globals/index";
 import { Unit, Trigger, MapPlayer, Quest, Item } from "w3ts/index";
 
@@ -33,11 +33,11 @@ export function enableListOfCreepKills() {
     {
       let message = `|cff808080[${getFormattedIngameTime()}]|r `
       if (killingUnit.owner == Players[PLAYER_NEUTRAL_AGGRESSIVE])
-        message += `${killingUnit.name} |cff808080(Creep)|r |cffff6666denied|r ${dyingUnit.name} |cff808080(Creep)|r`
+        message += `${killingUnit.name} |cff808080(Creep)|r |cffff6666denied|r ${dyingUnit.name}`
       else if (killingUnit.isUnitType(UNIT_TYPE_STRUCTURE))
-        message += `${killingUnit.name} |${getPlayerHexCode(killingPlayer)}(${killingPlayer.name})|r |cffff6666denied|r ${dyingUnit.name} |cff808080(Creep)|r`
+        message += `${killingUnit.name} |${getPlayerHexCode(killingPlayer)}(${getPlayerNameWithoutNumber(killingPlayer)})|r |cffff6666denied|r ${dyingUnit.name}`
       else
-        message += `${killingUnit.name} |${getPlayerHexCode(killingPlayer)}(${killingPlayer.name})|r killed ${dyingUnit.name} |cff808080(Creep)|r`
+        message += `${killingUnit.name} |${getPlayerHexCode(killingPlayer)}(${getPlayerNameWithoutNumber(killingPlayer)})|r killed ${dyingUnit.name}`
 
       creepKillList = `${message}\n${creepKillList}`
       q.setDescription(creepKillList)
@@ -46,9 +46,9 @@ export function enableListOfCreepKills() {
     {
       let message = `|cff808080[${getFormattedIngameTime()}]|r `
       if (killingUnit.isUnitType(UNIT_TYPE_STRUCTURE))
-        message += `${killingUnit.name} |${getPlayerHexCode(killingPlayer)}(${killingPlayer.name})|r |cffff6666denied|r ${dyingUnit.name} |cff808080(Creep)|r`
+        message += `${killingUnit.name} |${getPlayerHexCode(killingPlayer)}(${getPlayerNameWithoutNumber(killingPlayer)})|r |cffff6666denied|r ${dyingUnit.name}`
       else
-        message += `${killingUnit.name} |${getPlayerHexCode(killingPlayer)}(${killingPlayer.name})|r killed ${dyingUnit.name} |cff808080(Creep)|r`
+        message += `${killingUnit.name} |${getPlayerHexCode(killingPlayer)}(${getPlayerNameWithoutNumber(killingPlayer)})|r killed ${dyingUnit.name}`
 
       creepKillList = `${message}\n${creepKillList}`
       q.setDescription(creepKillList)      
