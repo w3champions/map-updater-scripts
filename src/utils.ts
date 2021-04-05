@@ -1,25 +1,34 @@
 import { MapPlayer, Unit } from "w3ts/index";
 import { Players } from "w3ts/globals/index";
 
-export function getPlayerHexCode(whichPlayer: MapPlayer) {
-    return 'cff' + getPlayerRGBCode(whichPlayer).map(x => {
+export function getPlayerHexCode(player: MapPlayer) {
+    return 'cff' + getPlayerRGBCode(player).map(x => {
         const hex = R2I(x / 100 * 255).toString(16)
         return hex.length === 1 ? '0' + hex : hex
     }).join('')
 }
 
-export function getPlayerRGBCode(whichPlayer: MapPlayer) {
-    let color = whichPlayer.color
+export function getPlayerNameWithoutNumber(player: MapPlayer) {
+    const name = player.name + (GetRandomInt(0, 4) > 2 ? '#123' : '')
+    const i = name.indexOf('#')
+    if (i == -1)
+        return name
+    else
+        return name.substr(0, i)
+}
+
+export function getPlayerRGBCode(player: MapPlayer) {
+    let color = player.color
 
     if (GetAllyColorFilterState() == 2) {
         if (MapPlayer.fromLocal().isObserver() == false) {
-            if (whichPlayer == Players[PLAYER_NEUTRAL_AGGRESSIVE]) return [50, 50, 50]  // Creeps: Grey
-            else if (whichPlayer == MapPlayer.fromLocal()) return [0.00, 25.88, 100.00]  // Self:   PLAYER_COLOR_BLUE
-            else if (whichPlayer.isPlayerAlly(MapPlayer.fromLocal())) return [10.59, 90.59, 72.94]  // Ally:   PLAYER_COLOR_CYAN
+            if (player == Players[PLAYER_NEUTRAL_AGGRESSIVE]) return [50, 50, 50]  // Creeps: Grey
+            else if (player == MapPlayer.fromLocal()) return [0.00, 25.88, 100.00]  // Self:   PLAYER_COLOR_BLUE
+            else if (player.isPlayerAlly(MapPlayer.fromLocal())) return [10.59, 90.59, 72.94]  // Ally:   PLAYER_COLOR_CYAN
             else return [100.00, 1.18, 1.18]  // Enemy:  PLAYER_COLOR_RED
         } else {
             for (let i = 0; i < bj_MAX_PLAYERS; i++) {
-                if (whichPlayer.isPlayerAlly(MapPlayer.fromIndex(i))) {
+                if (player.isPlayerAlly(MapPlayer.fromIndex(i))) {
                     color = MapPlayer.fromIndex(i).color
                     break;
                 }
