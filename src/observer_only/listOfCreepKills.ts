@@ -1,6 +1,6 @@
 import { getPlayerNameWithoutNumber, getPlayerHexCode } from "utils";
 import { Players } from "w3ts/globals/index";
-import { Unit, Trigger, MapPlayer, Quest, Item } from "w3ts/index";
+import { Unit, Trigger, MapPlayer, Quest, getElapsedTime } from "w3ts/index";
 
 export function enableListOfCreepKills() {
   const q = new Quest();
@@ -8,13 +8,13 @@ export function enableListOfCreepKills() {
   q.setDescription("")
   q.setIcon("ReplaceableTextures\\CommandButtons\\BTNTomeBrown.blp")
   
-  const getFormattedIngameTime = () => {
-    const timeOfDay = GetTimeOfDay()
-    const hour      = R2SW(R2I(timeOfDay), 0, 0)
-    const minute    = R2SW(R2I((timeOfDay - S2I(hour)) * 60), 0, 0)
-    const h         = hour.substr(0, hour.length - 2)
-    const m         = minute.substr(0, minute.length - 2)
-    return `${h.length == 1 ? '0' : ''}${h}:${m.length == 1 ? '0' : ''}${m}`
+  const getFormattedElapsedTime = () => {
+    const elapsedTime = getElapsedTime()
+    const minutes     = R2SW(R2I(elapsedTime / 60), 0, 0)
+    const seconds     = R2SW(R2I(elapsedTime - 60 * R2I(elapsedTime / 60)), 0, 0)
+    const m           = minutes.substr(0, minutes.length - 2)
+    const s           = seconds.substr(0, seconds.length - 2)
+    return `${m.length == 1 ? '0' : ''}${m}:${s.length == 1 ? '0' : ''}${s}`
     }
 
   // Returns TRUE if dying unit is a creep
@@ -31,7 +31,7 @@ export function enableListOfCreepKills() {
     
     if (MapPlayer.fromLocal().isObserver())
     {
-      let message = `|cff808080[${getFormattedIngameTime()}]|r `
+      let message = `|cff808080[${getFormattedElapsedTime()}]|r `
       if (killingUnit.owner == Players[PLAYER_NEUTRAL_AGGRESSIVE])
         message += `${killingUnit.name} |cff808080(Creep)|r |cffff6666denied|r ${dyingUnit.name}`
       else if (killingUnit.isUnitType(UNIT_TYPE_STRUCTURE))
@@ -44,7 +44,7 @@ export function enableListOfCreepKills() {
     }
     else if (killingUnit.owner.isPlayerAlly(MapPlayer.fromLocal()))
     {
-      let message = `|cff808080[${getFormattedIngameTime()}]|r `
+      let message = `|cff808080[${getFormattedElapsedTime()}]|r `
       if (killingUnit.isUnitType(UNIT_TYPE_STRUCTURE))
         message += `${killingUnit.name} |${getPlayerHexCode(killingPlayer)}(${getPlayerNameWithoutNumber(killingPlayer)})|r |cffff6666denied|r ${dyingUnit.name}`
       else
