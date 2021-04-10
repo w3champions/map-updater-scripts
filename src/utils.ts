@@ -9,12 +9,11 @@ export function getPlayerHexCode(player: MapPlayer) {
 }
 
 export function getPlayerNameWithoutNumber(player: MapPlayer) {
-    const name = player.name + (GetRandomInt(0, 4) > 2 ? '#123' : '')
-    const i = name.indexOf('#')
+    const i = player.name.indexOf('#')
     if (i == -1)
-        return name
+        return player.name
     else
-        return name.substr(0, i)
+        return player.name.substr(0, i)
 }
 
 export function getPlayerRGBCode(player: MapPlayer) {
