@@ -1,12 +1,12 @@
-import { enableBadPing } from "badping";
-import { enableBuildingCancelTrigger } from "observer_only/buildingCancel";
-import { enableItemSoldBoughtTrigger } from "observer_only/itemSoldBought";
-import { enableListOfCreepKills } from "observer_only/listofCreepKills";
+import { enableBadPing } from "player_features/badping";
+import { enableBuildingCancelTrigger } from "observer_features/buildingCancel";
+import { enableItemSoldBoughtTrigger } from "observer_features/itemSoldBought";
+import { enableListOfCreepKills } from "observer_features/listofCreepKills";
 import { enableShowCommandsTrigger } from "showCommands";
-import { enableUnitDenyTrigger } from "unitDeny";
+import { enableUnitDenyTrigger } from "player_features/unitDeny";
 import { addScriptHook, W3TS_HOOK } from "w3ts/hooks";
-import { enableWorkerCount } from "workercount";
-import { enableCameraZoom } from "zoom";
+import { enableWorkerCount } from "player_features/workercount";
+import { enableCameraZoom } from "player_features/zoom";
 import { initMatchEndTimers } from "tournamentMatch";
 import { getPlayerCount } from "utils";
 
