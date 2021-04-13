@@ -30,11 +30,14 @@ export function enableUnitDenyTrigger() {
 
   // Returns TRUE if the unit that was killed belongs to the same player/team who killed it, or when the killer is a creep
   let checkKillerIsAllyOfDyingUnitOrKillerIsACreep = () => {
-    return (Unit.fromEvent().owner.isPlayerAlly(Unit.fromHandle(GetKillingUnit()).owner) ||
-      Unit.fromHandle(GetKillingUnit()).owner == Players[PLAYER_NEUTRAL_AGGRESSIVE]) &&
-      Unit.fromEvent().owner != Players[PLAYER_NEUTRAL_PASSIVE] &&
-      Unit.fromHandle(GetKillingUnit()).typeId != FourCC("usap") &&  // Sacrificial Pit (when an acolyte is sacrificed)
-      Unit.fromHandle(GetKillingUnit()).typeId != FourCC("otot")     // Stasis Trap (when it sets itself off)
+    const dyingUnit = Unit.fromEvent()
+    const killingUnit = Unit.fromHandle(GetKillingUnit())
+    return (dyingUnit.owner.isPlayerAlly(killingUnit.owner) ||
+      killingUnit.owner == Players[PLAYER_NEUTRAL_AGGRESSIVE]) &&
+      dyingUnit.owner != Players[PLAYER_NEUTRAL_PASSIVE] &&
+      killingUnit.typeId != FourCC("usap") &&  // Sacrificial Pit (when an acolyte is sacrificed)
+      killingUnit.typeId != FourCC("otot") &&  // Stasis Trap (when it sets itself off)
+      !(dyingUnit.isUnitType(UNIT_TYPE_STRUCTURE) && killingUnit.typeId == FourCC("uaco"))  // Exlcude unsummoning structures by acolytes
   }
 
   const denyTrigger = new Trigger()
