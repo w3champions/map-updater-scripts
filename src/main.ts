@@ -9,6 +9,7 @@ import { enableWorkerCount } from "player_features/workercount";
 import { enableCameraZoom } from "player_features/zoom";
 import { initMatchEndTimers } from "tournamentMatch";
 import { getPlayerCount } from "utils";
+import { ffaMatch } from "ffaMatch";
 
 function init() {
   enableShowCommandsTrigger();
@@ -16,18 +17,15 @@ function init() {
   enableBadPing();
   enableWorkerCount();
   enableUnitDenyTrigger();
+  ffaMatch();
 
   // Observer-Only Features
   enableItemSoldBoughtTrigger();
   enableListOfCreepKills();
   enableBuildingCancelTrigger();
 
-  // If the map has the InitializeTimer trigger (ffa maps), set a 90 min timer
-  if (gg_trg_InitializeTimers != null && getPlayerCount() > 2) {
-    initMatchEndTimers(5100, 300);
-  }
   // If the map has the InitializeTimer trigger (tourney maps), set a 30 min timer.
-  else if (gg_trg_InitializeTimers != null) {
+  if (gg_trg_InitializeTimers != null) {
     initMatchEndTimers(1500, 300);
   }
 }
