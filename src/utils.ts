@@ -16,7 +16,7 @@ export function getPlayerNameWithoutNumber(player: MapPlayer) {
         return player.name.substr(0, i)
 }
 
-export function determineGameMode() {
+export function getGameMode() {
     let teams = {};
 
     for (let i = 0; i < bj_MAX_PLAYERS; i++) {
