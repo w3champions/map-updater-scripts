@@ -14,12 +14,16 @@ export function endTournamentMatch() {
         while (firstUnit != null) {
             if (IsUnitAliveBJ(firstUnit)) {
                 let unitId = GetUnitTypeId(firstUnit);
+
                 let heroXP = 0;
                 if (IsHeroUnitId(unitId)) {
                     heroXP = 200 + GetHeroXP(firstUnit);
                     playerScore += heroXP;
                 } else {
-                    playerScore += (GetUnitGoldCost(unitId) + GetUnitWoodCost(unitId));
+                    //Exclude Zeppelin from counting towards playerScore
+                    if (unitId != 1853515120) {
+                        playerScore += (GetUnitGoldCost(unitId) + GetUnitWoodCost(unitId));
+                    }
                 }
             }
 
