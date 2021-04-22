@@ -16,6 +16,57 @@ export function getPlayerNameWithoutNumber(player: MapPlayer) {
         return player.name.substr(0, i)
 }
 
+export function determineGameMode() {
+    let teams = {};
+
+    for (let i = 0; i < bj_MAX_PLAYERS; i++) {
+        if (GetPlayerSlotState(Player(i)) == PLAYER_SLOT_STATE_PLAYING && !IsPlayerObserver(Player(i))) {
+            let team = GetPlayerTeam(Player(i));
+            if (!teams[team]) {
+                teams[team] = 1;
+            } else {
+                teams[team] = teams[team] + 1;
+            }
+        }
+    }
+
+    const totalTeams = Object.keys(teams).length;
+    const playersOnTeams = teams[Object.keys(teams)[0]];
+
+    switch (totalTeams) {
+        case 2: {
+            if (playersOnTeams == 1) {
+                return MapGameMode.ONE_VS_ONE;
+            }
+            else if (playersOnTeams == 2) {
+                return MapGameMode.TWO_VS_TWO;
+            }
+            else if (playersOnTeams == 3) {
+                return MapGameMode.THREE_VS_THREE;
+            }
+            else if (playersOnTeams == 4) {
+                return MapGameMode.FOUR_VS_FOUR;
+            } else {
+                return MapGameMode.UNKNOWN;
+            }
+        }
+        case 3:
+        case 4:
+            return MapGameMode.FFA;
+        default:
+            return MapGameMode.UNKNOWN
+    }
+}
+
+export enum MapGameMode {
+    ONE_VS_ONE = 1,
+    TWO_VS_TWO = 2,
+    THREE_VS_THREE = 3,
+    FOUR_VS_FOUR = 4,
+    FFA = 5,
+    UNKNOWN = 100
+}
+
 export function getPlayerRGBCode(player: MapPlayer) {
     let color = player.color
 

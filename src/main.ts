@@ -8,7 +8,8 @@ import { addScriptHook, W3TS_HOOK } from "w3ts/hooks";
 import { enableWorkerCount } from "player_features/workercount";
 import { enableCameraZoom } from "player_features/zoom";
 import { initMatchEndTimers } from "tournamentMatch";
-import { getPlayerCount } from "utils";
+import { getGameMode, MapGameMode } from "utils";
+import { anonymizePlayerNames } from "player_features/anonymizeNames";
 
 function init() {
   enableShowCommandsTrigger();
@@ -22,13 +23,15 @@ function init() {
   enableListOfCreepKills();
   enableBuildingCancelTrigger();
 
-  // If the map has the InitializeTimer trigger (ffa maps), set a 90 min timer
-  if (gg_trg_InitializeTimers != null && getPlayerCount() > 2) {
-    initMatchEndTimers(5100, 300);
-  }
   // If the map has the InitializeTimer trigger (tourney maps), set a 30 min timer.
-  else if (gg_trg_InitializeTimers != null) {
+  if (gg_trg_InitializeTimers != null) {
     initMatchEndTimers(1500, 300);
+  }
+
+  // FFA Game Mode Timers
+  if (getGameMode() == MapGameMode.FFA) {
+    initMatchEndTimers(5100, 300); // 90 Min timer - last 5 min are revealed
+    anonymizePlayerNames();
   }
 }
 

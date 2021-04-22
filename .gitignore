@@ -1,6 +1,7 @@
 target
 package-lock.json
 dist
+maps/w3c_maps/output
 
 # Logs
 logs
