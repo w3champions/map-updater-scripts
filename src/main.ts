@@ -14,7 +14,6 @@ import { anonymizePlayerNames } from "player_features/anonymizeNames";
 function init() {
   enableShowCommandsTrigger();
   enableCameraZoom();
-  enableBadPing();
   enableWorkerCount();
   enableUnitDenyTrigger();
 
@@ -26,11 +25,12 @@ function init() {
   // If the map has the InitializeTimer trigger (tourney maps), set a 30 min timer.
   if (gg_trg_InitializeTimers != null) {
     initMatchEndTimers(1500, 300);
+  } else {
+    enableBadPing();
   }
 
-  // FFA Game Mode Timers
+  // FFA Game Mode - Anonymize player names
   if (getGameMode() == MapGameMode.FFA) {
-    initMatchEndTimers(5100, 300); // 90 Min timer - last 5 min are revealed
     anonymizePlayerNames();
   }
 }
