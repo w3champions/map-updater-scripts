@@ -35,9 +35,9 @@ export function enableListOfCreepKills() {
       if (killingUnit.owner == Players[PLAYER_NEUTRAL_AGGRESSIVE])
         message += `${killingUnit.name} |cff808080(Creep)|r |cffff6666denied|r ${dyingUnit.name}`
       else if (killingUnit.isUnitType(UNIT_TYPE_STRUCTURE))
-        message += `${killingUnit.name} |${getPlayerHexCode(killingPlayer)}(${getPlayerNameWithoutNumber(killingPlayer)})|r |cffff6666denied|r ${dyingUnit.name}`
+        message += `${killingUnit.name} |${getPlayerHexCode(killingPlayer)}(${getPlayerNameWithoutNumber(killingPlayer)})|r |cffff6666denied|r ${dyingUnit.name} |cff808080(Level ${dyingUnit.level})|r`
       else
-        message += `${killingUnit.name} |${getPlayerHexCode(killingPlayer)}(${getPlayerNameWithoutNumber(killingPlayer)})|r killed ${dyingUnit.name}`
+        message += `${killingUnit.name} |${getPlayerHexCode(killingPlayer)}(${getPlayerNameWithoutNumber(killingPlayer)})|r killed ${dyingUnit.name} |cff808080(Level ${dyingUnit.level})|r`
 
       creepKillList = `${message}\n${creepKillList}`
       q.setDescription(creepKillList)
@@ -46,9 +46,9 @@ export function enableListOfCreepKills() {
     {
       let message = `|cff808080[${getFormattedElapsedTime()}]|r `
       if (killingUnit.isUnitType(UNIT_TYPE_STRUCTURE))
-        message += `${killingUnit.name} |${getPlayerHexCode(killingPlayer)}(${getPlayerNameWithoutNumber(killingPlayer)})|r |cffff6666denied|r ${dyingUnit.name}`
+        message += `${killingUnit.name} |${getPlayerHexCode(killingPlayer)}(${getPlayerNameWithoutNumber(killingPlayer)})|r |cffff6666denied|r ${dyingUnit.name} |cff808080(Level ${dyingUnit.level})|r`
       else
-        message += `${killingUnit.name} |${getPlayerHexCode(killingPlayer)}(${getPlayerNameWithoutNumber(killingPlayer)})|r killed ${dyingUnit.name}`
+        message += `${killingUnit.name} |${getPlayerHexCode(killingPlayer)}(${getPlayerNameWithoutNumber(killingPlayer)})|r killed ${dyingUnit.name} |cff808080(Level ${dyingUnit.level})|r`
 
       creepKillList = `${message}\n${creepKillList}`
       q.setDescription(creepKillList)      
