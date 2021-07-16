@@ -1,4 +1,4 @@
-import { enableBadPing } from "player_features/badping";
+import { enableDraw } from "player_features/draw";
 import { enableBuildingCancelTrigger } from "observer_features/buildingCancel";
 import { enableItemSoldBoughtTrigger } from "observer_features/itemSoldBought";
 import { enableListOfCreepKills } from "observer_features/listofCreepKills";
@@ -26,7 +26,7 @@ function init() {
   if (gg_trg_InitializeTimers != null) {
     initMatchEndTimers(1500, 300);
   } else {
-    enableBadPing();
+    enableDraw();
   }
 
   // FFA Game Mode - Anonymize player names
