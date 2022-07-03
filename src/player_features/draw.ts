@@ -1,24 +1,25 @@
 import { MapPlayer, getElapsedTime } from "w3ts/index";
 
+let drawPlayers = [];
+let requiredDrawPlayers = 0;
 export function enableDraw() {
     let drawTrigger = CreateTrigger();
-    let players = [];
+    let leaveDrawTrigger = CreateTrigger();
+    let drawPlayers = [];
     let playerCount = 0;
     for (let i = 0; i < bj_MAX_PLAYERS; i++) {
         if (GetPlayerSlotState(Player(i)) == PLAYER_SLOT_STATE_PLAYING) {
             playerCount++;
             TriggerRegisterPlayerChatEvent(drawTrigger, Player(i), "-draw", true);
+            TriggerRegisterPlayerEventLeave(leaveDrawTrigger, Player(i));
             // DisplayTextToPlayer(Player(i), 0, 0, `|cff00ff00[W3C]:|r To cancel this game due to bad ping, all players must use|cffffff00 -draw|r.\nThis command expires in 2 minutes.`);
         }
     }
 
-    let requiredPlayers = playerCount;
-
-    if (playerCount == 4) {
-        requiredPlayers = 3;
-    }
-    else if (playerCount == 8) {
-        requiredPlayers = 6;
+    if (playerCount >= 4) {
+        requiredDrawPlayers = playerCount - 1;
+    } else {
+        requiredDrawPlayers = playerCount;
     }
 
     TriggerAddAction(drawTrigger, () => {
@@ -29,18 +30,41 @@ export function enableDraw() {
             return;
         }
 
-        if (players.indexOf(triggerPlayer.name) == -1) {
-            players.push(triggerPlayer.name);
-            let remainingPlayers = requiredPlayers - players.length;
+        if (drawPlayers.indexOf(triggerPlayer.name) == -1) {
+            drawPlayers.push(triggerPlayer.name);
+            let remainingPlayers = requiredDrawPlayers - drawPlayers.length;
 
-            if (players.length == 1) {
+            if (drawPlayers.length == 1) {
                 print(`|cff00ff00[W3C]:|r|cffFF4500 ${triggerPlayer.name}|r is proposing to cancel this game. \nType|cffffff00 -draw|r to cancel the game. ${remainingPlayers} player(s) remaining.`);
-            } else if (players.length < requiredPlayers) {
+            } else if (drawPlayers.length < requiredDrawPlayers) {
                 print(`|cff00ff00[W3C]:|r|cffFF4500 ${triggerPlayer.name}|r votes to cancel this game. ${remainingPlayers} player(s) remaining.`);
             }
         }
 
-        if (players.length == requiredPlayers) {
+        if (drawPlayers.length == requiredDrawPlayers) {
+            for (let i = 0; i < bj_MAX_PLAYERS; i++) {
+                RemovePlayerPreserveUnitsBJ(Player(i), PLAYER_GAME_RESULT_NEUTRAL, false);
+            }
+        }
+    });
+	
+    TriggerAddAction(leaveDrawTrigger, () => {
+        let triggerPlayer = MapPlayer.fromEvent();
+
+        if (getElapsedTime() > 120) {
+            return;
+        }
+
+        if (drawPlayers.length == 0) {
+            requiredDrawPlayers = requiredDrawPlayers - 1;
+            return;
+        }
+		
+        if (drawPlayers.indexOf(triggerPlayer.name) == -1) {
+            drawPlayers.push(triggerPlayer.name);
+        }
+
+        if (drawPlayers.length == requiredDrawPlayers) {
             for (let i = 0; i < bj_MAX_PLAYERS; i++) {
                 RemovePlayerPreserveUnitsBJ(Player(i), PLAYER_GAME_RESULT_NEUTRAL, false);
             }
