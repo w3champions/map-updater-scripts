@@ -5,6 +5,7 @@ import { compileMap, getFilesInDirectory, loadJsonFile, logger, toArrayBuffer, I
 
 function main() {
   const config: IProjectConfig = loadJsonFile("config.json");
+  fs.copySync(`./assets`, `./dist/${config.mapFolder}`);
   const result = compileMap(config);
 
   if (!result) {
