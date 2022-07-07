@@ -6,6 +6,9 @@ import { compileMap, getFilesInDirectory, loadJsonFile, logger, toArrayBuffer, I
 function main() {
   const config: IProjectConfig = loadJsonFile("config.json");
   fs.copySync(`./assets`, `./dist/${config.mapFolder}`);
+  if (!fs.existsSync(`./dist/${config.mapFolder}/war3map.w3t`)) {
+    fs.copySync(`./defaults/war3map.w3t`, `./dist/${config.mapFolder}/war3map.w3t`)
+  }
   const result = compileMap(config);
 
   if (!result) {
