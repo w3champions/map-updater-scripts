@@ -55,13 +55,10 @@ export function enableDraw() {
             return;
         }
 
-        if (drawPlayers.length == 0) {
-            requiredDrawPlayers = requiredDrawPlayers - 1;
-            return;
-        }
+        requiredDrawPlayers = requiredDrawPlayers - 1;
 		
-        if (drawPlayers.indexOf(triggerPlayer.name) == -1) {
-            drawPlayers.push(triggerPlayer.name);
+        if (drawPlayers.indexOf(triggerPlayer.name) != -1) {
+            drawPlayers.splice(drawPlayers.indexOf(triggerPlayer.name), 1);
         }
 
         if (drawPlayers.length == requiredDrawPlayers) {

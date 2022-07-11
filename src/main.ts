@@ -10,6 +10,7 @@ import { enableCameraZoom } from "player_features/zoom";
 import { initMatchEndTimers } from "tournamentMatch";
 import { getGameMode, MapGameMode } from "utils";
 import { anonymizePlayerNames } from "player_features/anonymizeNames";
+import { enableForfeit } from "player_features/forfeit";
 
 function init() {
   enableShowCommandsTrigger();
@@ -32,6 +33,8 @@ function init() {
   // FFA Game Mode - Anonymize player names
   if (getGameMode() == MapGameMode.FFA) {
     anonymizePlayerNames();
+  } else if (getGameMode() == MapGameMode.FOUR_VS_FOUR) {
+    enableForfeit();
   }
 }
 
