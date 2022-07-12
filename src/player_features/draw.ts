@@ -61,7 +61,7 @@ export function enableDraw() {
             drawPlayers.splice(drawPlayers.indexOf(triggerPlayer.name), 1);
         }
 
-        if (drawPlayers.length == requiredDrawPlayers) {
+        if (drawPlayers.length != 0 && drawPlayers.length == requiredDrawPlayers) {
             for (let i = 0; i < bj_MAX_PLAYERS; i++) {
                 RemovePlayerPreserveUnitsBJ(Player(i), PLAYER_GAME_RESULT_NEUTRAL, false);
             }

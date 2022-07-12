@@ -29,11 +29,11 @@ export function enableForfeit() {
             
             if (forfeitPlayers[team].length == 1) {
                 if (GetPlayerTeam(GetLocalPlayer()) == team) {
-                    print(`|cff00ff00[W3C]:|r|cffFF4500 ${triggerPlayer.name}|r is proposing to forfeit this game. \nType|cffffff00 -gg|r to vote. ${remainingPlayers} player(s) remaining.`);
+                    print(`|cff00ff00[W3C]:|r|cffFF4500 ${triggerPlayer.name}|r is proposing to surrender this game. \nType|cffffff00 -gg|r to vote. ${remainingPlayers} player(s) remaining.`);
                 }
                 TimerStart(expiryTimers[team], expiryTime, false, null);
             } else if (GetPlayerTeam(GetLocalPlayer()) == team && forfeitPlayers[team].length < requiredForfeitPlayers[team]) {
-                print(`|cff00ff00[W3C]:|r|cffFF4500 ${triggerPlayer.name}|r voted to forfeit this game. ${remainingPlayers} player(s) remaining.`);
+                print(`|cff00ff00[W3C]:|r|cffFF4500 ${triggerPlayer.name}|r voted to surrender this game. ${remainingPlayers} player(s) remaining.`);
             }
         }
 
@@ -57,7 +57,7 @@ export function enableForfeit() {
             forfeitPlayers[team].splice(forfeitPlayers[team].indexOf(triggerPlayer.name), 1);
         }
 
-        if (forfeitPlayers[team].length == requiredForfeitPlayers[team]) {
+        if (forfeitPlayers[team].length != 0 && forfeitPlayers[team].length == requiredForfeitPlayers[team]) {
             for (let i = 0; i < bj_MAX_PLAYERS; i++) {
                 if (GetPlayerTeam(Player(i)) == team) {
                     RemovePlayerPreserveUnitsBJ(Player(i), PLAYER_GAME_RESULT_DEFEAT, false);
@@ -71,7 +71,7 @@ export function enableForfeit() {
     TriggerAddAction(expireForfeitTrigger[index], () => {
         forfeitPlayers[index].splice(0, forfeitPlayers[index].length);
         if (GetPlayerTeam(GetLocalPlayer()) == index) {
-            print(`|cff00ff00[W3C]|r: Forfeiting expired.`)
+            print(`|cff00ff00[W3C]|r: Surrender expired.`)
         }
     });
     })(i);
