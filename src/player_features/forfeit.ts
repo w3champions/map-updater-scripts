@@ -40,9 +40,10 @@ export function enableForfeit() {
         if (forfeitPlayers[team].length == requiredForfeitPlayers[team]) {
             for (let i = 0; i < bj_MAX_PLAYERS; i++) {
                 if (GetPlayerTeam(Player(i)) == team) {
-                    RemovePlayerPreserveUnitsBJ(Player(i), PLAYER_GAME_RESULT_DEFEAT, false);
+                    MeleeDoDefeat(Player(i));
                 }
             }
+            MeleeCheckForLosersAndVictors();
         }
     });
 	
@@ -60,9 +61,10 @@ export function enableForfeit() {
         if (forfeitPlayers[team].length != 0 && forfeitPlayers[team].length == requiredForfeitPlayers[team]) {
             for (let i = 0; i < bj_MAX_PLAYERS; i++) {
                 if (GetPlayerTeam(Player(i)) == team) {
-                    RemovePlayerPreserveUnitsBJ(Player(i), PLAYER_GAME_RESULT_DEFEAT, false);
+                    MeleeDoDefeat(Player(i));
                 }
             }
+            MeleeCheckForLosersAndVictors();
         }
     });
 
