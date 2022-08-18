@@ -5,7 +5,7 @@ import { Unit, Trigger, MapPlayer, Quest, getElapsedTime } from "w3ts/index";
 export function enableListOfCreepKills() {
   const q = new Quest();
   q.setTitle("Creep Kills")
-  q.setDescription("")
+  q.setDescription("No Kills yet.")
   q.setIcon("ReplaceableTextures\\CommandButtons\\BTNTomeBrown.blp")
   
   const getFormattedElapsedTime = () => {
