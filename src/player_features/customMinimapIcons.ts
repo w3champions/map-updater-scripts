@@ -1,10 +1,10 @@
-import { File, MapPlayer } from "w3ts/index";
+import { File, MapPlayer, Trigger } from "w3ts/index";
 
 let CustomIcons = {};
 let MadeIcons = [];
-let areCustomCampIconsEnabled = true;
+let areCustomMinimapIconsEnabled = true;
 
-export function enableCustomCampIcons() {
+export function enableCustomMinimapIcons() {
     CustomIcons[FourCC("ngad")] = "UI/MiniMap/MiniMap-Laboratory.mdx";
 
     CustomIcons[FourCC("nmer")] = "UI/MiniMap/MiniMap-Mercenary.mdx";
@@ -34,10 +34,10 @@ export function enableCustomCampIcons() {
     for (let i = 0; i < bj_MAX_PLAYERS; i++) {
         let isLocalPlayer = MapPlayer.fromHandle(Player(i)).name == MapPlayer.fromLocal().name;
         if (isLocalPlayer) {
-            const fileText = File.read("w3cCampIcons.txt")
+            const fileText = File.read("w3cMinimapIcons.txt")
 
             if (fileText) {
-                areCustomCampIconsEnabled = (fileText == "true");
+                areCustomMinimapIconsEnabled = (fileText == "true");
             }
         }
             TriggerRegisterPlayerChatEvent(toggleCustomIcons, Player(i), "-minimap", true);
@@ -49,10 +49,17 @@ export function enableCustomCampIcons() {
             let y = Math.floor(GetUnitY(GetEnumUnit()) / 128) * 128;
             let icon = CreateMinimapIcon(x, y, 255, 255, 255,
             CustomIcons[GetUnitTypeId(GetEnumUnit())], FOG_OF_WAR_FOGGED);
-            SetMinimapIconVisible(icon, areCustomCampIconsEnabled);
             MadeIcons.push(icon);
         }
     });
+
+    let setupCustomIcons = new Trigger();
+    setupCustomIcons.registerTimerEvent(0, false);
+    setupCustomIcons.addAction(()=> {
+        MadeIcons.forEach(icon => {
+            SetMinimapIconVisible(icon, areCustomMinimapIconsEnabled);
+        });
+    })
 
     TriggerAddAction(toggleCustomIcons, () => {
         let triggerPlayer = MapPlayer.fromEvent()
@@ -62,12 +69,12 @@ export function enableCustomCampIcons() {
         if (triggerPlayer.name != localPlayer.name)
             return
 
-            areCustomCampIconsEnabled = !areCustomCampIconsEnabled
-        DisplayTextToPlayer(triggerPlayer.handle, 0, 0, `\n|cff00ff00[W3C]:|r Custom Neutral Building Icons are now |cffffff00 ` + (areCustomCampIconsEnabled ? `ENABLED` : `DISABLED`) + `|r.`)
+            areCustomMinimapIconsEnabled = !areCustomMinimapIconsEnabled
+        DisplayTextToPlayer(triggerPlayer.handle, 0, 0, `\n|cff00ff00[W3C]:|r Custom Neutral Building Icons are now |cffffff00 ` + (areCustomMinimapIconsEnabled ? `ENABLED` : `DISABLED`) + `|r.`)
 
         MadeIcons.forEach(icon => {
-            SetMinimapIconVisible(icon, areCustomCampIconsEnabled);
+            SetMinimapIconVisible(icon, areCustomMinimapIconsEnabled);
         });
-        File.write("w3cCampIcons.txt", areCustomCampIconsEnabled.toString());
+        File.write("w3cMinimapIcons.txt", areCustomMinimapIconsEnabled.toString());
     });
 }
