@@ -11,14 +11,14 @@ import { initMatchEndTimers } from "tournamentMatch";
 import { getGameMode, MapGameMode } from "utils";
 import { anonymizePlayerNames } from "player_features/anonymizeNames";
 import { enableForfeit } from "player_features/forfeit";
-import { enableCustomCampIcons } from "player_features/customCampIcons";
+import { enableCustomMinimapIcons } from "player_features/customMinimapIcons";
 
 function init() {
   enableShowCommandsTrigger();
   enableCameraZoom();
   enableWorkerCount();
   enableUnitDenyTrigger();
-  enableCustomCampIcons();
+  enableCustomMinimapIcons();
 
   // Observer-Only Features
   enableItemSoldBoughtTrigger();
