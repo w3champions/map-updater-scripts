@@ -24,6 +24,9 @@ export function enableCustomMinimapIcons() {
     CustomIcons[FourCC("nmrd")] = "UI/MiniMap/MiniMap-Mercenary.mdx";
     CustomIcons[FourCC("nmre")] = "UI/MiniMap/MiniMap-Mercenary.mdx";
     CustomIcons[FourCC("nmrf")] = "UI/MiniMap/MiniMap-Mercenary.mdx";
+    
+    // Custom Mercenary Camp on some maps
+    CustomIcons[FourCC("n000")] = "UI/MiniMap/MiniMap-Mercenary.mdx";
 
     CustomIcons[FourCC("ngme")] = "UI/MiniMap/MiniMap-Shop.mdx";
     CustomIcons[FourCC("nmrk")] = "UI/MiniMap/MiniMap-Shop.mdx";
