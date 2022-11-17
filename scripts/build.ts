@@ -7,7 +7,7 @@ function main() {
   const config: IProjectConfig = loadJsonFile("config.json");
 
   // Gets overwritten if the map has it
-  fs.copySync(`./defaults/war3map.w3t`, `./dist/${config.mapFolder}/war3map.w3t`)
+  fs.copySync(`./defaults`, `./dist/${config.mapFolder}`)
   const result = compileMap(config);
 
   if (!result) {
