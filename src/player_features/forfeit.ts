@@ -1,4 +1,4 @@
-import { MapPlayer } from "w3ts/index";
+import { MapPlayer, getElapsedTime } from "w3ts/index";
 
 export function enableForfeit() {
     let forfeitTrigger = CreateTrigger();
@@ -22,6 +22,11 @@ export function enableForfeit() {
         let triggerPlayer = MapPlayer.fromEvent();
 
         let team = triggerPlayer.team;
+
+        if (getElapsedTime() < 180) {
+            DisplayTextToPlayer(triggerPlayer.handle, 0, 0, `|cff00ff00[W3C]:|r The|cffffff00 -gg|r command is disabled before three minutes of gameplay.`);
+            return;
+        }
 
         if (forfeitPlayers[team].indexOf(triggerPlayer.name) == -1) {
             forfeitPlayers[team].push(triggerPlayer.name);
