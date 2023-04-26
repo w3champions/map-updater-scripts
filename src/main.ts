@@ -1,4 +1,5 @@
 import { enableDraw } from "player_features/draw";
+import { enableNoChat } from "player_features/nochat";
 import { enableBuildingCancelTrigger } from "observer_features/buildingCancel";
 import { enableItemSoldBoughtTrigger } from "observer_features/itemSoldBought";
 import { enableListOfCreepKills } from "observer_features/listofCreepKills";
@@ -35,6 +36,7 @@ function init() {
   // FFA Game Mode - Anonymize player names
   if (getGameMode() == MapGameMode.FFA) {
     anonymizePlayerNames();
+    enableNoChat();
   } else if (getGameMode() == MapGameMode.FOUR_VS_FOUR) {
     enableForfeit();
   }
