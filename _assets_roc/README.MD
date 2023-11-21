@@ -1,0 +1,1 @@
+In order to correct handle Reign of Chaos maps, please do swap the original "assets" folder with this one. No further action required.
