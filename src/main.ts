@@ -12,6 +12,7 @@ import { getGameMode, MapGameMode } from "utils";
 import { anonymizePlayerNames } from "player_features/anonymizeNames";
 import { enableForfeit } from "player_features/forfeit";
 import { enableCustomMinimapIcons } from "player_features/customMinimapIcons";
+import { hideGameButtons } from "player_features/hideGameButtons";
 
 function init() {
   enableShowCommandsTrigger();
@@ -38,6 +39,8 @@ function init() {
   } else if (getGameMode() == MapGameMode.FOUR_VS_FOUR) {
     enableForfeit();
   }
+
+  hideGameButtons();
 }
 
 
