@@ -1,25 +1,42 @@
 #!/bin/bash
-mapExtractionPath=".\\maps\\map.w3x"
-cleanMapPath=".\\maps\\w3c_maps\\clean_maps"
-outputMapPath=".\\maps\\w3c_maps\\output"
-outputTournamentMapPath="$outputMapPath\\tournaments"
-    
-rm -rfv "$outputMapPath" && mkdir "$outputMapPath" && mkdir "$outputTournamentMapPath"
-for filename in "$cleanMapPath"/*.w3*; do
-    echo "$filename"
-    basename "$filename"
-    f="$(basename -- $filename)"
-    rm -rfv "$mapExtractionPath" && mkdir "$mapExtractionPath"
-    echo "$cleanMapPath"/MPQEditor.exe extract "$filename" "*" "$mapExtractionPath" "/fp"
-    "$cleanMapPath"/MPQEditor.exe extract "$filename" "*" "$mapExtractionPath" "/fp"
+
+# Do not enter the for-loop if no files were found
+shopt -s nullglob
+
+mapExtractionPath="./maps/map.w3x"
+cleanMapPath="./maps/w3c_maps/clean_maps/current"
+outputMapPath="./maps/w3c_maps/output"
+mpqPath="./MPQEditor.exe"
+
+rm -rf "$outputMapPath" && mkdir "$outputMapPath"
+
+for fullPath in $(find $cleanMapPath -name '*.w3m' -or -name '*.w3x'); do
+    fileName="$(basename $fullPath)"
+    dirName="$(dirname $fullPath)"
+
+    printf "\nProcessing $fileName... \n\n"
+    rm -rf "$mapExtractionPath" && mkdir "$mapExtractionPath"
+    printf "Running command: $mpqPath extract $fullPath * $mapExtractionPath /fp \n"
+    "$mpqPath" extract "$fullPath" "*" "$mapExtractionPath" "/fp"
     rm -rf dist/ && npm run build
-    
+
     outpath=$outputMapPath
-    if [[ $f == *"tourney"* ]];then
-        outpath=$outputTournamentMapPath
+
+    if [[ $dirName == *"tournament" ]]; then
+        outpath="${outputMapPath}/tournament"
+    elif [[ $dirName == *"atr" ]]; then
+        outpath="${outputMapPath}/atr"
+    elif [[ $dirName == *"roc" ]]; then
+        outpath="${outputMapPath}/roc"
     fi
-    echo "MOVING TO $outpath\\$f"
-    mv ".\\maps\w3c_maps\\map.w3x" "$outpath\\$f"
+
+    # Create the directory if it doesn't exist
+    if [[ ! -e $dir ]]; then
+        mkdir "$outpath"
+    fi
+
+    printf "\nMoving map to $outpath/$fileName \n"
+    mv "./maps/w3c_maps/map.w3x" "$outpath/$fileName"
 done
 
 echo "Map updates completed successfully"
