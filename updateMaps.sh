@@ -24,14 +24,14 @@ for fullPath in $(find $cleanMapPath -name '*.w3m' -or -name '*.w3x'); do
 
     if [[ $dirName == *"tournament" ]]; then
         outpath="${outputMapPath}/tournament"
-    elif [[ $dirName == *"atr" ]]; then
-        outpath="${outputMapPath}/atr"
-    elif [[ $dirName == *"roc" ]]; then
-        outpath="${outputMapPath}/roc"
+    elif [[ $dirName == *"all-the-randoms" ]]; then
+        outpath="${outputMapPath}/all-the-randoms"
+    elif [[ $dirName == *"reign-of-chaos" ]]; then
+        outpath="${outputMapPath}/reign-of-chaos"
     fi
 
     # Create the directory if it doesn't exist
-    if [[ ! -e $dir ]]; then
+    if [[ ! -e $outpath ]]; then
         mkdir "$outpath"
     fi
 
