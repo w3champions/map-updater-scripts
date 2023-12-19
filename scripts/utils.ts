@@ -113,14 +113,20 @@ export function compileMap(config: IProjectConfig) {
   logger.info(`Building "${config.mapFolder}"...`);
   fs.copySync(`./maps/${config.mapFolder}`, `./dist/${config.mapFolder}`);
 
-  // Merge the TSTL output with war3map.lua
   const mapLua = `./dist/${config.mapFolder}/war3map.lua`;
+  const mapJass = `./dist/${config.mapFolder}/war3map.j`;
+
+  if (fs.existsSync(mapJass) && !fs.existsSync(mapLua)) {
+    logger.error(`Found "${mapJass}" instead of "${mapLua}". Please check that the map script language is set to Lua.`);
+    throw new Error();
+  }
 
   if (!fs.existsSync(mapLua)) {
     logger.error(`Could not find "${mapLua}"`);
-    return false;
+    throw new Error();
   }
 
+  // Merge the TSTL output with war3map.lua
   try {
     let contents = fs.readFileSync(mapLua).toString() + fs.readFileSync(tsLua).toString();
     contents = processScriptIncludes(contents);

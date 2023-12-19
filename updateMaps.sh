@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Exit the script if an error occurs.
+set -e
+
 mapExtractionPath="./maps/map.w3x"
 cleanMapPath="./maps/w3c_maps/clean_maps/current"
 outputMapPath="./maps/w3c_maps/output"
@@ -13,7 +16,7 @@ for fullPath in $(find $cleanMapPath -name '*.w3m' -or -name '*.w3x'); do
 
     printf "Processing $fileName... \n\n"
     rm -rf "$mapExtractionPath" && mkdir "$mapExtractionPath"
-    printf "Running command: $mpqPath extract $fullPath * $mapExtractionPath /fp \n"
+    printf "Running command: \"$mpqPath\" extract \"$fullPath\" \"*\" \"$mapExtractionPath\" \"/fp\" \n"
     "$mpqPath" extract "$fullPath" "*" "$mapExtractionPath" "/fp"
     rm -rf dist/ && npm run build
 
@@ -36,4 +39,8 @@ for fullPath in $(find $cleanMapPath -name '*.w3m' -or -name '*.w3x'); do
     mv "./maps/w3c_maps/map.w3x" "$outpath/$fileName"
 done
 
-echo "Map updates completed successfully"
+cleanMapsCount=$(find $cleanMapPath -name '*.w3m' -or -name '*.w3x' | wc -l)
+completedMapsCount=$(find $outputMapPath -name '*.w3m' -or -name '*.w3x' | wc -l)
+echo "Processed $cleanMapsCount maps and output $completedMapsCount maps."
+
+echo "Map updates completed successfully."
