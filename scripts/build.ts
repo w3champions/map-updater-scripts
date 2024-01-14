@@ -5,6 +5,8 @@ import { compileMap, getFilesInDirectory, loadJsonFile, logger, toArrayBuffer, I
 
 function main() {
   const config: IProjectConfig = loadJsonFile("config.json");
+  const dirName = process.argv[2];
+  const assetsPath = dirName.includes("reign-of-chaos") ? `./assets/roc` : `./assets/main`;
 
   // Gets overwritten if the map has it
   fs.copySync(`./defaults`, `./dist/${config.mapFolder}`)
@@ -16,7 +18,7 @@ function main() {
   }
 
   // Overwrites map files with our assets
-  fs.copySync(`./assets`, `./dist/${config.mapFolder}`);
+  fs.copySync(assetsPath, `./dist/${config.mapFolder}`);
 
   logger.info(`Creating w3x archive...`);
   if (!fs.existsSync(config.outputFolder)) {

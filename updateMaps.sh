@@ -7,18 +7,20 @@ mapExtractionPath="./maps/map.w3x"
 cleanMapPath="./maps/w3c_maps/clean_maps/current"
 outputMapPath="./maps/w3c_maps/output"
 mpqPath="./MPQEditor.exe"
+currentDateTime=$(date '+%y%m%d_%H%M')
 
 rm -rf "$outputMapPath" && mkdir "$outputMapPath"
 
 for fullPath in $(find $cleanMapPath -name '*.w3m' -or -name '*.w3x'); do
     fileName="$(basename $fullPath)"
     dirName="$(dirname $fullPath)"
+    printf "$dirName\n"
 
     printf "Processing $fileName... \n\n"
     rm -rf "$mapExtractionPath" && mkdir "$mapExtractionPath"
     printf "Running command: \"$mpqPath\" extract \"$fullPath\" \"*\" \"$mapExtractionPath\" \"/fp\" \n"
     "$mpqPath" extract "$fullPath" "*" "$mapExtractionPath" "/fp"
-    rm -rf dist/ && npm run build
+    rm -rf dist/ && npm run build "$dirName"
 
     outpath=$outputMapPath
 
@@ -36,7 +38,7 @@ for fullPath in $(find $cleanMapPath -name '*.w3m' -or -name '*.w3x'); do
     fi
 
     printf "\nMoving map to $outpath/$fileName \n\n"
-    mv "./maps/w3c_maps/map.w3x" "$outpath/$fileName"
+    mv "./maps/w3c_maps/map.w3x" "$outpath/w3c_${currentDateTime}_$fileName"
 done
 
 cleanMapsCount=$(find $cleanMapPath -name '*.w3m' -or -name '*.w3x' | wc -l)
