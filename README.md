@@ -12,4 +12,4 @@ This repo contains the scripts we use to inject the triggers into our ladder map
 * The newly created maps will be saved into `./maps/w3c_maps/output`
 
 ## Additional info
-When maps are removed from the W3Champions map pool, they should be moved from the `current` directory to `old`. This way they won't be processed by the script, but the clean maps are still preserved for later use.
+When maps are removed from the W3Champions map pool, they should be moved from the `current` directory to `unused`. This way they won't be processed by the script, but the clean maps are still preserved for later use.
