@@ -43,7 +43,7 @@ export function enableCustomMinimapIcons() {
                 areCustomMinimapIconsEnabled = (fileText == "true");
             }
         }
-            TriggerRegisterPlayerChatEvent(toggleCustomIcons, Player(i), "-minimap", true);
+        TriggerRegisterPlayerChatEvent(toggleCustomIcons, Player(i), "-minimap", true);
     }
 
     ForGroup(GetUnitsInRectAll(GetPlayableMapRect()), () => {

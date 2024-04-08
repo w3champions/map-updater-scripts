@@ -1,7 +1,7 @@
 import { enableDraw } from "player_features/draw";
 import { enableBuildingCancelTrigger } from "observer_features/buildingCancel";
 import { enableItemSoldBoughtTrigger } from "observer_features/itemSoldBought";
-import { enableListOfCreepKills } from "observer_features/listofCreepKills";
+import { enableListOfCreepKills } from "observer_features/listOfCreepKills";
 import { enableShowCommandsTrigger } from "showCommands";
 import { enableUnitDenyTrigger } from "player_features/unitDeny";
 import { addScriptHook, W3TS_HOOK } from "w3ts/hooks";
@@ -13,6 +13,7 @@ import { anonymizePlayerNames } from "player_features/anonymizeNames";
 import { enableForfeit } from "player_features/forfeit";
 import { enableCustomMinimapIcons } from "player_features/customMinimapIcons";
 import { hideGameButtons } from "player_features/hideGameButtons";
+import { enableClock } from "player_features/clock";
 
 function init() {
   enableShowCommandsTrigger();
@@ -20,6 +21,7 @@ function init() {
   enableWorkerCount();
   enableUnitDenyTrigger();
   enableCustomMinimapIcons();
+  enableClock();
 
   // Observer-Only Features
   enableItemSoldBoughtTrigger();
