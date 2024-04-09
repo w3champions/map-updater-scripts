@@ -27,7 +27,7 @@ export function enableClock() {
     BlzFrameSetAbsPoint(FH, FRAMEPOINT_CENTER, 0.465, 0.563)
     BlzFrameSetScale(FH, 1.0)
     BlzFrameSetText(FH, "Time:  00:00")
-    BlzFrameSetTextColor(FH, BlzConvertColor(255, 195, 194, 50))
+    BlzFrameSetTextColor(FH, BlzConvertColor(255, 205, 205, 50))
 
     // if the clock is disabled, hide the frame
 
