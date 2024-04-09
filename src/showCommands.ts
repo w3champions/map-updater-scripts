@@ -20,7 +20,8 @@ export function enableShowCommandsTrigger() {
     `  |cffffff00•|r Type|cffffff00 -z|r or press|cffffff00 F5|r to reset zoom to preferred value.\n` +
     `  |cffffff00•|r Type|cffffff00 -deny|r to show/hide|cffffff00 !|r when a player's unit is denied.\n` +
     `  |cffffff00•|r Type|cffffff00 -workercount|r to show/hide goldmine worker count.\n` +
-    `  |cffffff00•|r Type|cffffff00 -minimap|r to show/hide custom minimap icons.`;
+    `  |cffffff00•|r Type|cffffff00 -minimap|r to show/hide custom minimap icons.\n` +
+    `  |cffffff00•|r Type|cffffff00 -clock|r to show/hide clock.`;
 
     TriggerAddAction(showCommandsTrigger, () => {
         DisplayTimedTextToPlayer(GetTriggerPlayer(), 0, 0, 10, commands);
