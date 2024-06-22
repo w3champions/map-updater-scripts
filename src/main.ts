@@ -28,7 +28,7 @@ function init() {
   enableListOfCreepKills();
   enableBuildingCancelTrigger();
 
-  // If the map has the InitializeTimer trigger (tourney maps), set a 30 min timer.
+  // If the map has the InitializeTimers trigger (tournament maps), set a 30 min timer.
   if (gg_trg_InitializeTimers != null) {
     initMatchEndTimers(1500, 300);
   } else {
