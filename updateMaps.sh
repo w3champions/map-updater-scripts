@@ -4,7 +4,7 @@
 set -e
 
 mapExtractionPath="./maps/map.w3x"
-cleanMapPath="./maps/w3c_maps/clean_maps/current"
+cleanMapPath="./maps/w3c_maps/clean_maps"
 outputMapPath="./maps/w3c_maps/output"
 mpqPath="./MPQEditor.exe"
 currentDateTime=$(date '+%y%m%d_%H%M')
