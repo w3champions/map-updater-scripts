@@ -22,36 +22,44 @@ export function enableListOfCreepKills() {
     return Unit.fromHandle(GetDyingUnit()).owner == Players[PLAYER_NEUTRAL_AGGRESSIVE]
   }
 
-  // Adds each creep kill to the running list
-  let creepKillList: string = ""
-  const addCreepKillToListAndUpdateQuest = () => {
+  const createCreepKillMessage = () => {
     const dyingUnit     = Unit.fromHandle(GetDyingUnit())
     const killingUnit   = Unit.fromHandle(GetKillingUnitBJ())
     const killingPlayer = killingUnit.owner
-    
-    if (MapPlayer.fromLocal().isObserver())
-    {
-      let message = `|cff808080[${getFormattedElapsedTime()}]|r `
-      if (killingUnit.owner == Players[PLAYER_NEUTRAL_AGGRESSIVE])
-        message += `${killingUnit.name} |cff808080(Creep)|r |cffff6666denied|r ${dyingUnit.name}`
-      else if (killingUnit.isUnitType(UNIT_TYPE_STRUCTURE))
-        message += `${killingUnit.name} |${getPlayerHexCode(killingPlayer)}(${getPlayerNameWithoutNumber(killingPlayer)})|r |cffff6666denied|r ${dyingUnit.name} |cff808080(Level ${dyingUnit.level})|r`
-      else
-        message += `${killingUnit.name} |${getPlayerHexCode(killingPlayer)}(${getPlayerNameWithoutNumber(killingPlayer)})|r killed ${dyingUnit.name} |cff808080(Level ${dyingUnit.level})|r`
 
-      creepKillList = `${message}\n${creepKillList}`
-      q.setDescription(creepKillList)
+    if (!MapPlayer.fromLocal().isObserver() && !killingUnit.owner.isPlayerAlly(MapPlayer.fromLocal()))
+    {
+      return null;
     }
-    else if (killingUnit.owner.isPlayerAlly(MapPlayer.fromLocal()))
+    let message = `|cff808080[${getFormattedElapsedTime()}]|r `
+    if (MapPlayer.fromLocal().isObserver() && killingUnit.owner == Players[PLAYER_NEUTRAL_AGGRESSIVE])
     {
-      let message = `|cff808080[${getFormattedElapsedTime()}]|r `
-      if (killingUnit.isUnitType(UNIT_TYPE_STRUCTURE))
-        message += `${killingUnit.name} |${getPlayerHexCode(killingPlayer)}(${getPlayerNameWithoutNumber(killingPlayer)})|r |cffff6666denied|r ${dyingUnit.name} |cff808080(Level ${dyingUnit.level})|r`
-      else
-        message += `${killingUnit.name} |${getPlayerHexCode(killingPlayer)}(${getPlayerNameWithoutNumber(killingPlayer)})|r killed ${dyingUnit.name} |cff808080(Level ${dyingUnit.level})|r`
+      message += `${killingUnit.name} |cff808080(Creep)|r |cffff6666denied|r ${dyingUnit.name}`
+    }
+    else if (killingUnit.isUnitType(UNIT_TYPE_STRUCTURE))
+    {
+      message += `${killingUnit.name} |${getPlayerHexCode(killingPlayer)}(${getPlayerNameWithoutNumber(killingPlayer)})|r |cffff6666denied|r ${dyingUnit.name} |cff808080(Level ${dyingUnit.level})|r`
+    }
+    else
+    {
+      message += `${killingUnit.name} |${getPlayerHexCode(killingPlayer)}(${getPlayerNameWithoutNumber(killingPlayer)})|r killed ${dyingUnit.name} |cff808080(Level ${dyingUnit.level})|r`
+    }
+    return message
+  }
 
+  // Adds each creep kill to the running list, limiting the list to 4096 characters
+  let creepKillList: string = ""
+  const addCreepKillToListAndUpdateQuest = () => {
+    const message = createCreepKillMessage()
+    if (message != null)
+    {
       creepKillList = `${message}\n${creepKillList}`
-      q.setDescription(creepKillList)      
+      if (creepKillList.length > 4096)
+      {
+        creepKillList = creepKillList.lastIndexOf("\n") > 0 ? creepKillList.substring(0, creepKillList.lastIndexOf("\n")) : ""
+      }
+
+      q.setDescription(creepKillList)
     }
   }
 
