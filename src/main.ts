@@ -29,6 +29,9 @@ function init() {
   enableClock();
   enableCreepLootIndicator();
 
+  setupMetrics();
+  setupMetricEvents();
+
   // Observer-Only Features
   enableItemSoldBoughtTrigger();
   enableListOfCreepKills();
