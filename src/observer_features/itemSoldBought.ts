@@ -1,4 +1,4 @@
-import { getPlayerRGBCode } from "utils";
+import { getPlayerRGBCode } from "../utils";
 import { Trigger, Unit, Item, TextTag, MapPlayer } from "w3ts/index";
 
 export function enableItemSoldBoughtTrigger() {

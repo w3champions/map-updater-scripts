@@ -1,4 +1,4 @@
-import { getPlayerNameWithoutNumber, getPlayerHexCode } from "utils";
+import { getPlayerNameWithoutNumber, getPlayerHexCode } from "../utils";
 import { Players } from "w3ts/globals/index";
 import { Unit, Trigger, MapPlayer, Quest, getElapsedTime } from "w3ts/index";
 
