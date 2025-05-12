@@ -1,4 +1,4 @@
-import { showMessageOverUnit } from "utils";
+import { showMessageOverUnit } from "../utils";
 import { Unit, MapPlayer, Trigger, File } from "w3ts/index";
 import { Players } from "w3ts/globals/index";
 

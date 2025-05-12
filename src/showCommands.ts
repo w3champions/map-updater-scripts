@@ -1,4 +1,4 @@
-import { getGameMode, MapGameMode } from "utils";
+import { getGameMode, MapGameMode } from "./utils";
 
 export function enableShowCommandsTrigger() {
     let showCommandsTrigger = CreateTrigger();
