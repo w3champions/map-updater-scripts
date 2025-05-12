@@ -14,6 +14,7 @@ import { enableForfeit } from "./player_features/forfeit";
 import { enableCustomMinimapIcons } from "./player_features/customMinimapIcons";
 import { hideGameButtons } from "./player_features/hideGameButtons";
 import { enableClock } from "./player_features/clock";
+import { setupMetrics, setupMetricEvents } from "./player_features/metrics";
 
 function init() {
   enableShowCommandsTrigger();
@@ -22,6 +23,9 @@ function init() {
   enableUnitDenyTrigger();
   enableCustomMinimapIcons();
   enableClock();
+
+  setupMetrics();
+  setupMetricEvents();
 
   // Observer-Only Features
   enableItemSoldBoughtTrigger();
