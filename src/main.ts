@@ -29,8 +29,9 @@ function init() {
   enableClock();
   enableCreepLootIndicator();
 
-  setupMetrics();
-  setupMetricEvents();
+  w3cInit("WC");
+  setupTrackMetrics();
+  setupEventMetrics();
 
   // Observer-Only Features
   enableItemSoldBoughtTrigger();
