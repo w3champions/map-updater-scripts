@@ -14,7 +14,8 @@ import { enableForfeit } from "./player_features/forfeit";
 import { enableCustomMinimapIcons } from "./player_features/customMinimapIcons";
 import { hideGameButtons } from "./player_features/hideGameButtons";
 import { enableClock } from "./player_features/clock";
-import { setupMetrics, setupMetricEvents } from "./player_features/metrics";
+import { setupTrackMetrics, setupEventMetrics} from "./metrics/metrics";
+import { init as w3cInit } from "./lua/w3cMetrics";
 
 function init() {
   enableShowCommandsTrigger();
@@ -24,8 +25,9 @@ function init() {
   enableCustomMinimapIcons();
   enableClock();
 
-  setupMetrics();
-  setupMetricEvents();
+  w3cInit("WC");
+  setupTrackMetrics();
+  setupEventMetrics();
 
   // Observer-Only Features
   enableItemSoldBoughtTrigger();
