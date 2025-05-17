@@ -15,29 +15,17 @@ W3CData.register_schema("PlayerState", {
   { name: "upkeep", type: "byte" },
 })
 
-- Pack an event or batch of events
-
-local schema_id = W3CData:get_schema_id("PlayerState")
-local packed W3CData:pack_bits(schema_id, { 50, 50, 0 })       -- { gold, wood, upkeep }
-
-local packed = W3CData:pack_batch({ schema_id, { 50, 50, 0 }, { schema_id, { 60, 60, 0 }} })
-
-- Encode to be sent using BlzSendSyncData
-
-local payload = W3CData:encode_payload(packed)
+- Create a payload to send
+local events = { 
+    { "PlayerState", { 50, 100, 0 } } -- { schema_name, { gold, wood, upkeep } } 
+} 
+local payload = W3CData:encode_payload(events)
 
 ---
-To parse a payload, do the above but in reverse
+To parse a payload just use W3CData:decode_payload
 
 - Decode data sent
 local packed = W3CData:decode_payload(payload)
-
-- Unpack data
-
-local unpacked, schema = W3CData:unpack_bits(packed)
-
--- For batch data, the events have the schema_id as part of each event, same as when send a batch
-local unpacked = W3CData:unpack_batch(packed)
 
 --------
 
@@ -79,9 +67,9 @@ Signed is used to indentify whether the field should use zigzag encoding to hand
 
 Each packet has a 1 byte header that identifies whether the packet is:
 
-0x00      - Singular data packet
-0x01      - Batched data packet
-0x02      - Checksum packet       -- Use the W3CChecksum utility for updating and getting checksums
+0x01      - Singular data packet
+0x02      - Batched data packet
+0x03      - Checksum packet       -- Use the W3CChecksum utility for updating and getting checksums
 0x80      - Chunked packet         
 
 Chunked packets contain additional header data:
@@ -92,6 +80,15 @@ The chunk_id is a unique id for all associated chunked used for matching.
 The chunk count is the number of chunks for this specific set of chunks
 The chunk index is this specific packets index in the chunks
 The payload is the byte string packed data.
+
+--------
+
+NOTE: The below is not necessary to use unless you really want to minimize the amount of data being used.
+
+Overriding bit sizes for schemas is possible by setting the `field.bits` instead of the `field.type`.
+This can be useful for making more compressed payloads. As an example, `upkeep` is only ever 0, 1 or 2. We can
+use 2 bits for this instead of the `byte` of 8 bits, allowing us to save 6 bits on every event using this field. 
+Or a `player` field for player ids will only ever have values 0-32, so we can use 5 bits instead of the `byte`, saving 3 bits.
 
 Below is a table showing bits and the numbers they allow up to 24 bits / 3 bytes.
   Bits      Number
@@ -123,12 +120,12 @@ Below is a table showing bits and the numbers they allow up to 24 bits / 3 bytes
 --]]
 
 -- TODO: Still need to test chunked data
--- TODO: Still need to test overriding bit size values to have more efficient packing
--- TODO: Probably need to update the payload header to also be able to tell if the payload contains batched events or not
 -- TODO: Still need to update the event library to use this library and test that it all works inside WC3
 
 require("src.lua.libDeflate")
 LibDeflate.InitCompressor()
+
+local json = require("dkjson")
 
 ---@alias FieldType "bool" | "byte" | "short" | "int" | "float" | "string"
 
@@ -165,9 +162,9 @@ LibDeflate.InitCompressor()
 ---@field payload string
 
 local HEADER_VALUES = {
-	EVENT = 0x00,
-	SCHEMA_REGISTER = 0x01,
-	CHECKSUM = 0x02,
+	EVENT = 0x01,
+	SCHEMA_REGISTER = 0x02,
+	CHECKSUM = 0x03,
 
 	CHUNK = 0x80,
 }
@@ -383,7 +380,7 @@ local function zigzag_decode(int)
 	return (int >> 1) ~ -(int & 1)
 end
 
----Validates that the value is within the correct size for the given type
+---Validates that the value is within the correct size for the given type. Only validates if the field.type is set
 ---@param value string | number
 ---@param field Field
 local function validate_value(value, field)
@@ -493,7 +490,13 @@ function W3CData:pack_bits(schema_id, data)
 
 	for i, field in ipairs(schema.fields) do
 		local value = data[i]
-		validate_value(value, field)
+
+		-- If the field has a type set, validate that the value is within the bit size.
+		-- Don't currently check if the type is not set and the bit is set explicitly as I expect
+		-- people doing that to know what values are valid and what are not.
+		if field.type then
+			validate_value(value, field)
+		end
 
 		if field.type == "string" then
 			-- Don't pack strings, just use LibDeflate to compress them
@@ -522,23 +525,20 @@ function W3CData:pack_bits(schema_id, data)
 				table.insert(result, packed:byte(f))
 			end
 		else
-			-- All other integer values
+			-- All other values
 			if field.type == "bool" then
 				value = value and 1 or 0
 			end
-			local bits = field.bits
 
 			-- For signed values we zigzag encode so that we can support both signed and unsigned.
-			-- Default is signed values as assume that negative values aren't that common for our use cases
+			-- Default is unsigned values as assume that negative values aren't that common for our use cases
 			if field.signed and field.type ~= "bool" then
 				value = zigzag_encode(value)
-				-- Need to add an additional bit to handle negative
-				bits = bits
 			end
 
 			-- add value and size to buffer and count so we can write until we have less than 1 byte in the buffer.
 			bit_buffer = bit_buffer | (value << bit_count)
-			bit_count = bit_count + bits
+			bit_count = bit_count + field.bits
 
 			-- Flush full bytes from bit buffer to output
 			while bit_count >= 8 do
@@ -588,7 +588,7 @@ function W3CData:pack_batch_with_name(batch_data)
 	local mapped = {}
 	for _, entry in ipairs(batch_data) do
 		local schema_id = self:get_schema_id(entry.schema_name)
-		table.insert(mapped, { schema_id, entry[2] })
+		table.insert(mapped, { schema_id, entry.payload })
 	end
 
 	return self:pack_batch(mapped)
@@ -776,7 +776,7 @@ function W3CData:unchunk_payload(chunks)
 
 	local expected_id = chunks[1].id
 	local expected_count = chunks[1].count
-	assert(#chunks == #expected_count, "Incomplete chunk set")
+	assert(#chunks == expected_count, "Incomplete chunk set")
 
 	for _, chunk in ipairs(chunks) do
 		assert(chunk.id == expected_id, "Mismatched chunk id")
@@ -798,51 +798,72 @@ end
 ---@see W3CData.chunk_payload
 ---@param events table<Payload> Table containing all payload events to encode with their associated schema names
 ---@param max_size integer Maximum size for a single data packet
----@return string | table<string> encoded_payload
+---@return string | table<string>, boolean encoded_payload
 function W3CData:encode_payload(events, max_size)
+	local result = {}
 	local packed = self:pack_batch_with_name(events)
 
 	if #packed <= max_size then
-		return string.char(HEADER_VALUES.EVENT) .. packed
+		table.insert(result, string.char(HEADER_VALUES.EVENT) .. packed)
+		return result, false
 	end
 
 	local id = math.random(1, 65535)
 	local chunks = self:chunk_payload(packed, max_size - 5, id)
-	local result = {}
 
 	for _, chunk in ipairs(chunks) do
-		local header = string.char(HEADER_VALUES.CHUNK, (chunk.id >> 8) & 0xFF, chunk.count, chunk.index)
+		local header =
+			string.char(HEADER_VALUES.CHUNK, (chunk.id >> 8) & 0xFF, chunk.id & 0xFF, chunk.count, chunk.index)
 		table.insert(result, header .. chunk.payload)
 	end
 
-	return result
+	return result, true
 end
 
 ---Decodes a byte string containing a header and packed or chunked data to return the parsed event data
----@param sync_data string Byte string to decode
----@return string | Chunk, boolean Returns the packed data string if not chunked or a `Chunk` if it is chunked.
----Returns false if not chunked, true if chunked
-function W3CData:decode_payload(sync_data)
-	local first = sync_data:byte(1)
-	if (first & 0x80) == 0 then
-		-- Not chunked
-		return sync_data:sub(2), false
+function W3CData:decode_payloads(payloads)
+	local result = {}
+
+	local chunk_payloads = {}
+
+	for _, sync_data in ipairs(payloads) do
+		local first = sync_data:byte(1)
+		if (first & HEADER_VALUES.EVENT) ~= 0 then
+			local data = sync_data:sub(2)
+			table.insert(result, self:unpack_batch(data))
+		else
+			if (first & HEADER_VALUES.CHECKSUM) ~= 0 then
+				-- handle checksum
+			end
+
+			if (first & HEADER_VALUES.SCHEMA_REGISTER) ~= 0 then
+				-- handle register
+			end
+
+			-- Chunked packet
+			local id_hi = sync_data:byte(2)
+			local id_lo = sync_data:byte(3)
+			local count = sync_data:byte(4)
+			local index = sync_data:byte(5)
+			local chunk_id = (id_hi << 8) | id_lo
+			local payload = sync_data:sub(6)
+
+			chunk_payloads[chunk_id] = chunk_payloads[chunk_id] or {}
+			table.insert(chunk_payloads[chunk_id], {
+				id = chunk_id,
+				count = count,
+				index = index,
+				payload = payload,
+			})
+		end
 	end
 
-	-- Chunked packet
-	local id_hi = sync_data:byte(2)
-	local id_lo = sync_data:byte(3)
-	local count = sync_data:byte(4)
-	local index = sync_data:byte(5)
-	local chunk_id = (id_hi << 8) | id_lo
-	local payload = sync_data:sub(6)
+	for _, chunk in pairs(chunk_payloads) do
+		local unchunked = self:unchunk_payload(chunk)
+		table.insert(result, self:unpack_batch(unchunked))
+	end
 
-	return {
-		id = chunk_id,
-		count = count,
-		index = index,
-		payload = payload,
-	}, true
+	return result
 end
 
 ---Parses an unpacked payload containing `{ schema_id, { schema_values }}`
