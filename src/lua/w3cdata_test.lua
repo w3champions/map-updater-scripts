@@ -67,7 +67,7 @@ local schemas = {
 local unit_trained_events = {
 	{ 1, 10, 27 },
 	{ 2, 10, 18 },
-	{ 1, 28, 314 },
+	{ 1, 28, 255 },
 	{ 2, 42, 125 },
 }
 
@@ -111,11 +111,45 @@ local function test_event(schema_name, event)
 
 	local unpacked, schema = W3CData:unpack_bits(schema_id, packed)
 
-	print("Input size: " .. #json.encode(event) .. ", Packed size: " .. #packed)
-	print("Field : Input : Unpacked")
+	--print("Input size: " .. #json.encode(event) .. ", Packed size: " .. #packed)
+	--print("Field : Input : Unpacked")
+
 	for i, field in ipairs(schema.fields) do
-		print(field.name .. " : " .. tostring(event[i]) .. " : " .. tostring(unpacked[i]))
+		--print(field.name .. " : " .. tostring(event[i]) .. " : " .. tostring(unpacked[i]))
+		if field.type ~= "float" then
+			assert(
+				event[i] == unpacked[i],
+				"Event ["
+					.. schema.name
+					.. "], Field ["
+					.. field.name
+					.. "] was ["
+					.. tostring(unpacked[i])
+					.. "] when it should be ["
+					.. tostring(event[i])
+					.. "]"
+			)
+		else
+			-- We intentionally use 32 bit floats when packing so they will always be
+			-- slightly different due to precision differences.
+			local value = string.pack("f", unpacked[i])
+			local input = string.pack("f", event[i])
+			assert(
+				value == input,
+				"Event ["
+					.. schema.name
+					.. "], Field ["
+					.. field.name
+					.. "] was ["
+					.. tostring(unpacked[i])
+					.. "] when it should be ["
+					.. tostring(event[i])
+					.. "]"
+			)
+		end
 	end
+
+	print("Test passed")
 end
 
 local function test_all_events_single(schema_name, events)
@@ -136,9 +170,6 @@ local function test_batched_events(events)
 		end
 	end
 
-	print("batched table: " .. json.encode(batch))
-	print("Batched table size: " .. #json.encode(batch))
-
 	print("---")
 	print("Testing batched events")
 	local packed = W3CData:pack_batch(batch)
@@ -150,24 +181,57 @@ local function test_batched_events(events)
 		local schema_id = W3CData:get_schema_id(name)
 		local schema = W3CData:get_schema_by_id(schema_id)
 
-		print("[" .. i .. "] -- " .. name)
 		for j, field in ipairs(schema.fields) do
-			print("     " .. field.name .. ": " .. tostring(values[j]))
+			--print(field.name .. " : " .. tostring(values[j]) .. " : " .. tostring(batch[i][2][j]))
+			if field.type ~= "float" then
+				assert(
+					batch[i][2][j] == values[j],
+					"Batched Event ["
+						.. schema.name
+						.. "], Field ["
+						.. field.name
+						.. "] was ["
+						.. tostring(values[j])
+						.. "] when it should be ["
+						.. tostring(batch[i][2][j])
+						.. "]"
+				)
+			else
+				-- We intentionally use 32 bit floats when packing so they will always be
+				-- slightly different due to precision differences.
+				local value = string.pack("f", values[j])
+				local input = string.pack("f", batch[i][2][j])
+				assert(
+					value == input,
+					"Batched Event ["
+						.. schema.name
+						.. "], Field ["
+						.. field.name
+						.. "] was ["
+						.. tostring(value)
+						.. "] when it should be ["
+						.. tostring(input)
+						.. "]"
+				)
+			end
 		end
 	end
+
+	print("Batch Test passed")
 end
 
--- test_all_events_single("UnitTrained", unit_trained_events)
+test_all_events_single("UnitTrained", unit_trained_events)
 test_all_events_single("PlayerState", player_state_events)
--- test_all_events_single("PlayerConfig", player_config_events)
+test_all_events_single("PlayerConfig", player_config_events)
 
 local batched = {
 	UnitTrained = unit_trained_events,
 	PlayerState = player_state_events,
+	PlayerStateBitSize = player_state_events_bitsize,
 	PlayerConfig = player_config_events,
 }
 
--- test_batched_events(batched)
+test_batched_events(batched)
 
 local function test_events_override_bit_size(schema_name, events)
 	for _, event in ipairs(events) do

@@ -174,6 +174,24 @@ local HEADER_VALUES = {
 
 local INT_MASK = 0xFFFFFFFF
 
+local LIMITS = {
+	BYTE = {
+		SIGNED_LO = (-2 << 7),
+		SIGNED_HI = (2 << 7) - 1,
+		UNSIGNED = (1 << 8) - 1,
+	},
+	SHORT = {
+		SIGNED_LO = (-2 << 15),
+		SIGNED_HI = (2 << 15) - 1,
+		UNSIGNED = (1 << 16) - 1,
+	},
+	INT = {
+		SIGNED_LO = (-2 << 31),
+		SIGNED_HI = (2 << 31) - 1,
+		UNSIGNED = (2 << 32) - 1,
+	},
+}
+
 ---@class W3CData
 ---@field config W3CDataConfig
 ---@field schemas table<integer, Schema>
@@ -365,6 +383,86 @@ local function zigzag_decode(int)
 	return (int >> 1) ~ -(int & 1)
 end
 
+---Validates that the value is within the correct size for the given type
+---@param value string | number
+---@param field Field
+local function validate_value(value, field)
+	if field.type == "string" then
+		assert(type(value) == "string", "Expected string for field " .. field.name)
+	elseif field.type == "float" then
+		assert(type(value) == "number", "Expected number (float) for field " .. field.name)
+	elseif field.type == "bool" then
+		assert(type(value) == "boolean", "Expected boolean for field " .. field.name)
+	elseif field.type == "byte" then
+		if field.signed then
+			assert(
+				value >= LIMITS.BYTE.SIGNED_LO and value <= LIMITS.BYTE.SIGNED_HI,
+				"Expected signed byte ("
+					.. LIMITS.BYTE.SIGNED_LO
+					.. " - "
+					.. LIMITS.BYTE.SIGNED_HI
+					.. ") for value ["
+					.. value
+					.. "] for field "
+					.. field.name
+			)
+		else
+			assert(
+				value >= 0 and value <= LIMITS.BYTE.UNSIGNED,
+				"Expected byte (0 - "
+					.. LIMITS.BYTE.UNSIGNED
+					.. ") for value ["
+					.. value
+					.. "] for field "
+					.. field.name
+			)
+		end
+	elseif field.type == "short" then
+		if field.signed then
+			assert(
+				value >= LIMITS.SHORT.SIGNED_LO and value <= LIMITS.SHORT.SIGNED_HI,
+				"Expected signed short ("
+					.. LIMITS.SHORT.SIGNED_LO
+					.. " - "
+					.. LIMITS.SHORT.SIGNED_HI
+					.. ") for value ["
+					.. value
+					.. "] for field "
+					.. field.name
+			)
+		else
+			assert(
+				value >= 0 and value <= LIMITS.SHORT.UNSIGNED,
+				"Expected short (0 - "
+					.. LIMITS.SHORT.UNSIGNED
+					.. ") for value ["
+					.. value
+					.. "] for field "
+					.. field.name
+			)
+		end
+	elseif field.type == "int" then
+		if field.signed then
+			assert(
+				value >= LIMITS.INT.SIGNED_LO and value <= LIMITS.INT.SIGNED_HI,
+				"Expected signed integer ("
+					.. LIMITS.INT.SIGNED_LO
+					.. " - "
+					.. LIMITS.INT.SIGNED_HI
+					.. ") for value ["
+					.. value
+					.. "] for field "
+					.. field.name
+			)
+		else
+			assert(
+				value >= 0 and value <= LIMITS.INT.UNSIGNED,
+				"Expected integer (0 - " .. LIMITS.INT.UNSIGNED .. ") for value [" .. value .. "] field " .. field.name
+			)
+		end
+	end
+end
+
 --- Packs a table that matches a schema in to a single base255, bit packed byte string.
 --- Asserts that the length of the data and schema match. Also asserts that data fields match the expected types as described in the schema.
 ---
@@ -395,12 +493,11 @@ function W3CData:pack_bits(schema_id, data)
 
 	for i, field in ipairs(schema.fields) do
 		local value = data[i]
+		validate_value(value, field)
 
 		if field.type == "string" then
 			-- Don't pack strings, just use LibDeflate to compress them
 			-- Small strings will result in larger sizes, but it's easier than dealing with utf-8 variable lengths
-			assert(type(value) == "string", "Expected string for field " .. field.name)
-
 			-- Need to flush leftover bits from bit packed fields as string are byte aligned, not bit packed.
 			flush_bits()
 
@@ -416,8 +513,6 @@ function W3CData:pack_bits(schema_id, data)
 				table.insert(result, compressed:byte(x))
 			end
 		elseif field.type == "float" then
-			assert(type(value) == "number", "Expected number (float) for field " .. field.name)
-
 			-- Need to flush leftover bits from bit packed fields as floats are byte aligned, not bit packed.
 			flush_bits()
 
@@ -427,13 +522,9 @@ function W3CData:pack_bits(schema_id, data)
 				table.insert(result, packed:byte(f))
 			end
 		else
-			local original_value = value
 			-- All other integer values
 			if field.type == "bool" then
-				assert(type(value) == "boolean", "Expected boolean for field " .. field.name)
 				value = value and 1 or 0
-			else
-				assert(type(value) == "number", "Expected number for field " .. field.name)
 			end
 			local bits = field.bits
 
