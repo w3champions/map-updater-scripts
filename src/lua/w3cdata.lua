@@ -119,17 +119,16 @@ Below is a table showing bits and the numbers they allow up to 24 bits / 3 bytes
 
 --]]
 
--- TODO: Still need to test chunked data
 -- TODO: Still need to update the event library to use this library and test that it all works inside WC3
 
 require("src.lua.libDeflate")
-LibDeflate.InitCompressor()
-
-local json = require("dkjson")
 
 ---@alias FieldType "bool" | "byte" | "short" | "int" | "float" | "string"
-
+---@alias FieldName string
 ---@alias SchemaId integer
+
+---@alias PayloadFieldValue string | number | boolean
+---@alias PayloadValue table<FieldName, PayloadFieldValue>
 
 ---@class Field
 ---@field name string
@@ -145,9 +144,7 @@ local json = require("dkjson")
 
 ---@class Payload
 ---@field schema_name string
----@field payload table
-
----@class SchemaType<string, SchemaId>: { [string]: SchemaId }
+---@field payload table<PayloadValue>
 
 ---@class BaseSchemaConfig
 ---@field enabled boolean
@@ -226,6 +223,12 @@ local function setup_bits_for_field_types(schema)
 	end
 end
 
+---@param config? W3CDataConfig
+function W3CData.init(config)
+	LibDeflate.InitCompressor()
+	W3CData.config = config or { base_schema = { enabled = true } }
+end
+
 --- Register a schema to be used for compression and decompression.
 --- Schemas with the name "base" will be combined with all other schemas if `config.base_schema.enabled = true` and
 --- the `schema.use_base = true`
@@ -266,6 +269,16 @@ end
 function W3CData:get_schema(schema_name)
 	local id = self:get_schema_id(schema_name)
 	return self:get_schema_by_id(id)
+end
+
+function W3CData:has_schema(schema_name)
+	return self:get_schema(schema_name) and true or false
+end
+
+function W3CData:should_use_base(schema_name)
+	local schema = self:get_schema(schema_name)
+
+	return self.config.base_schema.enabled and schema.use_base
 end
 
 --- COBS encodes a string to remove null bytes so that it can be safely sent using BlzSendSyncData.
@@ -798,7 +811,7 @@ end
 ---@see W3CData.chunk_payload
 ---@param events table<Payload> Table containing all payload events to encode with their associated schema names
 ---@param max_size integer Maximum size for a single data packet
----@return string | table<string>, boolean encoded_payload
+---@return table<string>, boolean encoded_payload
 function W3CData:encode_payload(events, max_size)
 	local result = {}
 	local packed = self:pack_batch_with_name(events)

@@ -13,6 +13,7 @@ for i = 0, 255 do
 	CRC32_TABLE[i] = crc
 end
 
+---@class W3CChecksum
 local W3CChecksum = {}
 W3CChecksum.__index = W3CChecksum
 
