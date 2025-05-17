@@ -80,8 +80,9 @@ Signed is used to indentify whether the field should use zigzag encoding to hand
 Each packet has a 1 byte header that identifies whether the packet is:
 
 0x00      - Singular data packet
-0x01      - Checksum packet       -- Use the W3CChecksum utility for updating and getting checksums
-0x80      - Chunked packet
+0x01      - Batched data packet
+0x02      - Checksum packet       -- Use the W3CChecksum utility for updating and getting checksums
+0x80      - Chunked packet         
 
 Chunked packets contain additional header data:
 
@@ -91,6 +92,33 @@ The chunk_id is a unique id for all associated chunked used for matching.
 The chunk count is the number of chunks for this specific set of chunks
 The chunk index is this specific packets index in the chunks
 The payload is the byte string packed data.
+
+Below is a table showing bits and the numbers they allow up to 24 bits / 3 bytes.
+  Bits      Number
+  1         2
+  2         4
+  3         8
+  4         16
+  5         32
+  6         64
+  7         128
+  8         256
+  9         512
+  10        1024
+  11        2048
+  12        4096
+  13        8192
+  14        16384
+  15        32768
+  16        65536
+  17        131072
+  18        262144
+  19        524288
+  20        1048576
+  21        2097152
+  22        4194304
+  23        8388608
+  24        16777216
 
 --]]
 
@@ -108,7 +136,7 @@ LibDeflate.InitCompressor()
 
 ---@class Field
 ---@field name string
----@field type FieldType
+---@field type? FieldType
 ---@field bits? integer
 ---@field signed? boolean
 
@@ -117,6 +145,10 @@ LibDeflate.InitCompressor()
 ---@field name string
 ---@field use_base? boolean
 ---@field fields Field[]
+
+---@class Payload
+---@field schema_name string
+---@field payload table
 
 ---@class SchemaType<string, SchemaId>: { [string]: SchemaId }
 
@@ -131,6 +163,16 @@ LibDeflate.InitCompressor()
 ---@field index integer
 ---@field count integer
 ---@field payload string
+
+local HEADER_VALUES = {
+	EVENT = 0x00,
+	SCHEMA_REGISTER = 0x01,
+	CHECKSUM = 0x02,
+
+	CHUNK = 0x80,
+}
+
+local INT_MASK = 0xFFFFFFFF
 
 ---@class W3CData
 ---@field config W3CDataConfig
@@ -198,9 +240,9 @@ end
 
 --- Gets a schema id given a schema name.
 ---@param schema_name string Name of the schema to get an id for
----@return integer schema_id Id of the schema if it's been registered, otherwise -1
+---@return integer schema_id Id of the schema if it's been registered, otherwise nil
 function W3CData:get_schema_id(schema_name)
-	return schema_name_to_id_mapping[schema_name] or -1
+	return schema_name_to_id_mapping[schema_name]
 end
 
 ---Get a registered schema given a schema name
@@ -309,7 +351,10 @@ end
 ---@param int integer
 ---@return integer result
 local function zigzag_encode(int)
-	return (int << 1) ~ (int >> 31)
+	local unsigned = (int << 1) ~ (int >> 31)
+
+	-- (int << 1) on a negative value will overflow the integer. Masking to handle that case
+	return unsigned & INT_MASK
 end
 
 --- Maps positive integers to negative integers for bit unpacking. Only works for up to 32 bit integers.
@@ -382,6 +427,7 @@ function W3CData:pack_bits(schema_id, data)
 				table.insert(result, packed:byte(f))
 			end
 		else
+			local original_value = value
 			-- All other integer values
 			if field.type == "bool" then
 				assert(type(value) == "boolean", "Expected boolean for field " .. field.name)
@@ -395,6 +441,8 @@ function W3CData:pack_bits(schema_id, data)
 			-- Default is signed values as assume that negative values aren't that common for our use cases
 			if field.signed and field.type ~= "bool" then
 				value = zigzag_encode(value)
+				-- Need to add an additional bit to handle negative
+				bits = bits
 			end
 
 			-- add value and size to buffer and count so we can write until we have less than 1 byte in the buffer.
@@ -404,6 +452,7 @@ function W3CData:pack_bits(schema_id, data)
 			-- Flush full bytes from bit buffer to output
 			while bit_count >= 8 do
 				table.insert(result, bit_buffer & 0xFF)
+
 				bit_buffer = bit_buffer >> 8
 				bit_count = bit_count - 8
 			end
@@ -440,6 +489,18 @@ function W3CData:pack_batch(batch_data)
 	end
 
 	return string.char(table.unpack(result))
+end
+
+---@param batch_data table<Payload>
+---@return string packed_batch
+function W3CData:pack_batch_with_name(batch_data)
+	local mapped = {}
+	for _, entry in ipairs(batch_data) do
+		local schema_id = self:get_schema_id(entry.schema_name)
+		table.insert(mapped, { schema_id, entry[2] })
+	end
+
+	return self:pack_batch(mapped)
 end
 
 --- Unpacks packed bits from using W3CData:pack_bits(). Does everything in reverse.
@@ -503,15 +564,18 @@ function W3CData:unpack_bits(schema_id, data)
 			data_index = data_index + 4
 		else
 			-- All integer types
-			local value = get_bits(field.bits)
+			local value
 
 			if field.signed then
-				value = zigzag_decode(value)
+				value = zigzag_decode(get_bits(field.bits))
+			else
+				value = get_bits(field.bits)
 			end
 
 			if field.type == "bool" then
 				value = (value == 1)
 			end
+
 			table.insert(result, value)
 		end
 	end
@@ -635,17 +699,20 @@ function W3CData:unchunk_payload(chunks)
 	return table.concat(result)
 end
 
----Encodes a byte string containing packed data so it can be sent using BlzSendSyncData.
----Format of encoded payloads are:
----Single packet    --- [0x00]|[payload...]
----Chunked packet   --- [0x80]|[chunk_id_hi]|[chunk_id_lo]|[chunk_count]|[chunk_index]|[payload...]
+---Encodes a table of `Payload`, containing `schema_name` and `event_data`, to a table of encoded strings
+---that can be sent using BlzSendSyncData.
+---
+---Event data that is over the `mx_size` will be chunked to multiple payloads.
+---
 ---@see W3CData.chunk_payload
----@param packed string Byte string containing packed data
+---@param events table<Payload> Table containing all payload events to encode with their associated schema names
 ---@param max_size integer Maximum size for a single data packet
 ---@return string | table<string> encoded_payload
-function W3CData:encode_payload(packed, max_size)
+function W3CData:encode_payload(events, max_size)
+	local packed = self:pack_batch_with_name(events)
+
 	if #packed <= max_size then
-		return string.char(0x00) .. packed
+		return string.char(HEADER_VALUES.EVENT) .. packed
 	end
 
 	local id = math.random(1, 65535)
@@ -653,16 +720,17 @@ function W3CData:encode_payload(packed, max_size)
 	local result = {}
 
 	for _, chunk in ipairs(chunks) do
-		local header = string.char(0x80, (chunk.id >> 8) & 0xFF, chunk.count, chunk.index)
+		local header = string.char(HEADER_VALUES.CHUNK, (chunk.id >> 8) & 0xFF, chunk.count, chunk.index)
 		table.insert(result, header .. chunk.payload)
 	end
 
 	return result
 end
 
----Decodes a byte string containing a header and packed or chunked data to return the payload
+---Decodes a byte string containing a header and packed or chunked data to return the parsed event data
 ---@param sync_data string Byte string to decode
----@return string | Chunk, boolean String Returns the packed data, or a chunk for the packed data. Boolean returns true if chunked, false if not
+---@return string | Chunk, boolean Returns the packed data string if not chunked or a `Chunk` if it is chunked.
+---Returns false if not chunked, true if chunked
 function W3CData:decode_payload(sync_data)
 	local first = sync_data:byte(1)
 	if (first & 0x80) == 0 then
@@ -686,10 +754,33 @@ function W3CData:decode_payload(sync_data)
 	}, true
 end
 
+---Parses an unpacked payload containing `{ schema_id, { schema_values }}`
+---back to a parsed table in the format `{ schema_name, { schema_field_name = payload_value }}`
+---@param unpacked table The payload to unpack and parse
+function W3CData:parse_unpacked(unpacked)
+	local result = {}
+	for _, event in ipairs(unpacked) do
+		local unpacked_event = {}
+
+		local schema_id = unpacked_event[1]
+		local data = event[2]
+		local schema = self:get_schema_by_id(schema_id)
+		table.insert(event, schema.name)
+		local field_data = {}
+
+		for i, field in ipairs(schema.fields) do
+			field_data[field.name] = data[i]
+		end
+		table.insert(event, field_data)
+		table.insert(result, event)
+	end
+	return result
+end
+
 ---Generate a checksum packet to be sent.
 ---@param crc string CRC byte string to be added to a checksum packet
 function W3CData:generate_checksum_payload(crc)
-	return string.char(0x01) .. crc
+	return string.char(HEADER_VALUES.CHECKSUM) .. crc
 end
 
 return W3CData

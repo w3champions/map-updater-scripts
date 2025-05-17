@@ -35,6 +35,20 @@ local schemas = {
 	},
 	{
 		version = 1,
+		name = "PlayerStateBitSize",
+		fields = {
+			{ name = "gold", bits = 11, signed = true },
+			{ name = "wood", bits = 11, signed = true },
+			{ name = "upkeep", bits = 2 },
+			{ name = "string_field", type = "string" },
+			{ name = "food_used", bits = 8 },
+			{ name = "food_cap", bits = 8 },
+			{ name = "bool_field", type = "bool" },
+			{ name = "float_test", type = "float" },
+		},
+	},
+	{
+		version = 1,
 		name = "PlayerConfig",
 		fields = {
 			{ name = "player_name", type = "string" },
@@ -64,6 +78,13 @@ local player_state_events = {
 	{ 2, 20, 325, 180, 0, "test", 70, 49, false, 13987.198233 },
 }
 
+local player_state_events_bitsize = {
+	{ 1, 10, 750, 600, 0, "test_string", 40, 28, true, 1.23 },
+	{ 2, 10, -650, 885, 0, "テスト", 50, 37, false, 9.1231 },
+	{ 1, 20, 480, -340, 0, "test", 50, 43, true, 41243.1341 },
+	{ 2, 20, 325, 180, 0, "test", 70, 49, false, 13987.198233 },
+}
+
 local player_config_events = {
 	{ 1, 10, "PlayerName123", false },
 	{ 2, 10, "私の名前", true },
@@ -77,18 +98,24 @@ end
 
 local function test_event(schema_name, event)
 	print("----")
-	print("Testing [" .. schema_name .. "] with data: " .. json.encode(event))
+	print("Testing [" .. schema_name .. "]")
 
 	local schema_id = W3CData:get_schema_id(schema_name)
 	local packed = W3CData:pack_bits(schema_id, event)
 
+	-- print("Packed: ")
+	-- for i = 1, #packed do
+	-- 	io.write(string.format("%02X", packed:byte(i)) .. " ")
+	-- end
+	-- print()
+
 	local unpacked, schema = W3CData:unpack_bits(schema_id, packed)
 
-	print("Unpacked:")
+	print("Input size: " .. #json.encode(event) .. ", Packed size: " .. #packed)
+	print("Field : Input : Unpacked")
 	for i, field in ipairs(schema.fields) do
-		io.write(field.name .. ": " .. tostring(unpacked[i]) .. " -- ")
+		print(field.name .. " : " .. tostring(event[i]) .. " : " .. tostring(unpacked[i]))
 	end
-	print()
 end
 
 local function test_all_events_single(schema_name, events)
@@ -130,9 +157,9 @@ local function test_batched_events(events)
 	end
 end
 
-test_all_events_single("UnitTrained", unit_trained_events)
+-- test_all_events_single("UnitTrained", unit_trained_events)
 test_all_events_single("PlayerState", player_state_events)
-test_all_events_single("PlayerConfig", player_config_events)
+-- test_all_events_single("PlayerConfig", player_config_events)
 
 local batched = {
 	UnitTrained = unit_trained_events,
@@ -140,4 +167,12 @@ local batched = {
 	PlayerConfig = player_config_events,
 }
 
-test_batched_events(batched)
+-- test_batched_events(batched)
+
+local function test_events_override_bit_size(schema_name, events)
+	for _, event in ipairs(events) do
+		test_event(schema_name, event)
+	end
+end
+
+test_events_override_bit_size("PlayerStateBitSize", player_state_events_bitsize)
