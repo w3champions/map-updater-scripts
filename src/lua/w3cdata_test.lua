@@ -96,6 +96,40 @@ for _, schema in ipairs(schemas) do
 	W3CData:register_schema(schema)
 end
 
+local function validate_field(schema_name, field, input, value)
+	if field.type ~= "float" then
+		assert(
+			input == value,
+			"Event ["
+				.. schema_name
+				.. "], Field ["
+				.. field.name
+				.. "] was ["
+				.. tostring(value)
+				.. "] when it should be ["
+				.. tostring(input)
+				.. "]"
+		)
+	else
+		-- We intentionally use 32 bit floats when packing so they will always be
+		-- slightly different due to precision differences.
+		local float_value = string.pack("f", value)
+		local float_input = string.pack("f", input)
+		assert(
+			float_input == float_value,
+			"Event ["
+				.. schema_name
+				.. "], Field ["
+				.. field.name
+				.. "] was ["
+				.. tostring(value)
+				.. "] when it should be ["
+				.. tostring(input)
+				.. "]"
+		)
+	end
+end
+
 local function test_event(schema_name, event)
 	print("----")
 	print("Testing [" .. schema_name .. "]")
@@ -115,38 +149,7 @@ local function test_event(schema_name, event)
 	--print("Field : Input : Unpacked")
 
 	for i, field in ipairs(schema.fields) do
-		--print(field.name .. " : " .. tostring(event[i]) .. " : " .. tostring(unpacked[i]))
-		if field.type ~= "float" then
-			assert(
-				event[i] == unpacked[i],
-				"Event ["
-					.. schema.name
-					.. "], Field ["
-					.. field.name
-					.. "] was ["
-					.. tostring(unpacked[i])
-					.. "] when it should be ["
-					.. tostring(event[i])
-					.. "]"
-			)
-		else
-			-- We intentionally use 32 bit floats when packing so they will always be
-			-- slightly different due to precision differences.
-			local value = string.pack("f", unpacked[i])
-			local input = string.pack("f", event[i])
-			assert(
-				value == input,
-				"Event ["
-					.. schema.name
-					.. "], Field ["
-					.. field.name
-					.. "] was ["
-					.. tostring(unpacked[i])
-					.. "] when it should be ["
-					.. tostring(event[i])
-					.. "]"
-			)
-		end
+		validate_field(schema.name, field, unpacked[i], event[i])
 	end
 
 	print("Test passed")
@@ -170,7 +173,7 @@ local function test_batched_events(events)
 		end
 	end
 
-	print("---")
+	print("----")
 	print("Testing batched events")
 	local packed = W3CData:pack_batch(batch)
 
@@ -182,38 +185,7 @@ local function test_batched_events(events)
 		local schema = W3CData:get_schema_by_id(schema_id)
 
 		for j, field in ipairs(schema.fields) do
-			--print(field.name .. " : " .. tostring(values[j]) .. " : " .. tostring(batch[i][2][j]))
-			if field.type ~= "float" then
-				assert(
-					batch[i][2][j] == values[j],
-					"Batched Event ["
-						.. schema.name
-						.. "], Field ["
-						.. field.name
-						.. "] was ["
-						.. tostring(values[j])
-						.. "] when it should be ["
-						.. tostring(batch[i][2][j])
-						.. "]"
-				)
-			else
-				-- We intentionally use 32 bit floats when packing so they will always be
-				-- slightly different due to precision differences.
-				local value = string.pack("f", values[j])
-				local input = string.pack("f", batch[i][2][j])
-				assert(
-					value == input,
-					"Batched Event ["
-						.. schema.name
-						.. "], Field ["
-						.. field.name
-						.. "] was ["
-						.. tostring(value)
-						.. "] when it should be ["
-						.. tostring(input)
-						.. "]"
-				)
-			end
+			validate_field(schema.name, field, values[j], batch[i][2][j])
 		end
 	end
 
@@ -240,3 +212,42 @@ local function test_events_override_bit_size(schema_name, events)
 end
 
 test_events_override_bit_size("PlayerStateBitSize", player_state_events_bitsize)
+
+local function test_chunking(schema_name, events, repetitions)
+	local batch = {}
+	for _, v in ipairs(events) do
+		for _ = 1, repetitions do
+			table.insert(batch, { schema_name = schema_name, payload = v })
+		end
+	end
+
+	print("----")
+	print("Testing chunking event [" .. schema_name .. "] with " .. #batch .. " events")
+
+	local chunked, was_chunked = W3CData:encode_payload(batch, 200)
+
+	local b = was_chunked and "" or " not"
+	print("was" .. b .. " chunked with " .. #chunked .. " payloads with max size of 200 bytes")
+
+	local result = W3CData:decode_payloads(chunked)
+	for _, result_batch in ipairs(result) do
+		print("Chunk had " .. #result_batch .. " events")
+		for i, event in ipairs(result_batch) do
+			local event_schema_name, values = event[1], event[2]
+			local schema = W3CData:get_schema(event_schema_name)
+
+			for j, field in ipairs(schema.fields) do
+				local value = values[j]
+				local input = batch[i].payload[j]
+
+				validate_field(event_schema_name, field, input, value)
+			end
+		end
+	end
+
+	print("Chunk testing passed")
+end
+
+test_chunking("PlayerState", player_state_events, 20)
+test_chunking("PlayerState", player_state_events, 3)
+test_chunking("UnitTrained", unit_trained_events, 12)
