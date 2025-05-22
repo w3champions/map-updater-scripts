@@ -11,6 +11,17 @@ local PLAYER_INDEX_TO_FLUSH = 0
 -- https://www.hiveworkshop.com/pastebin/1ce4fe042832e6bd7d06697a43055373.5801
 local SYNC_DATA_PREFIX = "WC"
 
+local EVENTS = {
+	BASE = "base",
+	GAME_END = "W3CGameEnd",
+}
+
+local ERRORS = {
+	NOT_INIT_ERROR = "W3CEvents has not been setup before use. Use W3CEvents.start()",
+	GAME_ENDED_ERROR = "W3CEvents.end_game has been used, cannot create any more events",
+	SCHEMA_REGISTERED_ERROR = "W3CEvents.register_all_schemas has not been used. Registering schemas is required before creating any events",
+}
+
 ---@alias Event PayloadValue
 
 ---@class ChecksumConfig
@@ -31,6 +42,12 @@ local SYNC_DATA_PREFIX = "WC"
 ---@field base_schema EventBaseSchemaConfig
 ---@field logging BooleanConfig
 
+---@class W3CEventsGameEndPlayer
+---@field player integer
+---@field won boolean
+
+---@alias W3CEventsGameEnd table<W3CEventsGameEndPlayer>
+
 ---@class W3CEvents
 ---@field event_buffer table<Payload>
 ---@field trackers table<timer>
@@ -47,22 +64,46 @@ local W3CEvents = {
 
 local event_buffer_size = 0
 
+local game_ended = false
+local initialized = false
+local schemas_registered = false
+
 ---@type W3CChecksum
 local checksum = nil
 
 ---@type Schema
 local base_schema = {
 	version = 1,
-	name = "base",
+	name = EVENTS.BASE,
+	use_base = false,
 	fields = {
-		{ name = "player", bits = 5 }, -- Up to 32 player ids
-		{ name = "time", bits = 13 }, -- Up to ~2 hours 16 minutes
+		{ name = "player", type = "int", num_of_bits = 5 }, -- Up to 32 player ids
+		{ name = "time", type = "int", num_of_bits = 13 }, -- Up to ~2 hours 16 minutes
+	},
+}
+
+---@type Schema
+local game_end_schema = {
+	version = 1,
+	name = EVENTS.GAME_END,
+	-- Not using base as the base has a function used to populate values that we don't want
+	-- to use for game end.
+	use_base = false,
+	fields = {
+		{ name = "player", type = "int", num_of_bits = 5 },
+		{ name = "time", type = "int", num_of_bits = 13 },
+		{ name = "player_won", type = "bool" },
 	},
 }
 
 ---Flushes the current `W3CEvents.event_buffer`, sending all events to `BlzSendSyncData` using the configured `W3CEvents.config.prefix`
 ---Events are only sent by a single player.
 local function flush()
+	-- Don't flush if we've disabled events. Disabled in `W3CEvents:end_game()`
+	if game_ended then
+		return
+	end
+
 	-- Only want to send events from the first player to avoid spam. Checksums are used to detect if there's any
 	-- manipulation of event data being sent.
 	if GetLocalPlayer() == Player(PLAYER_INDEX_TO_FLUSH) then
@@ -112,7 +153,7 @@ local function estimate_event_size(schema_name, event)
 
 	for _, field in ipairs(schema.fields) do
 		if field.type ~= "string" then
-			event_size_bits = event_size_bits + field.bits
+			event_size_bits = event_size_bits + field.num_of_bits
 		else
 			local string_value = event[field.name]
 			event_size_bytes = event_buffer_size + #string_value
@@ -127,8 +168,16 @@ end
 --- be overridden in `W3CEvents.config.base_schema`
 ---@param event Event
 local function add_base_schema_data(event)
-	event["time"] = now()
-	event["player"] = GetPlayerId(GetLocalPlayer())
+	local schema = W3CData:get_schema(EVENTS.BASE)
+	-- Only set the event fields if they actually exist on the base schema
+	-- as the base schema can be changed
+	for _, field in ipairs(schema.fields) do
+		if field.name == "time" then
+			event["time"] = now()
+		elseif field.name == "player" then
+			event["player"] = GetPlayerId(GetLocalPlayer())
+		end
+	end
 end
 
 ---Sends a checksum payload using configured function to get the checksum value.
@@ -164,13 +213,33 @@ local function setup_timers()
 	end
 end
 
+local function shutdown()
+	if clock then
+		PauseTimer(clock)
+		DestroyTimer(clock)
+	end
+
+	if checksum_clock then
+		PauseTimer(checksum_clock)
+		DestroyTimer(checksum_clock)
+	end
+
+	for index, timer in ipairs(W3CEvents.trackers) do
+		PauseTimer(timer)
+		DestroyTimer(timer)
+		W3CEvents.trackers[index] = nil
+	end
+
+	game_ended = true
+end
+
 ---Registers a base schema that will be included in all other events, if those events
 ---also have `use_base` enabled and `W3CEvents.config.base_schema.enabled = true`
 ---@param schema Schema Base schema to register.
 ---@param setter function Function used to set values on events for the base schema
 function W3CEvents:register_base_schema(schema, setter)
-	if schema.name:lower() ~= "base" then
-		error("Base schemas need to have the name 'base'")
+	if schema.name:lower() ~= EVENTS.BASE:lower() then
+		error("Base schemas need to have the name '" .. EVENTS.BASE:lower() .. "'")
 	end
 
 	if type(setter) ~= "function" then
@@ -183,7 +252,15 @@ end
 
 ---Initializes W3CEvents. Call this before anything else.
 ---@param config W3CEventsConfig
-function W3CEvents.init(config)
+function W3CEvents.initialize(config)
+	if initialized then
+		return
+	end
+
+	if game_ended then
+		error("Game has ended, cannot initialize again.")
+	end
+
 	W3CData.init()
 
 	W3CEvents.config = config or W3CEvents.config
@@ -200,7 +277,10 @@ function W3CEvents.init(config)
 		W3CEvents.config.checksum.interval = W3CEvents.config.checksum.interval or CHECKSUM_INTERVAL_SECS
 	end
 
+	W3CData:register_schema(game_end_schema)
+
 	setup_timers()
+	initialized = true
 end
 
 ---Creates events for `name` on a set interval, calling the `getter` to get the value used for the event.
@@ -210,6 +290,18 @@ end
 ---@return function stop_function Function that can be called to stop and clean up the tracking event. All events that were created
 ---before calling this function will still be created and sent.
 function W3CEvents:track(name, getter, interval)
+	if not initialized then
+		error(ERRORS.NOT_INIT_ERROR)
+	end
+
+	if not schemas_registered then
+		error(ERRORS.SCHEMA_REGISTERED_ERROR)
+	end
+
+	if game_ended then
+		error(ERRORS.GAME_ENDED_ERROR)
+	end
+
 	local timer = CreateTimer()
 	self.trackers[timer] = true
 
@@ -236,6 +328,18 @@ end
 ---@param name string Name of the event. Must match the name of a schema that has been registered with `W3CEvents.register`
 ---@param event Event Event to create and send. Fields and their values must match the fields configured in the matching schema
 function W3CEvents:event(name, event)
+	if not initialized then
+		error(ERRORS.NOT_INIT_ERROR)
+	end
+
+	if not schemas_registered then
+		error(ERRORS.SCHEMA_REGISTERED_ERROR)
+	end
+
+	if game_ended then
+		error(ERRORS.GAME_ENDED_ERROR)
+	end
+
 	if not W3CData:has_schema(name) then
 		error("Schema [" .. name .. "] is not registered but an event is being created.")
 	end
@@ -258,11 +362,49 @@ function W3CEvents:event(name, event)
 	table.insert(self.event_buffer, { name, event })
 end
 
----Register a schema to use when create events. A schema must be registered before creating events or errors will occur
----when attempting to call `W3CEvents.event` or `W3CEvents.track`
----@param schema Schema Schema to register.
-function W3CEvents:register(schema)
-	W3CData:register_schema(schema)
+---@param player_results W3CEventsGameEnd
+function W3CEvents:end_game(player_results)
+	if not initialized then
+		error(ERRORS.NOT_INIT_ERROR)
+	end
+
+	if not schemas_registered then
+		error(ERRORS.SCHEMA_REGISTERED_ERROR)
+	end
+
+	if game_ended then
+		return
+	end
+
+	for _, player_result in ipairs(player_results) do
+		self:event(EVENTS.GAME_END, { time = now(), player = player_result.player, player_won = player_result.won })
+	end
+
+	shutdown()
+end
+
+---@param schemas Schema[]
+function W3CEvents:register_all_schemas(schemas)
+	if not initialized then
+		error(ERRORS.NOT_INIT_ERROR)
+	end
+
+	if schemas_registered then
+		error("Schemas have already been registered. Schemas can only be registered once.")
+	end
+
+	if game_ended then
+		error(ERRORS.GAME_ENDED_ERROR)
+	end
+
+	W3CData:register_all_schemas(schemas)
+
+	local payloads = W3CData:generate_registry_payloads()
+	for _, payload in ipairs(payloads) do
+		BlzSendSyncData(SYNC_DATA_PREFIX, payload)
+	end
+
+	schemas_registered = true
 end
 
 return W3CEvents
