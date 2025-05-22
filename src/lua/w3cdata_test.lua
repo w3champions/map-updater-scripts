@@ -324,7 +324,6 @@ local function test_schema_payloads()
 					.. " : "
 					.. tostring(registered_schema.use_base)
 			)
-			assert(schema.allow_override == registered_schema.allow_override, "Schema allow override does not match")
 
 			for index, field in ipairs(schema.fields) do
 				assert(field.name == registered_schema.fields[index].name, "Field name does not match")

@@ -6,7 +6,7 @@ local CHECKSUM_INTERVAL_SECS = 30
 local PLAYER_INDEX_TO_FLUSH = 0
 
 -- This needs to be "WC" for W3Champions to be able to automatically parse events.
--- Prefixes larger than 2 characters may cayse latency issues. See below post, although it's specific to the other
+-- Prefixes larger than 2 characters may cause latency issues. See below post, although it's specific to the other
 -- Sync<>, it would make sense that it works the same way for SyncData.
 -- https://www.hiveworkshop.com/pastebin/1ce4fe042832e6bd7d06697a43055373.5801
 local SYNC_DATA_PREFIX = "WC"
@@ -156,6 +156,8 @@ local function estimate_event_size(schema_name, event)
 			event_size_bits = event_size_bits + field.num_of_bits
 		else
 			local string_value = event[field.name]
+			-- Pre compression string length as it's just an estimate and we don't want to
+			-- compress strings ahead of time constantly
 			event_size_bytes = event_buffer_size + #string_value
 		end
 	end

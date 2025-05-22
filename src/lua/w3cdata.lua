@@ -131,37 +131,37 @@ local json = require("src.lua.json")
 ---@alias PayloadFieldValue string | number | boolean
 ---@alias PayloadValue table<FieldName, PayloadFieldValue>
 
----@class Field
----@field name string
----@field type FieldType
----@field num_of_bits? integer
----@field unsigned? boolean
----@field minimum? number
----@field maximum? number
+---@class Field Field description for a schema.
+---@field name string Name of the field.
+---@field type FieldType Type of the field. Decimal numbers use `float`. `number` is used only when using `minimum` and `maxiumum`
+---@field num_of_bits? integer Number of bits used by this field. Requires `type = "int"` if used. Only valid for integer types.
+---@field unsigned? boolean Whether the field is unsigned or not. Only applies to `byte`, `short` and `int` types
+---@field minimum? number Minimum number for a field, only used when `tyoe = "number"`
+---@field maximum? number Maximum number for a field, only used when `type = "number"``
 
----@class Schema
----@field version integer
----@field name string
----@field use_base? boolean
----@field allow_override? boolean
----@field fields Field[]
+---@class Schema Schema used for an event
+---@field version integer Version of the schema
+---@field name string Name of the schema
+---@field use_base? boolean Whether this schema should include the "base" schema fields or not. Defaults to `false`
+---@field fields Field[] All fields for this schema
 
----@class Payload
----@field schema_name string
----@field payload table<PayloadValue>
+---@class Payload Payload that maps a schema name to a table when being packed.
+---@field schema_name string Name of the schema that the payload is for
+---@field payload table<PayloadValue> Table containing the payload values
 
----@class BaseSchemaConfig
----@field enabled boolean
+---@class BaseSchemaConfig Config for W3CData base schema
+---@field enabled boolean Whether using the base schema is enabled or not
 
----@class W3CDataConfig
----@field base_schema BaseSchemaConfig
+---@class W3CDataConfig Config for W3CData
+---@field base_schema BaseSchemaConfig Config for base schema
 
----@class Chunk
----@field id integer
----@field index integer
----@field count integer
----@field payload string
+---@class Chunk Chunk of a payload, for when a single payload is too large to be sent at once
+---@field id integer Unique ID for a payload. All chunks for a single payload will share the same id
+---@field index integer Index of the chunk in the payload.
+---@field count integer Count of all chunks in the payload
+---@field payload string Payload for this chunk. Combine the payload from all chunks with the same id before decoding
 
+-- Header byte values used in the payload to identify what the payload is
 local HEADER_VALUES = {
 	EVENT = 0x01,
 	CHECKSUM = 0x02,
@@ -169,8 +169,10 @@ local HEADER_VALUES = {
 	CHUNK = 0x80,
 }
 
+-- Used to mask numbers to 32 bit integers as bit shifting can cause bits to go over 32 bits boundary
 local INT_MASK = 0xFFFFFFFF
 
+-- Limits for integers, used to validate values are within the exepcted number range
 local LIMITS = {
 	BYTE = {
 		SIGNED_LO = (-2 << 7),
@@ -207,8 +209,11 @@ local INTERNAL_SCHEMA_NAMES = {
 ---@field schemas table<integer, Schema>
 local W3CData = {
 	config = { base_schema = { enabled = true } },
+	-- Base schemas required for basic functionality. DO NOT REMOVE or things will break.
+	-- The order needs to match the indexes specified in `INTERNAL_SCHEMA_ID`, as they're used as indexes to this table.
 	schemas = {
 		{
+			-- Used to send all schemas after being registered so that they can be used in parsing
 			version = 1,
 			name = INTERNAL_SCHEMA_NAMES.SCHEMA_REGISTRY,
 			fields = {
@@ -217,17 +222,24 @@ local W3CData = {
 				{ name = "schemas_json", type = "string" },
 			},
 		},
+		-- Used for sending checksums.
 		{ version = 1, name = INTERNAL_SCHEMA_NAMES.CHECKSUM, fields = { { name = "checksum", type = "string" } } },
+		-- Base empty schema as the library has specific handling that expects this to exist.
 		{ version = 0, name = INTERNAL_SCHEMA_NAMES.BASE, fields = {} },
 	},
 }
 
+-- Mapping of names to ids, used for lookup.
+-- Schema IDs are used for compressed data as they're much smaller than the string names.
 local schema_name_to_id_mapping = {
 	schema_registry = INTERNAL_SCHEMA_ID.SCHEMA,
 	checksum = INTERNAL_SCHEMA_ID.CHECKSUM,
 	base = INTERNAL_SCHEMA_ID.BASE,
 }
----
+
+---Parses a "number" type field and ensures that the minimum and maximum values are valid if set.
+---Sets the field.type to `byte`, `short` or `int` depending on the minimum and maximum values.
+---Sets `field.unsigned` if the minimum is >= 0
 ---@param field Field
 local function parse_number_field(field)
 	if field.type ~= "number" then
@@ -342,7 +354,7 @@ end
 --- Register a schema to be used for compression and decompression.
 --- Schemas with the name "base" will be combined with all other schemas if `config.base_schema.enabled = true` and
 --- the `schema.use_base = true`
---- Using a base schema is enabled by default for registered schemas.
+--- Using a base schema is disabled by default for registered schemas.
 ---@param schema Schema Schema to be registered
 function W3CData:register_schema(schema)
 	assert(schema.name, "Schemas require a name to be set")
@@ -360,13 +372,13 @@ function W3CData:register_schema(schema)
 		return
 	end
 
-	if schema_name_to_id_mapping[schema.name] and not schema.allow_override then
-		-- If schema already exists and is configured to not allow overriding, return.
+	if schema_name_to_id_mapping[schema.name] then
+		-- If schema already exists just return. Schemas should only be registered once, we don't allow overriding
 		return
 	end
 
 	local schema_id = #self.schemas + 1
-	schema.use_base = schema.use_base or true
+	schema.use_base = schema.use_base or false
 
 	self.schemas[schema_id] = schema
 	schema_name_to_id_mapping[schema.name] = schema_id
@@ -395,14 +407,20 @@ function W3CData:get_schema(schema_name)
 	return self:get_schema_by_id(id)
 end
 
+---Checks whether a schema exists and has been registered.
+---@param schema_name string Name of the schema to check
+---@return boolean schema_exists True if the schema has been registered, false if not.
 function W3CData:has_schema(schema_name)
 	return self:get_schema(schema_name) and true or false
 end
 
+---Checks whether a schema should include the base schema
+---@param schema_name string Name of the schema to check
+---@return boolean should_use_base True if the schema should include the base schema, false if not
 function W3CData:should_use_base(schema_name)
 	local schema = self:get_schema(schema_name)
 
-	return self.config.base_schema.enabled and schema.use_base
+	return (self.config.base_schema.enabled and schema.use_base) and true or false
 end
 
 --- COBS encodes a string to remove null bytes so that it can be safely sent using BlzSendSyncData.
@@ -466,10 +484,9 @@ function W3CData.cobs_decode(input)
 	return table.concat(output)
 end
 
---- Combines a schema with a base schema, if the base schema config is enabled, a base schema exists and the target schema
---- has `use_base = true`
----@param schema_id integer id for the schema to combine with the base schema
----@return Schema Schema Combined base and target schema
+--- Gets a schema by id. Includes the base schema fields if configured.
+---@param schema_id integer Id of the schema to get
+---@return Schema Schema Schema including base schema fields if configured
 function W3CData:get_schema_by_id(schema_id)
 	if not self.config.base_schema.enabled then
 		return self.schemas[schema_id] or {}
@@ -486,7 +503,6 @@ function W3CData:get_schema_by_id(schema_id)
 		version = specific.version,
 		name = specific.name,
 		use_base = specific.use_base,
-		allow_override = specific.allow_override,
 		fields = {},
 	}
 
@@ -1082,18 +1098,23 @@ function W3CData:generate_checksum_payload(crc)
 	return string.char(HEADER_VALUES.CHECKSUM) .. packed
 end
 
+---Generate payloads containing schema registry. Used so that the schemas can be sent using BlzSendSyncData and
+---used to decode and decompress payloads during parsing
+---@return table<string> payloads String payloads to send using BlzSendSyncData
 function W3CData:generate_registry_payloads()
 	local schema_payload = {}
 	for _, schema in ipairs(self.schemas) do
 		-- Use function so it applies base schema if needed
 		schema_payload[#schema_payload + 1] = self:get_schema(schema.name)
 	end
-	local event = { {
-		schema_name = "schema_registry",
-		payload = {
-			json.encode(schema_payload),
+	local event = {
+		{
+			schema_name = INTERNAL_SCHEMA_NAMES.SCHEMA_REGISTRY,
+			payload = {
+				json.encode(schema_payload),
+			},
 		},
-	} }
+	}
 	local encoded, _ = self:encode_payload(event, 180)
 	return encoded
 end
