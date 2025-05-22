@@ -1,6 +1,8 @@
 local W3CData = require("src.lua.w3cdata")
+W3CData.init()
+
 local W3CChecksum = require("src.lua.w3cChecksum")
-local json = require("dkjson")
+local json = require("src.lua.json")
 
 ---@type table<integer, Schema>
 local schemas = {
@@ -8,48 +10,62 @@ local schemas = {
 		version = 1,
 		name = "base",
 		fields = {
-			{ name = "player", type = "byte" },
-			{ name = "time", type = "byte" },
+			{ name = "player", type = "byte", unsigned = true },
+			{ name = "time", type = "byte", unsigned = true },
 		},
 	},
 	{
 		version = 1,
 		name = "UnitTrained",
+		use_base = true,
 		fields = {
-			{ name = "unit_type_id", type = "byte" },
+			{ name = "unit_type_id", type = "byte", unsigned = true },
 		},
 	},
 	{
 		version = 1,
 		name = "PlayerState",
+		use_base = true,
 		fields = {
-			{ name = "gold", type = "short", signed = true },
-			{ name = "wood", type = "short", signed = true },
-			{ name = "upkeep", type = "byte" },
+			{ name = "gold", type = "short" },
+			{ name = "wood", type = "short" },
+			{ name = "upkeep", type = "byte", unsigned = true },
 			{ name = "string_field", type = "string" },
-			{ name = "food_cap", type = "byte" },
-			{ name = "food_used", type = "byte" },
-			{ name = "bool_test", type = "bool" },
+			{ name = "food_cap", type = "byte", unsigned = true },
+			{ name = "food_used", type = "byte", unsigned = true },
+			{ name = "bool_test", type = "bool", unsigned = true },
 			{ name = "float_test", type = "float" },
 		},
 	},
 	{
 		version = 1,
 		name = "PlayerStateBitSize",
+		use_base = true,
 		fields = {
-			{ name = "gold", bits = 11, signed = true },
-			{ name = "wood", bits = 11, signed = true },
-			{ name = "upkeep", bits = 2 },
+			{ name = "gold", type = "int", num_of_bits = 11 },
+			{ name = "wood", type = "int", num_of_bits = 11 },
+			{ name = "upkeep", type = "int", num_of_bits = 2, unsigned = true },
 			{ name = "string_field", type = "string" },
-			{ name = "food_used", bits = 8 },
-			{ name = "food_cap", bits = 8 },
+			{ name = "food_used", type = "int", num_of_bits = 8, unsigned = true },
+			{ name = "food_cap", type = "int", num_of_bits = 8, unsigned = true },
 			{ name = "bool_field", type = "bool" },
 			{ name = "float_test", type = "float" },
 		},
 	},
 	{
 		version = 1,
+		name = "PlayerStateMinMax",
+		use_base = true,
+		fields = {
+			{ name = "gold", type = "number", minimum = 0, maximum = 25000 },
+			{ name = "food_cap", type = "number", minimum = 0, maximum = 100 },
+			{ name = "test_num", type = "number", minimum = -200 },
+		},
+	},
+	{
+		version = 1,
 		name = "PlayerConfig",
+		use_base = true,
 		fields = {
 			{ name = "player_name", type = "string" },
 			{ name = "bool_field", type = "bool" },
@@ -58,6 +74,7 @@ local schemas = {
 	{
 		version = 1,
 		name = "EventWithFloats",
+		use_base = true,
 		fields = {
 			{ name = "float_value", type = "float" },
 		},
@@ -85,6 +102,11 @@ local player_state_events_bitsize = {
 	{ 2, 20, 325, 180, 0, "test", 70, 49, false, 13987.198233 },
 }
 
+local player_state_min_max = {
+	{ 1, 10, 70, 90, -100 },
+	{ 2, 20, 25000, 100, -200 },
+}
+
 local player_config_events = {
 	{ 1, 10, "PlayerName123", false },
 	{ 2, 10, "私の名前", true },
@@ -92,11 +114,9 @@ local player_config_events = {
 
 local checksum = W3CChecksum.new()
 
-for _, schema in ipairs(schemas) do
-	W3CData:register_schema(schema)
-end
+W3CData:register_all_schemas(schemas)
 
-local function validate_field(schema_name, field, input, value)
+local function validate_field(schema_name, field, value, input)
 	if field.type ~= "float" then
 		assert(
 			input == value,
@@ -149,6 +169,7 @@ local function test_event(schema_name, event)
 	--print("Field : Input : Unpacked")
 
 	for i, field in ipairs(schema.fields) do
+		-- print(schema.name .. " : " .. field.name .. " : " .. tostring(unpacked[i]) .. " : " .. tostring(event[i]))
 		validate_field(schema.name, field, unpacked[i], event[i])
 	end
 
@@ -194,6 +215,7 @@ end
 
 test_all_events_single("UnitTrained", unit_trained_events)
 test_all_events_single("PlayerState", player_state_events)
+test_all_events_single("PlayerStateMinMax", player_state_min_max)
 test_all_events_single("PlayerConfig", player_config_events)
 
 local batched = {
@@ -230,18 +252,16 @@ local function test_chunking(schema_name, events, repetitions)
 	print("was" .. b .. " chunked with " .. #chunked .. " payloads with max size of 200 bytes")
 
 	local result = W3CData:decode_payloads(chunked)
-	for _, result_batch in ipairs(result) do
-		print("Chunk had " .. #result_batch .. " events")
-		for i, event in ipairs(result_batch) do
-			local event_schema_name, values = event[1], event[2]
-			local schema = W3CData:get_schema(event_schema_name)
+	print("Chunk had " .. #result .. " events")
+	for i, event in ipairs(result) do
+		local event_schema_name, values = event[1], event[2]
+		local schema = W3CData:get_schema(event_schema_name)
 
-			for j, field in ipairs(schema.fields) do
-				local value = values[j]
-				local input = batch[i].payload[j]
+		for j, field in ipairs(schema.fields) do
+			local value = values[j]
+			local input = batch[i].payload[j]
 
-				validate_field(event_schema_name, field, input, value)
-			end
+			validate_field(event_schema_name, field, input, value)
 		end
 	end
 
@@ -251,3 +271,76 @@ end
 test_chunking("PlayerState", player_state_events, 20)
 test_chunking("PlayerState", player_state_events, 3)
 test_chunking("UnitTrained", unit_trained_events, 12)
+
+local function test_checksum()
+	for _, schema in ipairs(schemas) do
+		checksum:update(json.encode(schema))
+	end
+
+	local crc = checksum:finalize()
+	print("------")
+	io.write("Testing checksum: ")
+	for i = 1, #crc do
+		io.write(string.format("%02X", crc:byte(i)) .. " ")
+	end
+	print()
+	local checksum_payload = W3CData:generate_checksum_payload(crc)
+
+	local parsed_checksum = W3CData:decode_payloads({ checksum_payload })[1][1]
+	assert(crc == parsed_checksum)
+	-- print("checksum: ")
+	-- for i = 1, #parsed_checksum do
+	-- 	io.write(string.format("%02X", parsed_checksum:sub(i)) .. " ")
+	-- end
+	-- print()
+
+	print("Checksum test passed")
+end
+
+test_checksum()
+
+local function test_schema_payloads()
+	print("------")
+	print("Testing schema registry")
+	local schema_payload, _ = W3CData:generate_registry_payloads()
+	print("Number of schemas: " .. #schemas .. ", Number of payloads: " .. #schema_payload)
+
+	local parsed = W3CData:decode_payloads(schema_payload)[1][2]
+
+	for _, schema_string in ipairs(parsed) do
+		local schema_list = json.decode(schema_string)
+		assert(#schema_list == #W3CData.schemas, "Schema count does not match")
+		for _, schema in ipairs(schema_list) do
+			local registered_schema = W3CData:get_schema(schema.name)
+
+			assert(registered_schema, "Schema not found for name " .. schema.name)
+			assert(schema.version == registered_schema.version, "Schema versions don't match")
+			assert(
+				schema.use_base == registered_schema.use_base,
+				"Schema ["
+					.. schema.name
+					.. "] use_base does not match -- "
+					.. tostring(schema.use_base)
+					.. " : "
+					.. tostring(registered_schema.use_base)
+			)
+			assert(schema.allow_override == registered_schema.allow_override, "Schema allow override does not match")
+
+			for index, field in ipairs(schema.fields) do
+				assert(field.name == registered_schema.fields[index].name, "Field name does not match")
+				assert(field.type == registered_schema.fields[index].type, "Field type does not match")
+				assert(
+					field.num_of_bits == registered_schema.fields[index].num_of_bits,
+					"Field number of bits do not match"
+				)
+				assert(field.unsigned == registered_schema.fields[index].unsigned, "Field unsigned does not match")
+				assert(field.minimum == registered_schema.fields[index].minimum, "Field minimum does not match")
+				assert(field.maximum == registered_schema.fields[index].maximum, "Field maximum does not match")
+			end
+		end
+	end
+
+	print("Schema registry test passed")
+end
+
+test_schema_payloads()
