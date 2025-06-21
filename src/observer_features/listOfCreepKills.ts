@@ -56,12 +56,22 @@ export function enableListOfCreepKills() {
       creepKillList = `${message}\n${creepKillList}`
       if (creepKillList.length > 4096)
       {
-        creepKillList = creepKillList.lastIndexOf("\n") > 0 ? creepKillList.substring(0, creepKillList.lastIndexOf("\n")) : ""
+        const lastIndexOfNewLine = getLastIndexOf(creepKillList, "\n");
+        creepKillList = creepKillList.substring(0, lastIndexOfNewLine);
       }
 
       q.setDescription(creepKillList)
     }
   }
+
+  const getLastIndexOf = (str: string, c: string): number => {
+    for (let i = str.length - 1; i >= 0; i--) {
+      if (str[i] === c) {
+        return i;
+      }
+    }
+    return 0;
+  };
 
   const t = new Trigger()
   t.registerAnyUnitEvent(EVENT_PLAYER_UNIT_DEATH)
