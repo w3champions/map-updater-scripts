@@ -47,14 +47,14 @@ export function enableListOfCreepKills() {
     return message
   }
 
-  // Adds each creep kill to the running list, limiting the list to 4096 characters
+  // Adds each creep kill to the running list, limiting the list to 2048 characters
   let creepKillList: string = ""
   const addCreepKillToListAndUpdateQuest = () => {
     const message = createCreepKillMessage()
     if (message != null)
     {
       creepKillList = `${message}\n${creepKillList}`
-      if (creepKillList.length > 4096)
+      if (creepKillList.length > 2048)
       {
         const lastIndexOfNewLine = getLastIndexOf(creepKillList, "\n");
         creepKillList = creepKillList.substring(0, lastIndexOfNewLine);
