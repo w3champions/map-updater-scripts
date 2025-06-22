@@ -1,45 +1,78 @@
 #!/bin/bash
-
-# Exit the script if an error occurs.
 set -e
+
+IFS=',' read -r -a filterPrefixes <<< "$1"
+filterEnabled=false
+if [[ -n "$1" ]]; then
+    filterEnabled=true
+fi
 
 mapExtractionPath="./maps/map.w3x"
 cleanMapPath="./maps/w3c_maps/clean_maps"
 outputMapPath="./maps/w3c_maps/output"
 mpqPath="./MPQEditor.exe"
 currentDateTime=$(date '+%y%m%d_%H%M')
+buildMapPath="${cleanMapPath%/clean_maps}/map.w3x"
 
 rm -rf "$outputMapPath" && mkdir "$outputMapPath"
 
-for fullPath in $(find $cleanMapPath -name '*.w3m' -or -name '*.w3x'); do
+prefixList=("1v1_" "2v2_" "3v3_" "4v4_" "FFA_")
+
+while IFS= read -r -d '' fullPath; do
     fileName="$(basename $fullPath)"
     dirName="$(dirname $fullPath)"
-    printf "$dirName\n"
+    relFolder="${dirName#${cleanMapPath}}"
 
-    printf "Processing $fileName... \n\n"
+    matchedModes=()
+    strippedName="$fileName"
+
+    while :; do
+        matched=false
+        for prefix in "${prefixList[@]}"; do
+            if [[ "$strippedName" == "$prefix"* ]]; then
+                mode="${prefix%_}"
+                if [[ "$filterEnabled" = false || " ${filterPrefixes[*]} " == *" $mode "* ]]; then
+                    matchedModes+=("$mode")
+                fi
+                strippedName="${strippedName#${prefix}}"
+                matched=true
+                break
+            fi
+        done
+        [[ "$matched" = false ]] && break
+    done
+
+    if [[ "$filterEnabled" = true && ${#matchedModes[@]} -eq 0 ]]; then
+        printf "\nSkipping $fileName from folder '$relFolder'...\n\n"
+        continue
+	else
+		printf "\nProcessing $fileName from folder '$relFolder'...\n\n"
+    fi
+
     rm -rf "$mapExtractionPath" && mkdir "$mapExtractionPath"
-    printf "Running command: \"$mpqPath\" extract \"$fullPath\" \"*\" \"$mapExtractionPath\" \"/fp\" \n"
+
+	printf "Running: \"$mpqPath\" extract \"$fullPath\" \"*\" \"$mapExtractionPath\" \"/fp\" \n"
     "$mpqPath" extract "$fullPath" "*" "$mapExtractionPath" "/fp"
+
     rm -rf dist/ && npm run build "$dirName"
 
-    outpath=$outputMapPath
-
-    if [[ $dirName == *"tournament" ]]; then
-        outpath="${outputMapPath}/tournament"
-    elif [[ $dirName == *"all-the-randoms" ]]; then
-        outpath="${outputMapPath}/all-the-randoms"
-    elif [[ $dirName == *"reign-of-chaos" ]]; then
-        outpath="${outputMapPath}/reign-of-chaos"
+    if [[ ${#matchedModes[@]} -gt 0 ]]; then
+        for mode in "${matchedModes[@]}"; do
+            targetDir="$outputMapPath/$mode"
+            mkdir -p "$targetDir"
+			printf "\nMoving map to $targetDir/w3c_${currentDateTime}_$strippedName\n\n"
+            cp "$buildMapPath" "$targetDir/w3c_${currentDateTime}_$strippedName"
+        done
+    else
+        targetDir="$outputMapPath/$relFolder"
+        mkdir -p "$targetDir"
+		printf "\nMoving map to $targetDir/w3c_${currentDateTime}_$strippedName\n\n"
+        mv "$buildMapPath" "$targetDir/w3c_${currentDateTime}_$strippedName"
     fi
 
-    # Create the directory if it doesn't exist
-    if [[ ! -e $outpath ]]; then
-        mkdir "$outpath"
-    fi
+done < <(find "$cleanMapPath" -type f \( -iname '*.w3m' -o -iname '*.w3x' \) -print0)
 
-    printf "\nMoving map to $outpath/$fileName \n\n"
-    mv "./maps/w3c_maps/map.w3x" "$outpath/w3c_${currentDateTime}_$fileName"
-done
+rm -rf "$buildMapPath" 2>/dev/null
 
 cleanMapsCount=$(find $cleanMapPath -name '*.w3m' -or -name '*.w3x' | wc -l)
 completedMapsCount=$(find $outputMapPath -name '*.w3m' -or -name '*.w3x' | wc -l)

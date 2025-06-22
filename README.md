@@ -12,4 +12,5 @@ This repo contains the scripts we use to inject the triggers into our ladder map
 * The newly created maps will be saved into `./maps/w3c_maps/output`
 
 ## Additional info
-When maps are removed from the W3Champions map pool, they should be moved from the `current` directory to `unused`. This way they won't be processed by the script, but the clean maps are still preserved for later use.
+To process only maps belonging to specific game modes, you can pass an optional comma-separated list as an argument to the script.
+For example, `./updateMaps.sh 1v1,4v4` will process only maps that start with `1v1_` or `4v4_`.
