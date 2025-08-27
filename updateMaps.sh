@@ -12,7 +12,7 @@ cleanMapPath="./maps/w3c_maps/clean_maps"
 outputMapPath="./maps/w3c_maps/output"
 mpqPath="./MPQEditor.exe"
 currentDate=$(date '+%Y%m%d')
-buildMapPath="${cleanMapPath%/clean_maps}/map.w3x"
+buildMapPath="./maps/w3c_maps/map.w3x"
 
 rm -rf "$outputMapPath" && mkdir "$outputMapPath"
 
