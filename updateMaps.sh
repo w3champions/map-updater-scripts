@@ -64,9 +64,14 @@ while IFS= read -r -d '' fullPath; do
             cp "$buildMapPath" "$targetDir/w3c_${currentDateTime}_$strippedName"
         done
     else
-        targetDir="$outputMapPath/$relFolder"
+        # Handle case where relFolder might be empty to avoid double slashes
+        if [[ -z "$relFolder" ]]; then
+            targetDir="$outputMapPath"
+        else
+            targetDir="$outputMapPath/$relFolder"
+        fi
         mkdir -p "$targetDir"
-		printf "\nMoving map to $targetDir/w3c_${currentDateTime}_$strippedName\n\n"
+  printf "\nMoving map to $targetDir/w3c_${currentDateTime}_$strippedName\n\n"
         mv "$buildMapPath" "$targetDir/w3c_${currentDateTime}_$strippedName"
     fi
 

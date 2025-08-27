@@ -1,11 +1,17 @@
 import * as fs from "fs-extra";
 import * as path from "path";
-import War3Map from "mdx-m3-viewer/dist/cjs/parsers/w3x/map";
+import { execSync } from "child_process";
 import { compileMap, getFilesInDirectory, loadJsonFile, logger, toArrayBuffer, IProjectConfig } from "./utils";
 
 function main() {
   const config: IProjectConfig = loadJsonFile("config.json");
   const dirName = process.argv[2];
+  
+  if (!dirName) {
+    logger.error("No directory name provided. Usage: npm run build <directory>");
+    return;
+  }
+  
   const assetsPath = dirName.includes("reign-of-chaos") ? `./assets/roc` : `./assets/main`;
 
   // Gets overwritten if the map has it
@@ -36,32 +42,31 @@ function main() {
  * @param dir The directory to create the archive from
  */
 export function createMapFromDir(output: string, dir: string) {
-  const map = new War3Map();
-  const files = getFilesInDirectory(dir);
-
-  map.archive.resizeHashtable(files.length);
-
-  for (const fileName of files) {
-    const contents = toArrayBuffer(fs.readFileSync(fileName));
-    const archivePath = path.relative(dir, fileName);
-    const imported = map.import(archivePath, contents);
-
-    if (!imported) {
-      logger.warn("Failed to import " + archivePath);
-      continue;
-    }
-  }
-
-  const result = map.save();
-
-  if (!result) {
-    logger.error("Failed to save archive.");
+  const mpqEditorPath = "./MPQEditor.exe";
+  
+  if (!fs.existsSync(mpqEditorPath)) {
+    logger.error(`MPQEditor.exe not found at ${mpqEditorPath}`);
     return;
   }
 
-  fs.writeFileSync(output, new Uint8Array(result));
-
-  logger.info("Finished!");
+  // Create a temporary script file for MPQEditor
+  const scriptContent = `new "${output}" 0x2000\nadd "${output}" "${dir}\\*.*" /r /auto\nclose\nexit`;
+  const scriptPath = "./temp_mpq_script.txt";
+  
+  fs.writeFileSync(scriptPath, scriptContent);
+  
+  try {
+    logger.info(`Creating MPQ archive using MPQEditor...`);
+    execSync(`"${mpqEditorPath}" script "${scriptPath}"`, { stdio: 'inherit' });
+    logger.info("Finished creating MPQ archive!");
+  } catch (error) {
+    logger.error(`Failed to create MPQ archive: ${error}`);
+  } finally {
+    // Clean up temporary script file
+    if (fs.existsSync(scriptPath)) {
+      fs.unlinkSync(scriptPath);
+    }
+  }
 }
 
 main();
