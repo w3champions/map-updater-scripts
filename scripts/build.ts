@@ -49,8 +49,11 @@ export function createMapFromDir(output: string, dir: string) {
     return;
   }
 
-  // Create a temporary script file for MPQEditor
-  const scriptContent = `new "${output}" 0x2000\nadd "${output}" "${dir}\\*.*" /r /auto\nclose\nexit`;
+  // Create a temporary script file for MPQEditor with better formatting and compression
+  const scriptContent = `new "${output}" 0x2000
+add "${output}" "${dir}\\*.*" /r /auto /c
+close
+exit`;
   const scriptPath = "./temp_mpq_script.txt";
   
   fs.writeFileSync(scriptPath, scriptContent);

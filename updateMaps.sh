@@ -11,7 +11,7 @@ mapExtractionPath="./maps/map.w3x"
 cleanMapPath="./maps/w3c_maps/clean_maps"
 outputMapPath="./maps/w3c_maps/output"
 mpqPath="./MPQEditor.exe"
-currentDateTime=$(date '+%y%m%d_%H%M')
+currentDate=$(date '+%Y%m%d')
 buildMapPath="${cleanMapPath%/clean_maps}/map.w3x"
 
 rm -rf "$outputMapPath" && mkdir "$outputMapPath"
@@ -20,6 +20,9 @@ prefixList=("1v1_" "2v2_" "3v3_" "4v4_" "FFA_")
 
 while IFS= read -r -d '' fullPath; do
     fileName="$(basename $fullPath)"
+    baseName="${fileName%.*}"
+    extension="${fileName##*.}"
+    newFileName="${baseName}_${currentDate}.${extension}"
     dirName="$(dirname $fullPath)"
     relFolder="${dirName#${cleanMapPath}}"
 
@@ -60,8 +63,8 @@ while IFS= read -r -d '' fullPath; do
         for mode in "${matchedModes[@]}"; do
             targetDir="$outputMapPath/$mode"
             mkdir -p "$targetDir"
-			printf "\nMoving map to $targetDir/w3c_${currentDateTime}_$strippedName\n\n"
-            cp "$buildMapPath" "$targetDir/w3c_${currentDateTime}_$strippedName"
+			printf "\nMoving map to $targetDir/$newFileName\n\n"
+			         cp "$buildMapPath" "$targetDir/$newFileName"
         done
     else
         # Handle case where relFolder might be empty to avoid double slashes
@@ -71,8 +74,8 @@ while IFS= read -r -d '' fullPath; do
             targetDir="$outputMapPath/$relFolder"
         fi
         mkdir -p "$targetDir"
-  printf "\nMoving map to $targetDir/w3c_${currentDateTime}_$strippedName\n\n"
-        mv "$buildMapPath" "$targetDir/w3c_${currentDateTime}_$strippedName"
+  printf "\nMoving map to $targetDir/$newFileName\n\n"
+        mv "$buildMapPath" "$targetDir/$newFileName"
     fi
 
 done < <(find "$cleanMapPath" -type f \( -iname '*.w3m' -o -iname '*.w3x' \) -print0)
