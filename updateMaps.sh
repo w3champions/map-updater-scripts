@@ -1,17 +1,30 @@
 #!/bin/bash
 set -e
 
-IFS=',' read -r -a filterPrefixes <<< "$1"
+customBaseFolder="$1"
+filterArg="$2"
+
+if [[ "$customBaseFolder" == "output" ]]; then
+    echo "Error: 'output' cannot be used as the custom base folder."
+    exit 1
+fi
+
+if [[ -n "$customBaseFolder" ]]; then
+    cleanMapPath="./maps/w3c_maps/$customBaseFolder"
+else
+    cleanMapPath="./maps/w3c_maps/clean_maps"
+fi
+
+IFS=',' read -r -a filterPrefixes <<< "$filterArg"
 filterEnabled=false
-if [[ -n "$1" ]]; then
+if [[ -n "$filterArg" ]]; then
     filterEnabled=true
 fi
 
 mapExtractionPath="./maps/map.w3x"
-cleanMapPath="./maps/w3c_maps/clean_maps"
 outputMapPath="./maps/w3c_maps/output"
 mpqPath="./MPQEditor.exe"
-currentDate=$(date '+%Y%m%d')
+currentDateTime=$(date '+%y%m%d_%H%M')
 buildMapPath="./maps/w3c_maps/map.w3x"
 
 rm -rf "$outputMapPath" && mkdir "$outputMapPath"
@@ -20,9 +33,6 @@ prefixList=("1v1_" "2v2_" "3v3_" "4v4_" "FFA_")
 
 while IFS= read -r -d '' fullPath; do
     fileName="$(basename $fullPath)"
-    baseName="${fileName%.*}"
-    extension="${fileName##*.}"
-    newFileName="${baseName}_${currentDate}.${extension}"
     dirName="$(dirname $fullPath)"
     relFolder="${dirName#${cleanMapPath}}"
 
@@ -48,33 +58,34 @@ while IFS= read -r -d '' fullPath; do
     if [[ "$filterEnabled" = true && ${#matchedModes[@]} -eq 0 ]]; then
         printf "\nSkipping $fileName from folder '$relFolder'...\n\n"
         continue
-	else
-		printf "\nProcessing $fileName from folder '$relFolder'...\n\n"
+    else
+        printf "\nProcessing $fileName from folder '$relFolder'...\n\n"
     fi
 
     rm -rf "$mapExtractionPath" && mkdir "$mapExtractionPath"
 
-	printf "Running: \"$mpqPath\" extract \"$fullPath\" \"*\" \"$mapExtractionPath\" \"/fp\" \n"
+    printf "Running: \"$mpqPath\" extract \"$fullPath\" \"*\" \"$mapExtractionPath\" \"/fp\" \n"
     "$mpqPath" extract "$fullPath" "*" "$mapExtractionPath" "/fp"
 
     rm -rf dist/ && npm run build "$dirName"
+
+    newFileName="w3c_${currentDateTime}_$strippedName"
 
     if [[ ${#matchedModes[@]} -gt 0 ]]; then
         for mode in "${matchedModes[@]}"; do
             targetDir="$outputMapPath/$mode"
             mkdir -p "$targetDir"
-			printf "\nMoving map to $targetDir/$newFileName\n\n"
-			         cp "$buildMapPath" "$targetDir/$newFileName"
+            printf "\nMoving map to $targetDir/$newFileName\n\n"
+            cp "$buildMapPath" "$targetDir/$newFileName"
         done
     else
-        # Handle case where relFolder might be empty to avoid double slashes
         if [[ -z "$relFolder" ]]; then
             targetDir="$outputMapPath"
         else
             targetDir="$outputMapPath/$relFolder"
         fi
         mkdir -p "$targetDir"
-  printf "\nMoving map to $targetDir/$newFileName\n\n"
+        printf "\nMoving map to $targetDir/$newFileName\n\n"
         mv "$buildMapPath" "$targetDir/$newFileName"
     fi
 

@@ -1,8 +1,11 @@
 target
 package-lock.json
 dist
+maps/w3c_maps/clean_maps/Work
 maps/w3c_maps/output
+maps/w3c_maps/map.w3x
 maps/map.w3x/*
+temp_mpq_script.txt
 
 # Logs
 logs
