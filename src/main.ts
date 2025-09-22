@@ -1,3 +1,4 @@
+import * as ignored from "./_workaround";
 import { enableDraw } from "./player_features/draw";
 import { enableBuildingCancelTrigger } from "./observer_features/buildingCancel";
 import { enableItemSoldBoughtTrigger } from "./observer_features/itemSoldBought";
@@ -14,6 +15,7 @@ import { enableForfeit } from "./player_features/forfeit";
 import { enableCustomMinimapIcons } from "./player_features/customMinimapIcons";
 import { hideGameButtons } from "./player_features/hideGameButtons";
 import { enableClock } from "./player_features/clock";
+import { enableCreepLootIndicator } from "./player_features/loot-indicator/loot-indicator";
 
 function init() {
   enableShowCommandsTrigger();
@@ -22,6 +24,7 @@ function init() {
   enableUnitDenyTrigger();
   enableCustomMinimapIcons();
   enableClock();
+  enableCreepLootIndicator();
 
   // Observer-Only Features
   enableItemSoldBoughtTrigger();

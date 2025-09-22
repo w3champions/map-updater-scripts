@@ -1,0 +1,1134 @@
+{
+  "ckng": {
+    "comment": "Crown of Kings +5",
+    "includeAsRandomChoice": true
+  },
+  "modt": {
+    "comment": "mask of death",
+    "includeAsRandomChoice": true
+  },
+  "tkno": {
+    "comment": "Tome of Power",
+    "includeAsRandomChoice": true
+  },
+  "ratf": {
+    "comment": "Claws of Attack +15",
+    "includeAsRandomChoice": true
+  },
+  "ofro": {
+    "comment": "Orb of Frost",
+    "includeAsRandomChoice": true
+  },
+  "infs": {
+    "comment": "Inferno Stone",
+    "includeAsRandomChoice": true
+  },
+  "desc": {
+    "comment": "Dagger of Escape",
+    "includeAsRandomChoice": true
+  },
+  "fgdg": {
+    "comment": "Demonic Figurine",
+    "includeAsRandomChoice": true
+  },
+  "engr": {
+    "comment": "Engraved Scale",
+    "includeAsRandomChoice": true
+  },
+  "shar": {
+    "comment": "Ice Shard",
+    "includeAsRandomChoice": true
+  },
+  "ccmd": {
+    "comment": "Scepter of Mastery",
+    "includeAsRandomChoice": true
+  },
+  "wild": {
+    "comment": "Amulet of the Wild",
+    "includeAsRandomChoice": true
+  },
+  "scav": {
+    "comment": "Scepter of Avarice",
+    "includeAsRandomChoice": true
+  },
+  "odef": {
+    "comment": "Orb of Darkness",
+    "includeAsRandomChoice": true
+  },
+  "rde4": {
+    "comment": "Ring of Protection +5",
+    "includeAsRandomChoice": true
+  },
+  "pmna": {
+    "comment": "Pendant of Mana",
+    "includeAsRandomChoice": true
+  },
+  "rhth": {
+    "comment": "Khadgar's Gem of Health",
+    "includeAsRandomChoice": true
+  },
+  "ssil": {
+    "comment": "Staff of Silence",
+    "includeAsRandomChoice": true
+  },
+  "spsh": {
+    "comment": "Amulet of Spell Shield",
+    "includeAsRandomChoice": true
+  },
+  "sres": {
+    "comment": "Scroll of Restoration",
+    "includeAsRandomChoice": true
+  },
+  "pdi2": {
+    "comment": "Potion of Divinity (Invulnerability)",
+    "includeAsRandomChoice": true
+  },
+  "pres": {
+    "comment": "Potion of Restoration",
+    "includeAsRandomChoice": true
+  },
+  "iotw": {
+    "comment": "Idol of the wild",
+    "includeAsRandomChoice": true
+  },
+  "fgfh": {
+    "comment": "Spiked Collar",
+    "includeAsRandomChoice": true
+  },
+  "fgbd": {
+    "comment": "Blue Drake Egg",
+    "includeAsRandomChoice": true
+  },
+  "fgrg": {
+    "comment": "Stone Token",
+    "includeAsRandomChoice": true
+  },
+  "hcun": {
+    "comment": "Hood of Cunning",
+    "includeAsRandomChoice": true
+  },
+  "hval": {
+    "comment": "Helm of Valor",
+    "includeAsRandomChoice": true
+  },
+  "mcou": {
+    "comment": "Medallion of Courage",
+    "includeAsRandomChoice": true
+  },
+  "ajen": {
+    "comment": "Ancient Janggo of Endurance",
+    "includeAsRandomChoice": true
+  },
+  "clfm": {
+    "comment": "Cloak of Flames",
+    "includeAsRandomChoice": true
+  },
+  "ratc": {
+    "comment": "Claws of Attack +12",
+    "includeAsRandomChoice": true
+  },
+  "war2": {
+    "comment": "Warsong Battle Drums (Kodo)",
+    "includeAsRandomChoice": true
+  },
+  "kpin": {
+    "comment": "Khadgar's Pipe of Insight",
+    "includeAsRandomChoice": true
+  },
+  "lgdh": {
+    "comment": "Legion Doom-Horn",
+    "includeAsRandomChoice": true
+  },
+  "ankh": {
+    "comment": "Ankh of Reincarnation",
+    "includeAsRandomChoice": true
+  },
+  "whwd": {
+    "comment": "Healing Wards",
+    "includeAsRandomChoice": true
+  },
+  "fgsk": {
+    "comment": "Book of the Dead",
+    "includeAsRandomChoice": true
+  },
+  "wcyc": {
+    "comment": "Wand of the Wind",
+    "includeAsRandomChoice": true
+  },
+  "hlst": {
+    "comment": "Health Stone",
+    "includeAsRandomChoice": true
+  },
+  "mnst": {
+    "comment": "Mana Stone",
+    "includeAsRandomChoice": true
+  },
+  "belv": {
+    "comment": "Boots of Quel'Thalas +6",
+    "includeAsRandomChoice": true
+  },
+  "bgst": {
+    "comment": "Belt of Giant Strength +6",
+    "includeAsRandomChoice": true
+  },
+  "ciri": {
+    "comment": "Robe of the Magi +6",
+    "includeAsRandomChoice": true
+  },
+  "lhst": {
+    "comment": "Lion Horn of Stormwind",
+    "includeAsRandomChoice": true
+  },
+  "afac": {
+    "comment": "Alleria's Flute of Accuracy",
+    "includeAsRandomChoice": true
+  },
+  "sbch": {
+    "comment": "Scourge Bone Chimes",
+    "includeAsRandomChoice": true
+  },
+  "brac": {
+    "comment": "Runed Bracers",
+    "includeAsRandomChoice": true
+  },
+  "rwiz": {
+    "comment": "Sobi Mask",
+    "includeAsRandomChoice": true
+  },
+  "pghe": {
+    "comment": "potion of greater healing",
+    "includeAsRandomChoice": true
+  },
+  "pgma": {
+    "comment": "Potion of Greater Mana",
+    "includeAsRandomChoice": true
+  },
+  "pnvu": {
+    "comment": "potion of invulnerability",
+    "includeAsRandomChoice": true
+  },
+  "sror": {
+    "comment": "Scroll of the Beast",
+    "includeAsRandomChoice": true
+  },
+  "woms": {
+    "comment": "Wand of Mana Stealing",
+    "includeAsRandomChoice": true
+  },
+  "crys": {
+    "comment": "Crystal Ball",
+    "includeAsRandomChoice": true
+  },
+  "evtl": {
+    "comment": "Talisman of Evasion",
+    "includeAsRandomChoice": true
+  },
+  "penr": {
+    "comment": "Pendant of Energy",
+    "includeAsRandomChoice": true
+  },
+  "prvt": {
+    "comment": "Periapt of Vitality",
+    "includeAsRandomChoice": true
+  },
+  "rat9": {
+    "comment": "Claws of Attack +9",
+    "includeAsRandomChoice": true
+  },
+  "rde3": {
+    "comment": "Ring of Protection +4",
+    "includeAsRandomChoice": false
+  },
+  "rlif": {
+    "comment": "Ring of regeneration",
+    "includeAsRandomChoice": true
+  },
+  "bspd": {
+    "comment": "Boots of Speed",
+    "includeAsRandomChoice": false
+  },
+  "rej3": {
+    "comment": "Replenishment Potion",
+    "includeAsRandomChoice": true
+  },
+  "will": {
+    "comment": "Wand of Illusion",
+    "includeAsRandomChoice": true
+  },
+  "wlsd": {
+    "comment": "Wand of Lightning Shield",
+    "includeAsRandomChoice": false
+  },
+  "wswd": {
+    "comment": "Sentry Wards",
+    "includeAsRandomChoice": true
+  },
+  "cnob": {
+    "comment": "Circlet of Nobility",
+    "includeAsRandomChoice": true
+  },
+  "gcel": {
+    "comment": "Gloves of Haste",
+    "includeAsRandomChoice": true
+  },
+  "rat6": {
+    "comment": "Claws of Attack +6",
+    "includeAsRandomChoice": true
+  },
+  "rde2": {
+    "comment": "Ring of Protection +3",
+    "includeAsRandomChoice": true
+  },
+  "tdx2": {
+    "comment": "Tome of Agility +2",
+    "includeAsRandomChoice": true
+  },
+  "tin2": {
+    "comment": "Tome of Intelligence +2",
+    "includeAsRandomChoice": true
+  },
+  "tpow": {
+    "comment": "Tome of Knowledge",
+    "includeAsRandomChoice": true
+  },
+  "tst2": {
+    "comment": "Tome of Strength +2",
+    "includeAsRandomChoice": true
+  },
+  "pnvl": {
+    "comment": "Potion of Lesser Invulnerability",
+    "includeAsRandomChoice": true
+  },
+  "clsd": {
+    "comment": "Cloak of Shadows",
+    "includeAsRandomChoice": true
+  },
+  "rag1": {
+    "comment": "Slippers of Agility +3",
+    "includeAsRandomChoice": true
+  },
+  "rin1": {
+    "comment": "Mantle of Intelligence +3",
+    "includeAsRandomChoice": true
+  },
+  "rst1": {
+    "comment": "Gauntlets of Ogre Strength +3",
+    "includeAsRandomChoice": true
+  },
+  "manh": {
+    "comment": "Manual of Health",
+    "includeAsRandomChoice": true
+  },
+  "tdex": {
+    "comment": "Tome of Agility +1",
+    "includeAsRandomChoice": true
+  },
+  "tint": {
+    "comment": "Tome of Intelligence",
+    "includeAsRandomChoice": true
+  },
+  "tstr": {
+    "comment": "Tome of Strength +1",
+    "includeAsRandomChoice": true
+  },
+  "pomn": {
+    "comment": "Potion of Omniscience",
+    "includeAsRandomChoice": true
+  },
+  "wshs": {
+    "comment": "Wand of Shadowsight",
+    "includeAsRandomChoice": true
+  },
+  "rej6": {
+    "comment": "Greater Scroll of Replenishment",
+    "includeAsRandomChoice": false
+  },
+  "rej5": {
+    "comment": "Lesser Scroll of Replenishment",
+    "includeAsRandomChoice": false
+  },
+  "rej4": {
+    "comment": "Greater Replenishment Potion",
+    "includeAsRandomChoice": false
+  },
+  "ram4": {
+    "comment": "Fourth Ring of the Archmagi",
+    "includeAsRandomChoice": false
+  },
+  "dsum": {
+    "comment": "Diamond of Summoning",
+    "includeAsRandomChoice": false
+  },
+  "ofir": {
+    "comment": "Orb of Fire",
+    "includeAsRandomChoice": false
+  },
+  "ocor": {
+    "comment": "Orb of Corruption",
+    "includeAsRandomChoice": false
+  },
+  "oli2": {
+    "comment": "Orb of Lightning",
+    "includeAsRandomChoice": false
+  },
+  "oven": {
+    "comment": "Orb of Venom",
+    "includeAsRandomChoice": false
+  },
+  "ram3": {
+    "comment": "Third Ring of the Archmagi",
+    "includeAsRandomChoice": true
+  },
+  "tret": {
+    "comment": "Tome of Retraining",
+    "includeAsRandomChoice": false
+  },
+  "tgrh": {
+    "comment": "Tiny Great Hall",
+    "includeAsRandomChoice": false
+  },
+  "rej2": {
+    "comment": "Lesser Replenishment Potion",
+    "includeAsRandomChoice": false
+  },
+  "gemt": {
+    "comment": "Gem of True Seeing",
+    "includeAsRandomChoice": false
+  },
+  "ram2": {
+    "comment": "Second Ring of the Archmagi",
+    "includeAsRandomChoice": false
+  },
+  "stel": {
+    "comment": "Staff of Teleportation",
+    "includeAsRandomChoice": false
+  },
+  "stwp": {
+    "comment": "Scroll of Town Portal",
+    "includeAsRandomChoice": false
+  },
+  "wneg": {
+    "comment": "Wand of Negation",
+    "includeAsRandomChoice": false
+  },
+  "sneg": {
+    "comment": "Staff of Negation",
+    "includeAsRandomChoice": false
+  },
+  "wneu": {
+    "comment": "Wand of Neutralization",
+    "includeAsRandomChoice": false
+  },
+  "shea": {
+    "comment": "Scroll of Healing",
+    "includeAsRandomChoice": false
+  },
+  "sman": {
+    "comment": "Scroll of Mana",
+    "includeAsRandomChoice": false
+  },
+  "rej1": {
+    "comment": "Minor Replenishment Potion",
+    "includeAsRandomChoice": false
+  },
+  "pspd": {
+    "comment": "Potion of Speed",
+    "includeAsRandomChoice": false
+  },
+  "dust": {
+    "comment": "Dust of Appearance",
+    "includeAsRandomChoice": false
+  },
+  "ram1": {
+    "comment": "First Ring of the Archmagi",
+    "includeAsRandomChoice": false
+  },
+  "pinv": {
+    "comment": "potion of invisibility",
+    "includeAsRandomChoice": false
+  },
+  "phea": {
+    "comment": "potion of healing",
+    "includeAsRandomChoice": false
+  },
+  "pman": {
+    "comment": "Potion of Mana",
+    "includeAsRandomChoice": false
+  },
+  "spro": {
+    "comment": "Scroll of Protection",
+    "includeAsRandomChoice": false
+  },
+  "hslv": {
+    "comment": "Healing Salve",
+    "includeAsRandomChoice": false
+  },
+  "moon": {
+    "comment": "Moonstone",
+    "includeAsRandomChoice": false
+  },
+  "shas": {
+    "comment": "Scroll of Speed",
+    "includeAsRandomChoice": false
+  },
+  "skul": {
+    "comment": "Sacrificial Skull",
+    "includeAsRandomChoice": false
+  },
+  "mcri": {
+    "comment": "Mechanical Critter",
+    "includeAsRandomChoice": false
+  },
+  "rnec": {
+    "comment": "Rod of Necromancy",
+    "includeAsRandomChoice": false
+  },
+  "ritd": {
+    "comment": "Ritual Dagger",
+    "includeAsRandomChoice": false
+  },
+  "tsct": {
+    "comment": "Ivory Tower",
+    "includeAsRandomChoice": false
+  },
+  "azhr": {
+    "comment": "Heart of Aszune",
+    "includeAsRandomChoice": false
+  },
+  "bzbe": {
+    "comment": "Empty Vial",
+    "includeAsRandomChoice": false
+  },
+  "bzbf": {
+    "comment": "Full Vial",
+    "includeAsRandomChoice": false
+  },
+  "ches": {
+    "comment": "Cheese",
+    "includeAsRandomChoice": false
+  },
+  "cnhn": {
+    "comment": "Horn of Cenarius",
+    "includeAsRandomChoice": false
+  },
+  "glsk": {
+    "comment": "Guldan's Skull",
+    "includeAsRandomChoice": false
+  },
+  "gopr": {
+    "comment": "Glyph of Purification",
+    "includeAsRandomChoice": false
+  },
+  "k3m1": {
+    "comment": "Key of 3 Moons - 1",
+    "includeAsRandomChoice": false
+  },
+  "k3m2": {
+    "comment": "Key of 3 Moons - 2",
+    "includeAsRandomChoice": false
+  },
+  "k3m3": {
+    "comment": "Key of 3 Moons - 3",
+    "includeAsRandomChoice": false
+  },
+  "ktrm": {
+    "comment": "Urn of Kel'Thuzad",
+    "includeAsRandomChoice": false
+  },
+  "kybl": {
+    "comment": "bloody key",
+    "includeAsRandomChoice": false
+  },
+  "kygh": {
+    "comment": "ghost key",
+    "includeAsRandomChoice": false
+  },
+  "kymn": {
+    "comment": "moon key",
+    "includeAsRandomChoice": false
+  },
+  "kysn": {
+    "comment": "sun key",
+    "includeAsRandomChoice": false
+  },
+  "ledg": {
+    "comment": "Gerard's Lost Ledger",
+    "includeAsRandomChoice": false
+  },
+  "phlt": {
+    "comment": "Phat Lewt",
+    "includeAsRandomChoice": false
+  },
+  "sehr": {
+    "comment": "Searinox's Heart",
+    "includeAsRandomChoice": false
+  },
+  "engs": {
+    "comment": "Enchanted Gemstone",
+    "includeAsRandomChoice": false
+  },
+  "sorf": {
+    "comment": "Shadow Orb Fragment",
+    "includeAsRandomChoice": false
+  },
+  "gmfr": {
+    "comment": "Gem Fragment",
+    "includeAsRandomChoice": false
+  },
+  "jpnt": {
+    "comment": "note to jaina proudmoore",
+    "includeAsRandomChoice": false
+  },
+  "shwd": {
+    "comment": "shimmerweed",
+    "includeAsRandomChoice": false
+  },
+  "skrt": {
+    "comment": "Skeletal Artifact",
+    "includeAsRandomChoice": false
+  },
+  "thle": {
+    "comment": "thunder lizard egg",
+    "includeAsRandomChoice": false
+  },
+  "sclp": {
+    "comment": "secret level powerup",
+    "includeAsRandomChoice": false
+  },
+  "wtlg": {
+    "comment": "Wirt's Leg",
+    "includeAsRandomChoice": false
+  },
+  "wolg": {
+    "comment": "Wirt's Other Leg",
+    "includeAsRandomChoice": false
+  },
+  "mgtk": {
+    "comment": "Magtheridon's Keys",
+    "includeAsRandomChoice": false
+  },
+  "mort": {
+    "comment": "Mogrin's Report",
+    "includeAsRandomChoice": false
+  },
+  "dphe": {
+    "comment": "Thunder Hawk Egg",
+    "includeAsRandomChoice": false
+  },
+  "dkfw": {
+    "comment": "Keg of Thunderwater",
+    "includeAsRandomChoice": false
+  },
+  "dthb": {
+    "comment": "Thunderbloom Bulb",
+    "includeAsRandomChoice": false
+  },
+  "fgun": {
+    "comment": "Flare Gun",
+    "includeAsRandomChoice": false
+  },
+  "lure": {
+    "comment": "Monster Lure",
+    "includeAsRandomChoice": false
+  },
+  "olig": {
+    "comment": "Orb of Lightning(old)",
+    "includeAsRandomChoice": false
+  },
+  "amrc": {
+    "comment": "Amulet of Recall",
+    "includeAsRandomChoice": false
+  },
+  "flag": {
+    "comment": "human flag",
+    "includeAsRandomChoice": false
+  },
+  "gobm": {
+    "comment": "Goblin Land Mine",
+    "includeAsRandomChoice": false
+  },
+  "gsou": {
+    "comment": "Soul Gem",
+    "includeAsRandomChoice": false
+  },
+  "nflg": {
+    "comment": "NightElf flag",
+    "includeAsRandomChoice": false
+  },
+  "nspi": {
+    "comment": "Necklace of Spell Immunity",
+    "includeAsRandomChoice": false
+  },
+  "oflg": {
+    "comment": "Orc flag",
+    "includeAsRandomChoice": false
+  },
+  "pams": {
+    "comment": "Anti-Magic Potion",
+    "includeAsRandomChoice": false
+  },
+  "pgin": {
+    "comment": "potion of greater invisibility",
+    "includeAsRandomChoice": false
+  },
+  "rat3": {
+    "comment": "Claws of Attack +3",
+    "includeAsRandomChoice": false
+  },
+  "rde0": {
+    "comment": "Ring of Protection +1",
+    "includeAsRandomChoice": false
+  },
+  "rde1": {
+    "comment": "Ring of Protection +2",
+    "includeAsRandomChoice": false
+  },
+  "rnsp": {
+    "comment": "Ring of Superiority",
+    "includeAsRandomChoice": true
+  },
+  "soul": {
+    "comment": "Soul",
+    "includeAsRandomChoice": false
+  },
+  "tels": {
+    "comment": "Goblin Night Scope",
+    "includeAsRandomChoice": false
+  },
+  "tgxp": {
+    "comment": "Tome of Greater Experience",
+    "includeAsRandomChoice": false
+  },
+  "uflg": {
+    "comment": "Undead flag",
+    "includeAsRandomChoice": false
+  },
+  "anfg": {
+    "comment": "Ancient Figurine",
+    "includeAsRandomChoice": false
+  },
+  "brag": {
+    "comment": "Bracer of Agility",
+    "includeAsRandomChoice": false
+  },
+  "drph": {
+    "comment": "Druid Pouch",
+    "includeAsRandomChoice": false
+  },
+  "iwbr": {
+    "comment": "Ironwood Branch",
+    "includeAsRandomChoice": false
+  },
+  "jdrn": {
+    "comment": "Jade Ring",
+    "includeAsRandomChoice": false
+  },
+  "lnrn": {
+    "comment": "Lion's Ring",
+    "includeAsRandomChoice": false
+  },
+  "mlst": {
+    "comment": "Maul of Strength",
+    "includeAsRandomChoice": false
+  },
+  "oslo": {
+    "comment": "Orb of Slow",
+    "includeAsRandomChoice": false
+  },
+  "sbok": {
+    "comment": "Spell Book",
+    "includeAsRandomChoice": false
+  },
+  "sksh": {
+    "comment": "Skull Shield",
+    "includeAsRandomChoice": false
+  },
+  "sprn": {
+    "comment": "Spider Ring",
+    "includeAsRandomChoice": false
+  },
+  "tmmt": {
+    "comment": "Totem of Might",
+    "includeAsRandomChoice": false
+  },
+  "vddl": {
+    "comment": "Voodoo Doll",
+    "includeAsRandomChoice": false
+  },
+  "spre": {
+    "comment": "Staff of Preservation",
+    "includeAsRandomChoice": false
+  },
+  "sfog": {
+    "comment": "Horn of the Clouds",
+    "includeAsRandomChoice": false
+  },
+  "sor1": {
+    "comment": "Shadow Orb +1",
+    "includeAsRandomChoice": false
+  },
+  "sor2": {
+    "comment": "Shadow Orb +2",
+    "includeAsRandomChoice": false
+  },
+  "sor3": {
+    "comment": "Shadow Orb +3",
+    "includeAsRandomChoice": false
+  },
+  "sor4": {
+    "comment": "Shadow Orb +4",
+    "includeAsRandomChoice": false
+  },
+  "sor5": {
+    "comment": "Shadow Orb +5",
+    "includeAsRandomChoice": false
+  },
+  "sor6": {
+    "comment": "Shadow Orb +6",
+    "includeAsRandomChoice": false
+  },
+  "sor7": {
+    "comment": "Shadow Orb +7",
+    "includeAsRandomChoice": false
+  },
+  "sor8": {
+    "comment": "Shadow Orb +8",
+    "includeAsRandomChoice": false
+  },
+  "sor9": {
+    "comment": "Shadow Orb +9",
+    "includeAsRandomChoice": false
+  },
+  "sora": {
+    "comment": "Shadow Orb +10",
+    "includeAsRandomChoice": false
+  },
+  "fwss": {
+    "comment": "Frostwyrm Skull Shield",
+    "includeAsRandomChoice": false
+  },
+  "shtm": {
+    "comment": "Shamanic Totem",
+    "includeAsRandomChoice": false
+  },
+  "esaz": {
+    "comment": "Essence of Aszune",
+    "includeAsRandomChoice": false
+  },
+  "btst": {
+    "comment": "orcish battle standard",
+    "includeAsRandomChoice": false
+  },
+  "tbsm": {
+    "comment": "Tiny Blacksmith",
+    "includeAsRandomChoice": false
+  },
+  "tfar": {
+    "comment": "Tiny Farm",
+    "includeAsRandomChoice": false
+  },
+  "tlum": {
+    "comment": "Tiny Lumber Mill",
+    "includeAsRandomChoice": false
+  },
+  "tbar": {
+    "comment": "Tiny Barracks",
+    "includeAsRandomChoice": false
+  },
+  "tbak": {
+    "comment": "Tiny Altar of Kings",
+    "includeAsRandomChoice": false
+  },
+  "gldo": {
+    "comment": "Orb of Kil'jaeden",
+    "includeAsRandomChoice": false
+  },
+  "stre": {
+    "comment": "Staff of Reanimation",
+    "includeAsRandomChoice": false
+  },
+  "horl": {
+    "comment": "Holy Relic",
+    "includeAsRandomChoice": false
+  },
+  "hbth": {
+    "comment": "Helm of Battlethirst",
+    "includeAsRandomChoice": false
+  },
+  "blba": {
+    "comment": "Bladebane Armor",
+    "includeAsRandomChoice": false
+  },
+  "rugt": {
+    "comment": "Runed Gauntlets",
+    "includeAsRandomChoice": false
+  },
+  "frhg": {
+    "comment": "Firehand Gauntlets",
+    "includeAsRandomChoice": false
+  },
+  "gvsm": {
+    "comment": "Gloves of Spell Mastery",
+    "includeAsRandomChoice": false
+  },
+  "crdt": {
+    "comment": "Crown of the Deathlord",
+    "includeAsRandomChoice": false
+  },
+  "arsc": {
+    "comment": "Arcane Scroll",
+    "includeAsRandomChoice": false
+  },
+  "scul": {
+    "comment": "Scroll of the Unholy Legion",
+    "includeAsRandomChoice": false
+  },
+  "tmsc": {
+    "comment": "Tome of Sacrifices",
+    "includeAsRandomChoice": false
+  },
+  "dtsb": {
+    "comment": "Drek'thar's Spellbook",
+    "includeAsRandomChoice": false
+  },
+  "grsl": {
+    "comment": "Grimoire of Souls",
+    "includeAsRandomChoice": false
+  },
+  "arsh": {
+    "comment": "Arcanite Shield",
+    "includeAsRandomChoice": false
+  },
+  "shdt": {
+    "comment": "Shield of the Deathlord",
+    "includeAsRandomChoice": false
+  },
+  "shhn": {
+    "comment": "Shield of Honor",
+    "includeAsRandomChoice": false
+  },
+  "shen": {
+    "comment": "Enchanted Shield",
+    "includeAsRandomChoice": false
+  },
+  "thdm": {
+    "comment": "Thunderlizard Diamond",
+    "includeAsRandomChoice": false
+  },
+  "stpg": {
+    "comment": "Stuffed Penguin",
+    "includeAsRandomChoice": false
+  },
+  "shrs": {
+    "comment": "Shimmerglaze Roast",
+    "includeAsRandomChoice": false
+  },
+  "bfhr": {
+    "comment": "Bloodfeather's Heart",
+    "includeAsRandomChoice": false
+  },
+  "cosl": {
+    "comment": "Celestial Orb of Souls",
+    "includeAsRandomChoice": false
+  },
+  "shcw": {
+    "comment": "Shaman Claws",
+    "includeAsRandomChoice": false
+  },
+  "srbd": {
+    "comment": "Searing Blade",
+    "includeAsRandomChoice": false
+  },
+  "frgd": {
+    "comment": "Frostguard",
+    "includeAsRandomChoice": false
+  },
+  "envl": {
+    "comment": "Enchanted Vial",
+    "includeAsRandomChoice": false
+  },
+  "rump": {
+    "comment": "Rusty Mining Pick",
+    "includeAsRandomChoice": false
+  },
+  "srtl": {
+    "comment": "Serathil",
+    "includeAsRandomChoice": false
+  },
+  "stwa": {
+    "comment": "Sturdy War Axe",
+    "includeAsRandomChoice": false
+  },
+  "klmm": {
+    "comment": "Killmaim",
+    "includeAsRandomChoice": false
+  },
+  "rots": {
+    "comment": "Rod of the Sea",
+    "includeAsRandomChoice": false
+  },
+  "axas": {
+    "comment": "Ancestral Staff",
+    "includeAsRandomChoice": false
+  },
+  "mnsf": {
+    "comment": "Mindstaff",
+    "includeAsRandomChoice": false
+  },
+  "schl": {
+    "comment": "Scepter of Healing",
+    "includeAsRandomChoice": false
+  },
+  "asbl": {
+    "comment": "Assassin's Blade",
+    "includeAsRandomChoice": false
+  },
+  "kgal": {
+    "comment": "Keg of Ale",
+    "includeAsRandomChoice": false
+  },
+  "ward": {
+    "comment": "Warsong Battle Drums",
+    "includeAsRandomChoice": false
+  },
+  "gold": {
+    "comment": "Chest of Gold",
+    "includeAsRandomChoice": false
+  },
+  "lmbr": {
+    "comment": "Bundle of Lumber",
+    "includeAsRandomChoice": false
+  },
+  "gfor": {
+    "comment": "Glyph of Fortification",
+    "includeAsRandomChoice": false
+  },
+  "guvi": {
+    "comment": "Glyph of UltraVision",
+    "includeAsRandomChoice": false
+  },
+  "rspl": {
+    "comment": "Rune of Spirit Link",
+    "includeAsRandomChoice": false
+  },
+  "rre1": {
+    "comment": "Rune of Lesser Resurrection",
+    "includeAsRandomChoice": false
+  },
+  "rre2": {
+    "comment": "Rune of Greater Resurrection",
+    "includeAsRandomChoice": false
+  },
+  "gomn": {
+    "comment": "Glyph of Omniscience",
+    "includeAsRandomChoice": false
+  },
+  "rsps": {
+    "comment": "Rune of Shielding",
+    "includeAsRandomChoice": false
+  },
+  "rspd": {
+    "comment": "Rune of Speed",
+    "includeAsRandomChoice": false
+  },
+  "rman": {
+    "comment": "Rune of Mana(Lesser)",
+    "includeAsRandomChoice": false
+  },
+  "rma2": {
+    "comment": "Rune of Mana(Greater)",
+    "includeAsRandomChoice": false
+  },
+  "rres": {
+    "comment": "Rune of Restoration",
+    "includeAsRandomChoice": false
+  },
+  "rreb": {
+    "comment": "Rune of Rebirth",
+    "includeAsRandomChoice": false
+  },
+  "rhe1": {
+    "comment": "Rune of Lesser Healing",
+    "includeAsRandomChoice": true
+  },
+  "rhe2": {
+    "comment": "Rune of Healing",
+    "includeAsRandomChoice": false
+  },
+  "rhe3": {
+    "comment": "Rune of Greater Healing",
+    "includeAsRandomChoice": false
+  },
+  "rdis": {
+    "comment": "Rune of Dispel Magic",
+    "includeAsRandomChoice": false
+  },
+  "texp": {
+    "comment": "Tome of Experience",
+    "includeAsRandomChoice": false
+  },
+  "rwat": {
+    "comment": "Rune of the Watcher",
+    "includeAsRandomChoice": false
+  },
+  "pclr": {
+    "comment": "Clarity Potion",
+    "includeAsRandomChoice": false
+  },
+  "plcl": {
+    "comment": "Lesser Clarity Potion",
+    "includeAsRandomChoice": false
+  },
+  "silk": {
+    "comment": "Spider Silk",
+    "includeAsRandomChoice": false
+  },
+  "vamp": {
+    "comment": "Potion of Vampirism",
+    "includeAsRandomChoice": true
+  },
+  "sreg": {
+    "comment": "Scroll of Regeneration",
+    "includeAsRandomChoice": false
+  },
+  "tcas": {
+    "comment": "Tiny Castle",
+    "includeAsRandomChoice": false
+  },
+  "ssan": {
+    "comment": "Staff of Sanctuary",
+    "includeAsRandomChoice": false
+  },
+  "ofr2": {
+    "comment": "Orb of Fire v2",
+    "includeAsRandomChoice": false
+  },
+  "sxpl": {
+    "comment": "Seed of Expulsion",
+    "includeAsRandomChoice": false
+  },
+  "vpur": {
+    "comment": "Vine of Purification",
+    "includeAsRandomChoice": false
+  },
+  "pdiv": {
+    "comment": "Potion of Divinity (Divine Shield)",
+    "includeAsRandomChoice": false
+  },
+  "fgrd": {
+    "comment": "Red Drake Egg",
+    "includeAsRandomChoice": false
+  },
+  "totw": {
+    "comment": "talisman of the wild",
+    "includeAsRandomChoice": false
+  },
+  "sand": {
+    "comment": "Scroll of Animate Dead",
+    "includeAsRandomChoice": false
+  },
+  "srrc": {
+    "comment": "Scroll of Resurrection",
+    "includeAsRandomChoice": false
+  }
+}
