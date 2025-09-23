@@ -78,13 +78,13 @@ const RAW_UNIT_ITEM_DROPS = compiletime(() => {
 
 function findUnitAtPoint(p: Point): Unit | undefined {
     const g = Group.create()!;
-    g.enumUnitsInRangeOfPoint(p, 1, () => true);
+    g.enumUnitsInRangeOfPoint(p, 1, () => Unit.fromFilter().getOwner().id === PLAYER_NEUTRAL_AGGRESSIVE);
     if (g.size == 0) {
         //Try a bigger search radius. The data for position is not always precise.
         //Example is "Elder Jungle Stalker" on 1v1_WarHail_v1.1.w3x
         //Parsed map position: 2338, 3121
         //Actual     position: 2384, 3088
-        g.enumUnitsInRangeOfPoint(p, 200, () => true)
+        g.enumUnitsInRangeOfPoint(p, 200, () => Unit.fromFilter().getOwner().id === PLAYER_NEUTRAL_AGGRESSIVE)
     }
 
     //size=0 can happen when player spawn is at a camp (e.g., on 4 player map, like LostTemple)
