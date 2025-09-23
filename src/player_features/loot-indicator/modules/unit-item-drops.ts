@@ -102,7 +102,7 @@ function findUnitAtPoint(p: Point): Unit | undefined {
     if(g.size == 1) {
         u = g.getUnitAt(0);
     } else if(g.size > 1) {
-        print(`P(${p.x}, ${p.y}) should point to 1 unit, but found ${g.size}.`)
+        // print(`P(${p.x}, ${p.y}) should point to 1 unit, but found ${g.size}.`)
         u = getClosestUnit(g, p);
     }
 
