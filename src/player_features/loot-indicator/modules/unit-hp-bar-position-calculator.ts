@@ -49,7 +49,8 @@ let IS_REFORGED_UNIT_MODELS_ENABLED_LOCAL: boolean;
 
 export function initIsReforgedUnitModelsEnabledLocal() {
     //We spawn a unit known to have different Scale for SD and HD mode
-    const u = Unit.create(MapPlayer.fromIndex(PLAYER_NEUTRAL_AGGRESSIVE)!, FourCC(Units.BlueDrake), 0, 0)!;
+    //We use NEUTRAL_PASSIVE instead of NEUTRAL_AGGRESSIVE because it causes "creep camp" minimap indicator to appear
+    const u = Unit.create(MapPlayer.fromIndex(PLAYER_NEUTRAL_PASSIVE)!, FourCC(Units.BlueDrake), 0, 0)!;
     IS_REFORGED_UNIT_MODELS_ENABLED_LOCAL = getUnitModelScale(u) !== 1.2;
     u.destroy();
 }
