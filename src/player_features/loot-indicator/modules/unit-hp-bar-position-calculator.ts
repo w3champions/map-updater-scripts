@@ -35,6 +35,11 @@ const UNITS_MODEL_HEIGHT: Record<string, UnitModelHeight> = compiletime(() => {
         'ners', 'nerw'
     ].forEach((unitType => heights[unitType].sdHeight += 40));
 
+    // Murlocs
+    [
+        'nmfs'
+    ].forEach((unitType => heights[unitType].sdHeight += 20));
+
     return heights
 }) as Record<string, UnitModelHeight>;
 
