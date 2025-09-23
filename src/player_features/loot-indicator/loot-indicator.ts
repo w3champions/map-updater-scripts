@@ -58,7 +58,7 @@ function saveIsPreviewEnabled(isEnabled: boolean) {
 function createIndicators(unitsWithDrops: UnitItemDrop[]) {
     for (const unitWithDrop of unitsWithDrops) {
         const indicator = UnitLootIndicator.create(unitWithDrop);
-        IS_INDICATOR_ENABLED_LOCAL ? indicator.show() : indicator.hide();
+        IS_INDICATOR_ENABLED_LOCAL ? indicator.enable() : indicator.disable();
 
         ACTIVE_INDICATORS.set(indicator.unit.handle, indicator);
 
@@ -91,7 +91,7 @@ function enableIndicatorFeatureToggleChatCommand() {
             saveIsIndicatorEnabled(IS_INDICATOR_ENABLED_LOCAL);
 
             ACTIVE_INDICATORS.forEach(indicator => {
-                IS_INDICATOR_ENABLED_LOCAL ? indicator.show() : indicator.hide()
+                IS_INDICATOR_ENABLED_LOCAL ? indicator.enable() : indicator.disable()
             });
             DisplayTextToPlayer(player.handle, 0, 0, `|cff00ff00[W3C]:|r Creep loot indicator is now |cffffff00 ` + (IS_INDICATOR_ENABLED_LOCAL ? `ENABLED` : `DISABLED`) + `|r.`)
         }
@@ -226,17 +226,17 @@ class UnitLootIndicator {
 
     private readonly indicatorEffect: Effect;
     private indicatorScale: number;
-    private isVisible: boolean;
+    private isEnabled: boolean;
     private printLootTrigger?: Trigger;
     private lootInfoMsg: string;
-    private updatePosTimer?: Timer;
+    private updateUnitTimer?: Timer;
 
     constructor(unit: Unit, itemDropSets: ItemDropSet[], indicatorEffect: Effect) {
         this.unit = unit;
         this.itemDropSets = itemDropSets;
         this.indicatorEffect = indicatorEffect;
         this.indicatorScale = indicatorEffect.scale;
-        this.isVisible = true;
+        this.isEnabled = true;
         this.lootInfoMsg = buildDropsInfoMsg(unit, itemDropSets);
     }
 
@@ -264,26 +264,34 @@ class UnitLootIndicator {
 
         const indicator = new UnitLootIndicator(unit, itemDropSets, e);
         indicator.enablePrintLootOnSelection();
-        indicator.enableFollowUnit();
+        indicator.enableUpdateUnit();
         return indicator;
     }
 
-    hide() {
-        if (!this.isVisible) return;
-        this.isVisible = false;
+    disable() {
+        if (!this.isEnabled) return;
+        this.isEnabled = false;
 
+        this.hide();
+    }
+
+    enable() {
+        if (this.isEnabled) return;
+        this.isEnabled = true;
+
+        this.show();
+    }
+
+    private hide() {
         this.indicatorEffect.scale = 0;
     }
 
-    show() {
-        if (this.isVisible) return;
-        this.isVisible = true;
-
+    private show() {
         this.indicatorEffect.scale = this.indicatorScale;
     }
 
     destroy() {
-        this.updatePosTimer?.destroy();
+        this.updateUnitTimer?.destroy();
         this.indicatorEffect.destroy();
         this.printLootTrigger?.destroy();
     }
@@ -300,10 +308,18 @@ class UnitLootIndicator {
         });
     }
 
-    private enableFollowUnit() {
-        this.updatePosTimer = Timer.create()!;
-        this.updatePosTimer.start(0.01, true, () => {
-            if(!this.isVisible) return;
+    private enableUpdateUnit() {
+        this.updateUnitTimer = Timer.create()!;
+        this.updateUnitTimer.start(0.01, true, () => {
+            if(!this.isEnabled) return;
+
+            //Handle invisible units (Murloc Nightcrawler)
+            if(!this.unit.isVisible(MapPlayer.fromLocal())) {
+                this.hide();
+                return;
+            } else {
+                this.show();
+            }
 
             const hpBarPos = calcUnitHpBarPosition(this.unit);
             this.indicatorEffect.setPosition(hpBarPos.x, hpBarPos.y, hpBarPos.z);
