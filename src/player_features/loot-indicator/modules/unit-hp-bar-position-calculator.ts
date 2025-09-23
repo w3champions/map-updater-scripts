@@ -49,8 +49,7 @@ let IS_REFORGED_UNIT_MODELS_ENABLED_LOCAL: boolean;
 
 export function initIsReforgedUnitModelsEnabledLocal() {
     //We spawn a unit known to have different Scale for SD and HD mode
-    const wb = Rectangle.getWorldBounds()!;
-    const u = Unit.create(MapPlayer.fromIndex(PLAYER_NEUTRAL_AGGRESSIVE)!, FourCC(Units.BlueDrake), wb.minX, wb.minY)!;
+    const u = Unit.create(MapPlayer.fromIndex(PLAYER_NEUTRAL_AGGRESSIVE)!, FourCC(Units.BlueDrake), 0, 0)!;
     IS_REFORGED_UNIT_MODELS_ENABLED_LOCAL = getUnitModelScale(u) !== 1.2;
     u.destroy();
 }

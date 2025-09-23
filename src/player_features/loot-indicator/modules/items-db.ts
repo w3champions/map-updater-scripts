@@ -41,12 +41,8 @@ export function initItemsDB() {
 }
 
 function createAllItemsDB() {
-    const wb = Rectangle.getWorldBounds()!;
-    const x = wb.minX;
-    const y = wb.minY;
-
     for (const itemId of Object.keys(COMPILETIME_ITEM_DATA)) {
-        const item = Item.create(FourCC(itemId), x, y)!;
+        const item = Item.create(FourCC(itemId), 0, 0)!;
         if(item == undefined) {
             print(`Failed to create an item with id: ${itemId}`)
             continue;
