@@ -96,6 +96,9 @@ export function compileMap(config: IProjectConfig) {
     return false;
   }
 
+  logger.info("Cleaning dist directory...");
+  fs.removeSync("./dist");
+
   const tsLua = "./dist/tstl_output.lua";
 
   if (fs.existsSync(tsLua)) {
