@@ -21,3 +21,5 @@ And a lot of other people from W3Champions and Hive communities!
 
 * Indicator appears slightly higher on creeps in shallow water
 * Indicator height is not accurate on flying creeps when flying over uneven terrain (slopes/cliffs)
+* Indicator does not adapt to scaling changes (e.g. bloodlust)
+* Indicator does not adapt to model change (e.g. hex/sheep)
