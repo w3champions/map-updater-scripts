@@ -78,7 +78,7 @@ function registerUnitItemDroppedEvent(unit: Unit, action: () => void) {
 function enableIndicatorFeatureToggleChatCommand() {
     const t = Trigger.create();
     for (let i = 0; i < bj_MAX_PLAYERS; i++) {
-        t.registerPlayerChatEvent(MapPlayer.fromIndex(i)!, "-cli", true);
+        t.registerPlayerChatEvent(MapPlayer.fromIndex(i)!, "-looticon", true);
     }
     t.addAction(() => {
         const player = MapPlayer.fromEvent()!;
@@ -97,7 +97,7 @@ function enableIndicatorFeatureToggleChatCommand() {
 function enablePreviewFeatureToggleChatCommand() {
     const t = Trigger.create();
     for (let i = 0; i < bj_MAX_PLAYERS; i++) {
-        t.registerPlayerChatEvent(MapPlayer.fromIndex(i)!, "-clp", true);
+        t.registerPlayerChatEvent(MapPlayer.fromIndex(i)!, "-lootpreview", true);
     }
     t.addAction(() => {
         const player = MapPlayer.fromEvent()!;

@@ -22,8 +22,8 @@ export function enableShowCommandsTrigger() {
     `  |cffffff00•|r Type|cffffff00 -workercount|r to show/hide goldmine worker count.\n` +
     `  |cffffff00•|r Type|cffffff00 -minimap|r to show/hide custom minimap icons.\n` +
     `  |cffffff00•|r Type|cffffff00 -clock|r to show/hide clock.\n` +
-    `  |cffffff00•|r Type|cffffff00 -cli|r to show/hide creep loot indicator.\n` +
-    `  |cffffff00•|r Type|cffffff00 -clp|r to show/hide creep loot preview on selection.`
+    `  |cffffff00•|r Type|cffffff00 -looticon|r to show/hide creep loot indicator.\n` +
+    `  |cffffff00•|r Type|cffffff00 -lootpreview|r to show/hide creep loot preview on selection.`
 
     TriggerAddAction(showCommandsTrigger, () => {
         DisplayTimedTextToPlayer(GetTriggerPlayer(), 0, 0, 10, commands);
