@@ -99,9 +99,9 @@ function findUnitAtPoint(p: Point): Unit | undefined {
     }
 
     let u: Unit;
-    if(g.size == 1) {
+    if (g.size == 1) {
         u = g.getUnitAt(0);
-    } else if(g.size > 1) {
+    } else if (g.size > 1) {
         // print(`P(${p.x}, ${p.y}) should point to 1 unit, but found ${g.size}.`)
         u = getClosestUnit(g, p);
     }
@@ -117,7 +117,7 @@ function getClosestUnit(g: Group, p: Point) {
     for (let i = 1; i < g.size; i++) {
         const u = g.getUnitAt(i);
         const dist = calcDistance(u, p)
-        if(dist < closestDist) {
+        if (dist < closestDist) {
             closestDist = dist;
             closestUnit = u;
         }
@@ -160,7 +160,7 @@ export function findMapInitialCreepsWithDrops(): UnitItemDrop[] {
 
         //Skip unit, if effectively it has no drops.
         //This could be mapmaker's mistake, blizzard changing drop tables, or we filtered it out (unknown item drop id)
-        if(getAllItemIds(dropSets).length === 0) continue;
+        if (getAllItemIds(dropSets).length === 0) continue;
 
         unitItemDrops.push({unit, dropSets});
     }

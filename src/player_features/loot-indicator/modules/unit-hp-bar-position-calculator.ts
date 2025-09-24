@@ -1,4 +1,4 @@
-import {MapPlayer, Rectangle, Unit} from "w3ts";
+import {MapPlayer, Unit} from "w3ts";
 import {Units} from "@objectdata/units";
 import {getUnitModelScale, id2FourCC} from "./util";
 
@@ -61,7 +61,7 @@ export function isReforgedUnitModelsEnabledLocal(): boolean {
 
 function getUnitModelHeight(unitId: number): number {
     const model = UNITS_MODEL_HEIGHT[id2FourCC(unitId)];
-    if(isReforgedUnitModelsEnabledLocal()) {
+    if (isReforgedUnitModelsEnabledLocal()) {
         return model.hdHeight;
     } else {
         return model.sdHeight;

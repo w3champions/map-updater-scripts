@@ -3,7 +3,7 @@ import {IniFile} from "mdx-m3-viewer-th/dist/cjs/parsers/ini/file"
 import {parseMDX} from 'war3-model';
 import * as fs from 'fs-extra';
 import {toArrayBuffer} from "../../utils";
-import type {UnitModelHeight} from "../../../src/loot-indicator/modules/unit-hp-bar-position-calculator";
+import {UnitModelHeight} from "../../../src/player_features/loot-indicator/modules/unit-hp-bar-position-calculator";
 
 const WC3_GAME_BASE_DIRECTORY = "D:\\Games\\Warcraft III";
 

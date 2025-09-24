@@ -1,6 +1,5 @@
 import {ItemClass, ItemGroup, itemGroup2FourCC, VALID_LEVELS} from "./item-groups";
-import {File, Item, Rectangle, Timer} from "w3ts";
-import {Items} from "@objectdata/items";
+import {Item} from "w3ts";
 
 interface CompiletimeItem {
     includeAsRandomChoice: boolean;
@@ -43,13 +42,13 @@ export function initItemsDB() {
 function createAllItemsDB() {
     for (const itemId of Object.keys(COMPILETIME_ITEM_DATA)) {
         const item = Item.create(FourCC(itemId), 0, 0)!;
-        if(item == undefined) {
+        if (item == undefined) {
             print(`Failed to create an item with id: ${itemId}`)
             continue;
         }
 
         const itemClass = inferItemClass(item);
-        if(itemClass == undefined) {
+        if (itemClass == undefined) {
             item.destroy();
             continue;
         }
@@ -78,7 +77,7 @@ function createAllItemsDB() {
 function createItemGroupsDB() {
     for (const item of ITEMS_BY_ID.values()) {
         //ChooseRandomItemEx filters out items that have `Stats - Include As Random Choice` field set to false
-        if(!item.includeAsRandomChoice) {
+        if (!item.includeAsRandomChoice) {
             continue;
         }
 
@@ -150,7 +149,8 @@ function inferItemClass(item: Item) {
         }
         //Don't know why some items are of type UNKNOWN (but their actual class in WE Object Data is "Misc")
         // None of those items are selectable by ChooseRandomItemEx (IncludeAsRandomChoice is false)
-        case ITEM_TYPE_UNKNOWN: return ItemClass.Misc;
+        case ITEM_TYPE_UNKNOWN:
+            return ItemClass.Misc;
         default: {
             print(`Item ${item.name} (${item.typeId}) has unexpected type!`);
             return;
