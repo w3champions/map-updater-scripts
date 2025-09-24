@@ -8,8 +8,7 @@ import {
     UnitItemDrop
 } from "./modules/unit-item-drops";
 import {ItemClass} from "./modules/item-groups";
-import {getItemById, initItemsDB} from "./modules/items-db";
-import {METAKEY_CTRL, METAKEY_NONE} from "./modules/util";
+import {initItemsDB} from "./modules/items-db";
 import {
     calcUnitHpBarPosition,
     initIsReforgedUnitModelsEnabledLocal,
@@ -19,20 +18,17 @@ import {LootTableUI} from "./modules/loot-table-ui";
 //For local player. Veriest per player.
 let IS_INDICATOR_ENABLED_LOCAL = false;
 let IS_PREVIEW_ENABLED_LOCAL = false;
-let IS_CTRL_BTN_HELD_LOCAL = false;
 
 let ACTIVE_INDICATORS = new Map<unit, UnitLootIndicator>();
 
 export function enableCreepLootIndicator() {
     initItemsDB();
     initIsReforgedUnitModelsEnabledLocal();
-    IS_INDICATOR_ENABLED_LOCAL = loadIsIndicatorEnabled();
 
+    IS_INDICATOR_ENABLED_LOCAL = loadIsIndicatorEnabled();
     const unitsWithDrops = findMapInitialCreepsWithDrops();
     createIndicators(unitsWithDrops);
-
     enableIndicatorFeatureToggleChatCommand()
-    enableTrackCtrlBtnHeld();
 
     IS_PREVIEW_ENABLED_LOCAL = loadIsPreviewEnabled();
     enableLootTablePreviewUI();
@@ -86,7 +82,7 @@ function enableIndicatorFeatureToggleChatCommand() {
     }
     t.addAction(() => {
         const player = MapPlayer.fromEvent()!;
-        if(player.isLocal()) {
+        if (player.isLocal()) {
             IS_INDICATOR_ENABLED_LOCAL = !IS_INDICATOR_ENABLED_LOCAL;
             saveIsIndicatorEnabled(IS_INDICATOR_ENABLED_LOCAL);
 
@@ -105,37 +101,14 @@ function enablePreviewFeatureToggleChatCommand() {
     }
     t.addAction(() => {
         const player = MapPlayer.fromEvent()!;
-        if(player.isLocal()) {
+        if (player.isLocal()) {
             IS_PREVIEW_ENABLED_LOCAL = !IS_PREVIEW_ENABLED_LOCAL;
             saveIsPreviewEnabled(IS_PREVIEW_ENABLED_LOCAL);
 
-            if(!IS_PREVIEW_ENABLED_LOCAL) {
+            if (!IS_PREVIEW_ENABLED_LOCAL) {
                 LootTableUI.INSTANCE.hide();
             }
             DisplayTextToPlayer(player.handle, 0, 0, `|cff00ff00[W3C]:|r Creep loot preview is now |cffffff00 ` + (IS_PREVIEW_ENABLED_LOCAL ? `ENABLED` : `DISABLED`) + `|r.`)
-        }
-    })
-}
-
-function enableTrackCtrlBtnHeld() {
-    const tDown = Trigger.create();
-    const tUp = Trigger.create();
-    for (let i = 0; i < bj_MAX_PLAYERS; i++) {
-        tDown.registerPlayerKeyEvent(MapPlayer.fromIndex(i)!, OSKEY_LCONTROL, METAKEY_CTRL, true);
-        tUp.registerPlayerKeyEvent(MapPlayer.fromIndex(i)!, OSKEY_LCONTROL, METAKEY_NONE, false);
-    }
-
-    tDown.addAction(() => {
-        if(MapPlayer.fromEvent()!.isLocal()) {
-            //By default, the action is called multiple times while the button is held down
-            if (!IS_CTRL_BTN_HELD_LOCAL) {
-                IS_CTRL_BTN_HELD_LOCAL = true;
-            }
-        }
-    })
-    tUp.addAction(() => {
-        if(MapPlayer.fromEvent()!.isLocal()) {
-            IS_CTRL_BTN_HELD_LOCAL = false;
         }
     })
 }
@@ -157,51 +130,6 @@ function isTomeDrop(itemDrop: ItemDrop): boolean {
     return false;
 }
 
-/*
-    //Short form (1 dropset, 1 group item)
-
-    Dark Troll
-    == [Permanent, LVL 1] ==
-    Slipper of Agility + 15
-    Ring of Health
-
-    //Long form
-
-    Dark Troll
-    == Drop 1 ==
-    Slipper of Agility + 15
-    Ring of Health
-    == Drop 2 ==
-    Sentry Ward
-    Ring of Health
- */
-function buildDropsInfoMsg(unit: Unit, drops: ItemDropSet[]): string {
-    let msg = `\n|cffffff00${unit.name}|r\n`
-    const hasManyItems = drops.flatMap(s => s.itemDrops.flatMap(d => d.getDropItemIds())).length > 10;
-    const itemsSeparator = hasManyItems ? ", " : "\n";
-
-    const groupDrop = getSingleGroupDrop(drops);
-    if (groupDrop != undefined) {
-        msg += `== |cff00ff00[${groupDrop.itemGroup.itemClass}, LVL ${groupDrop.itemGroup.itemLevel}]|r ==\n`;
-        msg += groupDrop.getDropItemIds().map(id => `${getItemById(id)!.name}`).join(itemsSeparator)
-    } else {
-        msg += drops.map((dropSet, i) => {
-            let m = `== |cff00ff00Drop ${i + 1}|r ==\n`;
-            m += dropSet.itemDrops.flatMap(d => d.getDropItemIds())
-                .map(id => `${getItemById(id)!.name}`)
-                .join(itemsSeparator)
-            return m;
-        }).join("\n");
-    }
-
-    // You can break msg box with too big messages that contain newlines
-    if (msg.length > 600) {
-        msg = msg.substring(0, 600) + "...";
-    }
-
-    return msg;
-}
-
 function enableLootTablePreviewUI() {
     LootTableUI.init();
 
@@ -209,9 +137,9 @@ function enableLootTablePreviewUI() {
     t.registerAnyUnitEvent(EVENT_PLAYER_UNIT_SELECTED);
     t.addAction(() => {
         const player = MapPlayer.fromEvent()!;
-        if(player.isLocal() && IS_PREVIEW_ENABLED_LOCAL) {
+        if (player.isLocal() && IS_PREVIEW_ENABLED_LOCAL) {
             const indicator = ACTIVE_INDICATORS.get(Unit.fromEvent()!.handle);
-            if(indicator !== undefined) {
+            if (indicator !== undefined) {
                 LootTableUI.INSTANCE.show(getAllItemIds(indicator.itemDropSets));
             } else {
                 LootTableUI.INSTANCE.hide();
@@ -225,10 +153,8 @@ class UnitLootIndicator {
     readonly itemDropSets: ItemDropSet[];
 
     private readonly indicatorEffect: Effect;
-    private indicatorScale: number;
+    private readonly indicatorScale: number;
     private isEnabled: boolean;
-    private printLootTrigger?: Trigger;
-    private lootInfoMsg: string;
     private updateUnitTimer?: Timer;
 
     constructor(unit: Unit, itemDropSets: ItemDropSet[], indicatorEffect: Effect) {
@@ -237,7 +163,6 @@ class UnitLootIndicator {
         this.indicatorEffect = indicatorEffect;
         this.indicatorScale = indicatorEffect.scale;
         this.isEnabled = true;
-        this.lootInfoMsg = buildDropsInfoMsg(unit, itemDropSets);
     }
 
     static create(unitItemDrop: UnitItemDrop): UnitLootIndicator {
@@ -256,14 +181,13 @@ class UnitLootIndicator {
         //For units with mana bar, we adjust the position of the effect model with animation
         //We don't use Z offset for effect in the world, because that will affect "billboarding",
         //and will lead to the effect slightly shifting relative to HP bar depending on the camera angle
-        if(unit.maxMana > 0) {
+        if (unit.maxMana > 0) {
             e.playAnimation(ANIM_TYPE_STAND)
         } else {
             e.playAnimation(ANIM_TYPE_WALK)
         }
 
         const indicator = new UnitLootIndicator(unit, itemDropSets, e);
-        indicator.enablePrintLootOnSelection();
         indicator.enableUpdateUnit();
         return indicator;
     }
@@ -293,28 +217,15 @@ class UnitLootIndicator {
     destroy() {
         this.updateUnitTimer?.destroy();
         this.indicatorEffect.destroy();
-        this.printLootTrigger?.destroy();
-    }
-
-    private enablePrintLootOnSelection() {
-        this.printLootTrigger = Trigger.create();
-        this.printLootTrigger.registerAnyUnitEvent(EVENT_PLAYER_UNIT_SELECTED);
-        this.printLootTrigger.addCondition(() => Unit.fromEvent()?.handle === this.unit.handle);
-        this.printLootTrigger.addAction(() => {
-            const player = MapPlayer.fromEvent()!;
-            if (player.isLocal() && IS_CTRL_BTN_HELD_LOCAL) {
-                DisplayTimedTextToPlayer(player.handle, 0, 0, 5, this.lootInfoMsg);
-            }
-        });
     }
 
     private enableUpdateUnit() {
         this.updateUnitTimer = Timer.create()!;
         this.updateUnitTimer.start(0.01, true, () => {
-            if(!this.isEnabled) return;
+            if (!this.isEnabled) return;
 
             //Handle invisible units (Murloc Nightcrawler)
-            if(!this.unit.isVisible(MapPlayer.fromLocal())) {
+            if (!this.unit.isVisible(MapPlayer.fromLocal())) {
                 this.hide();
                 return;
             } else {
