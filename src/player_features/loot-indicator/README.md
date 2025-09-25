@@ -11,11 +11,10 @@ Preview UI is a WC3 Frame drawn on top of Command Bar.
 To display possible loot drops, we use runtime item info, combined with item data extracted from in-game files
 (unavailable at runtime, [extracted-items-data.json](../../../scripts/loot-indicator/items-db/extracted-items-data.json))
 
-# Thanks to
+# Observer mode
 
-Coff, Mayday, Tasyen, ModdieMads, Kenshin, TriggerHappy, Luashine, Tordes, Starbuck!
-
-And a lot of other people from W3Champions and Hive communities!
+* Indicator will be shown if the observer had `-looticon` enabled before the game
+* Loot preview (drop table) is not shown
 
 # Known issues
 
@@ -23,3 +22,9 @@ And a lot of other people from W3Champions and Hive communities!
 * Indicator height is not accurate on flying creeps when flying over uneven terrain (slopes/cliffs)
 * Indicator does not adapt to scaling changes (e.g. bloodlust)
 * Indicator does not adapt to model change (e.g. hex/sheep)
+
+# Thanks to
+
+Coff, Mayday, Tasyen, ModdieMads, Kenshin, TriggerHappy, Luashine, Tordes, Starbuck!
+
+And a lot of other people from W3Champions and Hive communities!
