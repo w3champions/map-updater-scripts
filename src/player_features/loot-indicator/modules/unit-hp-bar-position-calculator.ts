@@ -40,6 +40,11 @@ const UNITS_MODEL_HEIGHT: Record<string, UnitModelHeight> = compiletime(() => {
         'nmfs'
     ].forEach((unitType => heights[unitType].sdHeight += 20));
 
+    // Infernal
+    [
+        'ninf'
+    ].forEach((unitType => heights[unitType].sdHeight += 260));
+
     return heights
 }) as Record<string, UnitModelHeight>;
 
