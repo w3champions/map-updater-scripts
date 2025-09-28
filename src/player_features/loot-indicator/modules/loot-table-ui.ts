@@ -21,13 +21,11 @@ export class LootTableUI {
             return;
         }
 
-        this.mainParent = Frame.createType("LI_LootTableUI_Parent", Frame.fromOrigin(ORIGIN_FRAME_SIMPLE_UI_PARENT, 0)!, 0, "SIMPLEFRAME", "")!;
+        this.mainParent = Frame.createType("LI_Main_Parent", Frame.fromOrigin(ORIGIN_FRAME_SIMPLE_UI_PARENT, 0)!, 0, "SIMPLEFRAME", "")!;
         for (let i = 0; i < LootTableUI.MAX_ITEMS; i++) {
-            const itemBtn = new ItemBtn(this.mainParent, this.mainParent, i);
+            const itemBtn = new ItemBtn(this.mainParent, i);
             //ORIGIN_FRAME_COMMAND_BUTTON is available even in Replays (where commandbar is hidden by replay controls)
             itemBtn.btn.setPoint(FRAMEPOINT_CENTER, Frame.fromOrigin(ORIGIN_FRAME_COMMAND_BUTTON, i)!, FRAMEPOINT_CENTER, 0, 0)
-            itemBtn.setTooltip("MY-TITLE\n\nasdf dasfdasf asdfdasfasdf asd fdas fasd fdsa fsd fasd fdas fasdf das fasf das fasfdsa fsdfdsfsdf asdf das fas fasdf das fas fsd fasdf as df",
-                "HELLO WORLD!\n\nAsdf asdf ads fasdf asd fdasf asd f sdaf asd fasd fas fasasdfasdfasdfadsf asdfasdfas dfasd fasdf fdas fasdf das fasd fas dfasd fasd fdas fasd fdas fas fdas fdas fasd fasd fasf")
             this.itemBtnList.push(itemBtn)
         }
 
@@ -37,10 +35,8 @@ export class LootTableUI {
     show(itemIds: string[]) {
         this.mainParent.setVisible(true)
 
+        // Can't fit more than 12 right now.
         if (itemIds.length > LootTableUI.MAX_ITEMS) {
-            //Usually maps use preset drop tables that max out at 10 items,
-            // but who knows what maps might do in the future.
-            // Can't fit more than 12 right now.
             itemIds = itemIds.slice(0, LootTableUI.MAX_ITEMS)
         }
 
@@ -76,15 +72,15 @@ class ItemBtn {
     tooltipSeparator: Frame;
     tooltipDescription: Frame;
 
-    constructor(btnOwner: Frame, tooltipOwner: Frame, createContext: number) {
+    constructor(owner: Frame, createContext: number) {
         //Buttons created on top of CommandBar have to be "SIMPLEBUTTON" to receive input (hover to show tooltip),
         //because non-SIMPLE frames have lower priority than SIMPLE, and the original CommandBar consists of SIMPLE frames.
-        this.btn = Frame.createSimple("LI_ItemButton", btnOwner, createContext)!;
+        this.btn = Frame.createSimple("LI_ItemButton", owner, createContext)!;
         //NOTE: The draw order is not consistent. In rare cases our btn is drawn below the original one (but it does not matter for our case)
         this.btn.setLevel(6) //To draw above black background
         this.btnBackdrop = Frame.fromName("LI_ItemButton_Backdrop", createContext)!;
 
-        this.tooltip = Frame.createSimple("LI_Tooltip", tooltipOwner, 0)!;
+        this.tooltip = Frame.createSimple("LI_Tooltip", owner, 0)!;
         this.tooltipBox = Frame.fromName("LI_Tooltip_Box", 0)!;
         this.tooltipTitle = Frame.fromName("LI_Tooltip_Title", 0)!;
         this.tooltipSeparator = Frame.fromName("LI_Tooltip_Separator", 0)!;
