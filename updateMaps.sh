@@ -25,7 +25,7 @@ mapExtractionPath="./maps/map.w3x"
 outputMapPath="./maps/w3c_maps/output"
 mpqPath="./MPQEditor.exe"
 currentDateTime=$(date '+%y%m%d_%H%M')
-buildMapPath="./maps/w3c_maps/map.w3x"
+buildMapPath="./maps/w3c_maps/tmp.w3x"
 
 rm -rf "$outputMapPath" && mkdir "$outputMapPath"
 
@@ -68,6 +68,7 @@ while IFS= read -r -d '' fullPath; do
     "$mpqPath" extract "$fullPath" "*" "$mapExtractionPath" "/fp"
 
     rm -rf dist/ && npm run build "$dirName"
+    mv ./maps/w3c_maps/map.w3x "$buildMapPath"
 
     newFileName="w3c_${currentDateTime}_$strippedName"
 
@@ -91,10 +92,10 @@ while IFS= read -r -d '' fullPath; do
 
 done < <(find "$cleanMapPath" -type f \( -iname '*.w3m' -o -iname '*.w3x' \) -print0)
 
-rm -rf "$buildMapPath" 2>/dev/null
+rm -f "$buildMapPath"
 
-cleanMapsCount=$(find $cleanMapPath -name '*.w3m' -or -name '*.w3x' | wc -l)
-completedMapsCount=$(find $outputMapPath -name '*.w3m' -or -name '*.w3x' | wc -l)
+cleanMapsCount=$(find "$cleanMapPath" -type f \( -iname '*.w3m' -o -iname '*.w3x' \) | wc -l)
+completedMapsCount=$(find "$outputMapPath" -type f \( -iname '*.w3m' -o -iname '*.w3x' \) -printf "%f\n" | sort -u | wc -l)
 echo "Processed $cleanMapsCount maps and output $completedMapsCount maps."
 
 echo "Map updates completed successfully."
