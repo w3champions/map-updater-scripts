@@ -90,6 +90,8 @@ while IFS= read -r -d '' fullPath; do
         mv "$buildMapPath" "$targetDir/$newFileName"
     fi
 
+    rm -rf "$buildMapPath"
+
 done < <(find "$cleanMapPath" -type f \( -iname '*.w3m' -o -iname '*.w3x' \) -print0)
 
 rm -f "$buildMapPath"

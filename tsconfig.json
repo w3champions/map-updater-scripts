@@ -2,9 +2,9 @@
   "compilerOptions": {
     "baseUrl": "./src",
     "allowJs": true,
-    "target": "es6",
+    "target": "ES2019",
     "lib": [
-      "es6"
+      "ES2019"
     ],
     "moduleResolution": "node",
     "paths": {
@@ -16,7 +16,7 @@
         "../node_modules/*"
       ],
       "@objectdata/*": [
-        "./node_modules/war3-objectdata-th/dist/cjs/generated/constants/*"
+        "../node_modules/war3-objectdata-th/dist/cjs/generated/constants/*"
       ]
     },
     "plugins": [

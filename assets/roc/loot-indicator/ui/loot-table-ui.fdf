@@ -1,0 +1,52 @@
+
+Frame "SIMPLEBUTTON" "LI_ItemButton" {
+    UseActiveContext,
+	Width 0.039,
+	Height 0.039,
+
+	Texture "LI_ItemButton_Backdrop" {
+    }
+}
+
+Frame "SIMPLEFRAME" "LI_Tooltip" {
+    UseActiveContext,
+
+    Frame "BACKDROP" "LI_Tooltip_Box" {
+        UseActiveContext,
+        DecorateFileNames,
+        BackdropTileBackground,
+        BackdropBackground  "ToolTipBackground",
+        BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+        BackdropCornerSize  0.01,
+        BackdropBackgroundSize  0.01,
+        BackdropBackgroundInsets 0.002 0.002 0.002 0.002,
+        BackdropEdgeFile  "ToolTipBorder",
+        BackdropBlendAll,
+
+        Frame "TEXT" "LI_Tooltip_Title" {
+            UseActiveContext,
+            DecorateFileNames,
+            FontColor 1.0 1.0 1.0 1.0,
+            FontShadowColor 0.0 0.0 0.0 0.9,
+            FontShadowOffset 0.001 -0.001,
+            LayerStyle "IGNORETRACKEVENTS",
+            FrameFont "InfoPanelTextFont", 0.011, "",
+            FontJustificationH JUSTIFYLEFT,
+        }
+
+        Frame "BACKDROP" "LI_Tooltip_Separator" {
+            UseActiveContext,
+            BackdropBackground "replaceabletextures\teamcolor\teamcolor08",
+        }
+
+        Frame "TEXT" "LI_Tooltip_Description"  {
+            UseActiveContext,
+            FrameFont "InfoPanelTextFont", 0.011, "",
+            FontColor 1.0 1.0 1.0 1.0,
+            FontShadowColor 0.0 0.0 0.0 0.9,
+            FontShadowOffset 0.001 -0.001,
+            LayerStyle "IGNORETRACKEVENTS",
+            DecorateFileNames,
+        }
+    }
+}

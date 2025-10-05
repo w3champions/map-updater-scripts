@@ -29,9 +29,13 @@
     "typescript": "5.8.2",
     "typescript-to-lua": "^1.31.0",
     "war3-objectdata-th": "^0.2.10",
-    "war3-transformer": "3.0.9",
+    "war3-transformer": "3.0.10",
     "war3tstlhelper": "1.0.1",
-    "winston": "3.17.0"
+    "winston": "3.17.0",
+    "war3-types-strict": "0.1.3",
+    "mdx-m3-viewer-th": "5.13.3",
+    "@jamiephan/casclib": "2.0.0-dev.5",
+    "war3-model": "4.0.0"
   },
   "watch": {
     "build:defs": {
