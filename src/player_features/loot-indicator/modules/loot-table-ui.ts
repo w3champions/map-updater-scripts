@@ -21,11 +21,14 @@ export class LootTableUI {
             return;
         }
 
-        this.mainParent = Frame.createType("LI_Main_Parent", Frame.fromOrigin(ORIGIN_FRAME_SIMPLE_UI_PARENT, 0)!, 0, "SIMPLEFRAME", "")!;
+        //ConsoleBottomBar scales based on "HUD scale" in-game option.
+        //It is a parent for ORIGIN_FRAME_UBERTOOLTIP and all bottom part of the UI.
+        //Parent for ConsoleBottomBar is ConsoleUI (aka ORIGIN_FRAME_SIMPLE_UI_PARENT) which does not scale.
+        let bottomUiFrame = Frame.fromName("ConsoleBottomBar", 0);
+        this.mainParent = Frame.createType("LI_Main_Parent", bottomUiFrame, 0, "SIMPLEFRAME", "")!;
         for (let i = 0; i < LootTableUI.MAX_ITEMS; i++) {
             const itemBtn = new ItemBtn(this.mainParent, i);
-            //ORIGIN_FRAME_COMMAND_BUTTON is available even in Replays (where commandbar is hidden by replay controls)
-            itemBtn.btn.setPoint(FRAMEPOINT_CENTER, Frame.fromOrigin(ORIGIN_FRAME_COMMAND_BUTTON, i)!, FRAMEPOINT_CENTER, 0, 0)
+            itemBtn.btn.setAllPoints(Frame.fromOrigin(ORIGIN_FRAME_COMMAND_BUTTON, i)!)
             this.itemBtnList.push(itemBtn)
         }
 
@@ -96,7 +99,7 @@ class ItemBtn {
         this.tooltipSeparator.setPoint(FRAMEPOINT_BOTTOMRIGHT, this.tooltipDescription, FRAMEPOINT_TOPRIGHT, 0, 0.005)
 
         this.tooltipDescription.setWidth(0.285)
-        this.tooltipDescription.setAbsPoint(FRAMEPOINT_BOTTOMRIGHT, 0.79, 0.168)
+        this.tooltipDescription.setPoint(FRAMEPOINT_BOTTOMRIGHT, owner, FRAMEPOINT_BOTTOMRIGHT, -0.01, 0.168)
 
         this.tooltipBox.setPoint(FRAMEPOINT_TOPLEFT, this.tooltipTitle, FRAMEPOINT_TOPLEFT, -0.005, 0.005)
         this.tooltipBox.setPoint(FRAMEPOINT_BOTTOMRIGHT, this.tooltipDescription, FRAMEPOINT_BOTTOMRIGHT, 0.005, -0.005)
