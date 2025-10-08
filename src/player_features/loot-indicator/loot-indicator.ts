@@ -140,7 +140,7 @@ function enableLootTablePreviewUI() {
         if (player.isLocal() && IS_PREVIEW_ENABLED_LOCAL) {
             const indicator = ACTIVE_INDICATORS.get(Unit.fromEvent()!.handle);
             if (indicator !== undefined) {
-                LootTableUI.INSTANCE.show(getAllItemIds(indicator.itemDropSets));
+                LootTableUI.INSTANCE.show(indicator.itemDropSets);
             } else {
                 LootTableUI.INSTANCE.hide();
             }
