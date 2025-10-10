@@ -1,6 +1,8 @@
 
 Frame "SIMPLEBUTTON" "LI_ItemButton" {
     UseActiveContext,
+	Width 0.039,
+	Height 0.039,
 
 	Texture "LI_ItemButton_Backdrop" {
     }
