@@ -8,7 +8,7 @@ import {
     UnitItemDrop
 } from "./modules/unit-item-drops";
 import {ItemClass} from "./modules/item-groups";
-import {initItemsDB} from "./modules/items-db";
+import {initItemsDB, getItemById} from "./modules/items-db";
 import {
     calcUnitHpBarPosition,
     initIsReforgedUnitModelsEnabledLocal,
@@ -113,13 +113,6 @@ function enablePreviewFeatureToggleChatCommand() {
     })
 }
 
-function getSingleGroupDrop(itemDropSets: ItemDropSet[]): RandomItemGroupDrop | undefined {
-    if (itemDropSets.length === 1 && itemDropSets[0].itemDrops.length === 1
-        && itemDropSets[0].itemDrops[0] instanceof RandomItemGroupDrop) {
-        return itemDropSets[0].itemDrops[0];
-    }
-}
-
 function isTomeDrop(itemDrop: ItemDrop): boolean {
     if (itemDrop instanceof RandomItemGroupDrop) {
         const group = itemDrop.itemGroup;
@@ -128,6 +121,22 @@ function isTomeDrop(itemDrop: ItemDrop): boolean {
     }
 
     return false;
+}
+
+function areAllDropsTomes(itemDropSets: ItemDropSet[]): boolean {
+    for (const set of itemDropSets) {
+        for (const drop of set.itemDrops) {
+            if (drop instanceof RandomItemGroupDrop) {
+                if (!isTomeDrop(drop)) return false;
+            } else {
+                const item = getItemById(drop.getRawId());
+                if (!item) return false;
+                if (item.classification !== ItemClass.Power_Up) return false;
+                if (item.level !== 1 && item.level !== 2) return false;
+            }
+        }
+    }
+    return true;
 }
 
 function enableLootTablePreviewUI() {
@@ -170,13 +179,13 @@ class UnitLootIndicator {
         const itemDropSets = unitItemDrop.dropSets;
         let e: Effect;
 
-        //In 99% of cases a unit has a single set (drops 1 item) with a single group item drop (can drop any item from that group)
-        const groupDrop = getSingleGroupDrop(itemDropSets);
-        if (groupDrop && isTomeDrop(groupDrop)) {
+        if (areAllDropsTomes(itemDropSets)) {
             e = Effect.create("loot-indicator\\loot-indicator-tome.mdx", 0, 0)!;
         } else {
             e = Effect.create("loot-indicator\\loot-indicator-generic.mdx", 0, 0)!;
         }
+
+        e.scale = 1.5;
 
         //For units with mana bar, we adjust the position of the effect model with animation
         //We don't use Z offset for effect in the world, because that will affect "billboarding",

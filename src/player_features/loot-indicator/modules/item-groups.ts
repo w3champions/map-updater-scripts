@@ -15,7 +15,7 @@ export class ItemGroup {
 export enum ItemClass {
     Permanent = "Permanent",
     Charged = "Charged",
-    Power_Up = "PowerUp",
+    Power_Up = "Power Up",
     Artifact = "Artifact",
     Purchasable = "Purchasable",
     Campaign = "Campaign",

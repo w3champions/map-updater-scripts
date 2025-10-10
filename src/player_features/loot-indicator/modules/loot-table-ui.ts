@@ -1,6 +1,30 @@
 import {Frame} from "w3ts";
 import {getItemById} from "./items-db";
 import {getAllItemIds, ItemDropSet, RandomItemGroupDrop} from "./unit-item-drops";
+import { ItemClass } from "./item-groups";
+
+const ITEM_CLASS_PRIORITY: Record<ItemClass, number> = {
+    [ItemClass.Permanent]: 0,
+    [ItemClass.Charged]: 1,
+    [ItemClass.Power_Up]: 2,
+    [ItemClass.Artifact]: 3,
+    [ItemClass.Purchasable]: 4,
+    [ItemClass.Campaign]: 5,
+    [ItemClass.Misc]: 6
+};
+
+function sortItems(itemIds: string[]): string[] {
+    return itemIds
+        .map(id => getItemById(id)!)
+        .sort((a, b) => {
+            if (a.level !== b.level) return b.level - a.level;
+            const aPriority = ITEM_CLASS_PRIORITY[a.classification] ?? 999;
+            const bPriority = ITEM_CLASS_PRIORITY[b.classification] ?? 999;
+            if (aPriority !== bPriority) return aPriority - bPriority;
+            return a.name < b.name ? -1 : a.name > b.name ? 1 : 0;
+        })
+        .map(i => i.id);
+}
 
 export class LootTableUI {
     static INSTANCE: LootTableUI;
@@ -48,13 +72,30 @@ export class LootTableUI {
     show(dropSets: ItemDropSet[]) {
         this.mainParent.setVisible(true)
 
-        this.allDropsBtn.setTooltip(`|cffffff00Full loot table (${dropSets.length} drops)|r`, buildDropsInfoMsg(dropSets))
+        const dropWord = dropSets.length === 1 ? "drop" : "drops";
+        this.allDropsBtn.setTooltip(`|cffffff00Loot Table (${dropSets.length} ${dropWord})|r`, buildDropsInfoMsg(dropSets))
 
         let itemIds = getAllItemIds(dropSets);
+        itemIds = Array.from(new Set(itemIds));
+        itemIds = sortItems(itemIds);
+        
         // Can't fit more than 12 right now.
         if (itemIds.length > LootTableUI.MAX_ITEMS) {
             itemIds = itemIds.slice(0, LootTableUI.MAX_ITEMS)
         }
+
+        if (itemIds.length < LootTableUI.MAX_ITEMS) {
+            this.allDropsBtn.btn.setSize(0.04, 0.04)
+        } else {
+            this.allDropsBtn.btn.setSize(0.02, 0.02)
+        }
+        this.allDropsBtn.btn.clearPoints()
+        this.allDropsBtn.btn.setPoint(
+            FRAMEPOINT_BOTTOMRIGHT,
+            Frame.fromOrigin(ORIGIN_FRAME_COMMAND_BUTTON, 11),
+            FRAMEPOINT_BOTTOMRIGHT,
+            0, 0
+        )
 
         for (let i = 0; i < LootTableUI.MAX_ITEMS; i++) {
             const itemBtn = this.itemBtnList[i];
@@ -156,26 +197,35 @@ function buildDropsInfoMsg(sets: ItemDropSet[]): string {
     return sets.map((set, i) => {
         let m = `|cffffff00== Drop ${i + 1} `;
 
-        //Short most common form
+        // Short most common form
         if (set.itemDrops.length === 1 && set.itemDrops[0] instanceof RandomItemGroupDrop) {
             const drop = set.itemDrops[0] as RandomItemGroupDrop;
             m += `|cff00ff00[${drop.itemGroup.itemClass}, Level ${drop.itemGroup.itemLevel}]|r\n`
-            m += set.itemDrops.flatMap(d => d.getDropItemIds())
-                .map(id => `  ${getItemById(id)!.name}`)
-                .join("\n")
-        //A set that contains a list of specific items or multiple GroupDrops, or a mix of both
+
+            const ids = Array.from(new Set(set.itemDrops.flatMap(d => d.getDropItemIds())));
+            const sortedIds = sortItems(ids);
+
+            m += sortedIds.map(id => `  ${getItemById(id)!.name}`).join("\n");
+        // A set that contains a list of specific items or multiple GroupDrops, or a mix of both
         } else {
-            m += `|cff00ff00[Custom drop pool]|r\n`
-            m += set.itemDrops.map(d => {
-                if (d instanceof RandomItemGroupDrop) {
-                    return `  |cff00ff00[${d.itemGroup.itemClass}, Level ${d.itemGroup.itemLevel}]|r\n` +
-                        d.getDropItemIds()
-                            .map(id => `  - ${getItemById(id).name}`)
-                            .join("\n")
-                } else {
-                    return `  ${getItemById(d.getRawId()).name}`
-                }
-            }).join("\n")
+            m += `|cff00ff00[Custom]|r\n`
+
+            const allIds = Array.from(
+                new Set(
+                    set.itemDrops.flatMap(d =>
+                        d instanceof RandomItemGroupDrop
+                            ? d.getDropItemIds()
+                            : [d.getRawId()]
+                    )
+                )
+            );
+
+            const sortedIds = sortItems(allIds);
+
+            m += sortedIds.map(id => {
+                const item = getItemById(id)!;
+                return `  ${item.name} |cff00ff00[${item.classification}, Level ${item.level}]|r`;
+            }).join("\n");
         }
 
         return m;
