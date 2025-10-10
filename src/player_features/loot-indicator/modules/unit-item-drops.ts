@@ -137,33 +137,6 @@ export function getAllItemIds(dropSets: ItemDropSet[]) {
     return dropSets.flatMap(s => s.itemDrops.flatMap(d => d.getDropItemIds()));
 }
 
-/**
- * Set containing the highest level item will be first
- */
-function sortSetsByLevel(sets: ItemDropSet[]) {
-    sets.sort((a, b) => {
-        const maxLevelA = Math.max(...a.itemDrops.map(d => d instanceof RandomItemGroupDrop ? d.itemGroup.itemLevel : getItemById(d.getRawId()).level))
-        const maxLevelB = Math.max(...b.itemDrops.map(d => d instanceof RandomItemGroupDrop ? d.itemGroup.itemLevel : getItemById(d.getRawId()).level))
-
-        // Sort descending by maximum level
-        return maxLevelB - maxLevelA;
-    });
-}
-
-/**
- * Withing a set there could be multiple "items" (specific item or "Item from class and level group").
- * Usually a set contains a single "group item", but it could be a custom set of multiple specific items.
- */
-function sortDropsByLevel(itemDrops: ItemDrop[]) {
-    itemDrops.sort((a, b) => {
-        const levelA = a instanceof RandomItemGroupDrop ? a.itemGroup.itemLevel : getItemById(a.getRawId()).level;
-        const levelB = b instanceof RandomItemGroupDrop ? b.itemGroup.itemLevel : getItemById(b.getRawId()).level;
-
-        // Sort descending by level
-        return levelB - levelA;
-    });
-}
-
 export function findMapInitialCreepsWithDrops(): UnitItemDrop[] {
     const unitItemDrops: UnitItemDrop[] = [];
     for (const rawDrop of RAW_UNIT_ITEM_DROPS) {
@@ -182,15 +155,12 @@ export function findMapInitialCreepsWithDrops(): UnitItemDrop[] {
                     return [] as ItemDrop[];
                 }
             });
-            sortDropsByLevel(itemDrops);
             return itemDrops.length > 0 ? [{itemDrops}] : [];
         })
 
         //Skip unit, if effectively it has no drops.
         //This could be mapmaker's mistake, blizzard changing drop tables, or we filtered it out (unknown item drop id)
         if (getAllItemIds(dropSets).length === 0) continue;
-
-        sortSetsByLevel(dropSets);
 
         unitItemDrops.push({unit, dropSets});
     }
