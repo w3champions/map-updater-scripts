@@ -178,7 +178,6 @@ export function findMapInitialCreepsWithDrops(): UnitItemDrop[] {
                 } else if (getItemById(itemOrGroupId) !== undefined) {
                     return [new SpecificItemDrop(itemOrGroupId)]
                 } else {
-                    print(`Unknown item drop id "${itemOrGroupId}" for unit "${unit.name}" at (${unit.x}, ${unit.y}).`);
                     return [] as ItemDrop[];
                 }
             });
