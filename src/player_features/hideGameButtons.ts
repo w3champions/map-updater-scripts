@@ -15,14 +15,16 @@ export function hideGameButtons() {
 		const confirmQuitQuitButton: framehandle = BlzGetFrameByName('ConfirmQuitQuitButton', 0);
 		const confirmQuitMessageText: framehandle = BlzGetFrameByName('ConfirmQuitMessageText', 0);
 
-		const gameStatus = getGameStatus();
+		if (!IsPlayerObserver(GetLocalPlayer())) {
+			const gameStatus = getGameStatus();
 
-		if (gameStatus === GameStatus.ONLINE_OR_LAN && !IsPlayerObserver(GetLocalPlayer())) {
-			BlzFrameSetVisible(escMenuSaveLoadContainer, false);
-			BlzFrameSetEnable(saveGameFileEditBox, false);
-			BlzFrameSetVisible(exitButton, false);
-			BlzFrameSetEnable(confirmQuitQuitButton, false);
-			BlzFrameSetText(confirmQuitMessageText, 'Please use Quit Mission instead.');
+			if (gameStatus === GameStatus.ONLINE_OR_LAN) {
+				BlzFrameSetVisible(escMenuSaveLoadContainer, false);
+				BlzFrameSetEnable(saveGameFileEditBox, false);
+				BlzFrameSetVisible(exitButton, false);
+				BlzFrameSetEnable(confirmQuitQuitButton, false);
+				BlzFrameSetText(confirmQuitMessageText, 'Please use Quit Mission instead.');
+			}
 		}
 	});
 }
