@@ -32,7 +32,7 @@ function getGameStatus() {
 	// Note: Will remove a small radius of black fog at a player's start location - May be undesired on some custom maps
 	let i = 0;
 
-	for (; i < 12; i++) {
+	for (; i < bj_MAX_PLAYERS; i++) {
 		if (GetPlayerController(Player(i)) === MAP_CONTROL_USER && GetPlayerSlotState(Player(i)) === PLAYER_SLOT_STATE_PLAYING) {
 			break;
 		}
