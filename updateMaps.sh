@@ -39,6 +39,12 @@ while IFS= read -r -d '' fullPath; do
     matchedModes=()
     strippedName="$fileName"
 
+    mapIdPrefix=
+    if [[ "$fileName" == *@* ]]; then
+        mapIdPrefix="${fileName%@*}_"
+        strippedName="${fileName#*@}"
+    fi
+
     while :; do
         matched=false
         for prefix in "${prefixList[@]}"; do
@@ -70,7 +76,7 @@ while IFS= read -r -d '' fullPath; do
     rm -rf dist/ && npm run build "$dirName"
     mv ./maps/w3c_maps/map.w3x "$buildMapPath"
 
-    newFileName="w3c_${currentDateTime}_$strippedName"
+    newFileName="${mapIdPrefix}w3c_${currentDateTime}_$strippedName"
 
     if [[ ${#matchedModes[@]} -gt 0 ]]; then
         for mode in "${matchedModes[@]}"; do
