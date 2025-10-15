@@ -225,11 +225,13 @@ class UnitLootIndicator {
             if (!this.isEnabled) return;
 
             //Handle invisible units (Murloc Nightcrawler)
-            if (!this.unit.isVisible(MapPlayer.fromLocal())) {
+            //isUnitVisible() always returns false for Observers (unless map has no fog of war)
+            const p = MapPlayer.fromLocal();
+            if (this.unit.isVisible(p) || p.isObserver()) {
+                this.show();
+            } else {
                 this.hide();
                 return;
-            } else {
-                this.show();
             }
 
             const hpBarPos = calcUnitHpBarPosition(this.unit);
