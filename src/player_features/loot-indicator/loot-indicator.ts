@@ -1,7 +1,6 @@
-import {Effect, MapPlayer, Trigger, Unit, File, Timer} from "w3ts";
+import {Effect, File, MapPlayer, Timer, Trigger, Unit} from "w3ts";
 import {
     findMapInitialCreepsWithDrops,
-    getAllItemIds,
     ItemDrop,
     ItemDropSet,
     RandomItemGroupDrop,
@@ -9,11 +8,9 @@ import {
 } from "./modules/unit-item-drops";
 import {ItemClass} from "./modules/item-groups";
 import {initItemsDB} from "./modules/items-db";
-import {
-    calcUnitHpBarPosition,
-    initIsReforgedUnitModelsEnabledLocal,
-} from "./modules/unit-hp-bar-position-calculator";
+import {calcUnitHpBarPosition, initIsReforgedUnitModelsEnabledLocal,} from "./modules/unit-hp-bar-position-calculator";
 import {LootTableUI} from "./modules/loot-table-ui";
+import {isReplay} from "../../detectGameStatus";
 
 //For local player. Veriest per player.
 let IS_INDICATOR_ENABLED_LOCAL = false;
@@ -224,10 +221,11 @@ class UnitLootIndicator {
         this.updateUnitTimer.start(0.01, true, () => {
             if (!this.isEnabled) return;
 
-            //Handle invisible units (Murloc Nightcrawler)
-            //isUnitVisible() always returns false for Observers (unless map has no fog of war)
+            //Handle invisible units (Murloc Nightcrawler).
+            //unit.isVisible(p) always returns false for Observers (unless map has no fog of war).
+            //In replays, local player is the host (one of the players), but we want to show indicator on all units as if you are an Observer.
             const p = MapPlayer.fromLocal();
-            if (this.unit.isVisible(p) || p.isObserver()) {
+            if (this.unit.isVisible(p) || p.isObserver() || isReplay()) {
                 this.show();
             } else {
                 this.hide();
