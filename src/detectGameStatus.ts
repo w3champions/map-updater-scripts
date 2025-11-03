@@ -6,10 +6,11 @@ export enum GameStatus {
 
 let gameStatus: GameStatus;
 
+export function detectGameStatusAndCache() {
+    gameStatus = detectGameStatus();
+}
+
 export function getGameStatus() {
-    if (gameStatus === null) {
-        gameStatus = detectGameStatus();
-    }
     return gameStatus;
 }
 
