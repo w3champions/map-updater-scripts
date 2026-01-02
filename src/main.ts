@@ -1,4 +1,5 @@
 import * as ignored from "./_workaround";
+import { disableChat } from "./player_features/nochat";
 import { enableDraw } from "./player_features/draw";
 import { enableBuildingCancelTrigger } from "./observer_features/buildingCancel";
 import { enableItemSoldBoughtTrigger } from "./observer_features/itemSoldBought";
@@ -44,6 +45,7 @@ function init() {
   // FFA Game Mode - Anonymize player names
   if (getGameMode() == MapGameMode.FFA) {
     anonymizePlayerNames();
+	disableChat();
   } else if (getGameMode() == MapGameMode.FOUR_VS_FOUR) {
     enableForfeit();
   }
