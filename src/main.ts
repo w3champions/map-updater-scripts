@@ -17,6 +17,7 @@ import { hideGameButtons } from "./player_features/hideGameButtons";
 import { enableClock } from "./player_features/clock";
 import { enableCreepLootIndicator } from "./player_features/loot-indicator/loot-indicator";
 import { detectGameStatusAndCache } from "./detectGameStatus";
+import { initMetrics, setupTrackMetrics, setupEventMetrics } from "./metrics/metrics";
 
 function init() {
   detectGameStatusAndCache();
@@ -29,7 +30,7 @@ function init() {
   enableClock();
   enableCreepLootIndicator();
 
-  w3cInit("WC");
+  initMetrics();
   setupTrackMetrics();
   setupEventMetrics();
 

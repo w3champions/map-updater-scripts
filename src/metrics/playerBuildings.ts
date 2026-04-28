@@ -1,4 +1,4 @@
-import * as W3CMetrics from "../lua/w3cMetrics"
+import * as W3CEvents from "../lua/w3cEvents";
 
 export function trackBuildings() {
     const trigger = CreateTrigger();
@@ -33,16 +33,11 @@ function trackConstructEvents() {
         eventType = "StructureCancel";
     }
 
-    let payload: W3CMetrics.EventPayload = {
+    const payload: W3CEvents.EventPayload = {
         player: playerId,
-        value: null
+        name: GetUnitName(structure),
+        typeId: GetUnitTypeId(structure),
     };
 
-    let state = {};
-    state["name"] = GetUnitName(structure);
-    state["typeId"] = GetUnitTypeId(structure);
-
-    payload.value = state;
-
-    W3CMetrics.event(eventType, payload);
+    W3CEvents.event(eventType, payload);
 }

@@ -62,6 +62,74 @@ local W3CEvents = {
 	},
 }
 
+local function create_integer_field(name, field_type, options)
+	local field = {
+		name = name,
+		field_type = field_type,
+	}
+	options = options or {}
+
+	field.num_of_bits = options.num_of_bits
+	field.unsigned = options.unsigned
+	field.minimum = options.minimum
+	field.maximum = options.maximum
+
+	return field
+end
+
+function W3CEvents.field(name, field_type, options)
+	if field_type == "byte" or field_type == "short" or field_type == "int" or field_type == "number" then
+		return create_integer_field(name, field_type, options)
+	end
+
+	local field = {
+		name = name,
+		field_type = field_type,
+	}
+	options = options or {}
+
+	field.num_of_bits = options.num_of_bits
+	field.unsigned = options.unsigned
+	field.minimum = options.minimum
+	field.maximum = options.maximum
+
+	return field
+end
+
+function W3CEvents.schema(name, fields, options)
+	options = options or {}
+	return {
+		version = options.version or 1,
+		name = name,
+		use_base = options.use_base or false,
+		fields = fields,
+	}
+end
+
+function W3CEvents.boolField(name)
+	return { name = name, field_type = "bool" }
+end
+
+function W3CEvents.byteField(name, options)
+	return create_integer_field(name, "byte", options)
+end
+
+function W3CEvents.shortField(name, options)
+	return create_integer_field(name, "short", options)
+end
+
+function W3CEvents.intField(name, options)
+	return create_integer_field(name, "int", options)
+end
+
+function W3CEvents.floatField(name)
+	return { name = name, field_type = "float" }
+end
+
+function W3CEvents.stringField(name)
+	return { name = name, field_type = "string" }
+end
+
 local event_buffer_size = 0
 
 local game_ended = false
@@ -77,8 +145,8 @@ local base_schema = {
 	name = EVENTS.BASE,
 	use_base = false,
 	fields = {
-		{ name = "player", type = "int", num_of_bits = 5 }, -- Up to 32 player ids
-		{ name = "time", type = "int", num_of_bits = 13 }, -- Up to ~2 hours 16 minutes
+		{ name = "player", field_type = "int", num_of_bits = 5 }, -- Up to 32 player ids
+		{ name = "time",   field_type = "int", num_of_bits = 13 }, -- Up to ~2 hours 16 minutes
 	},
 }
 
@@ -90,9 +158,9 @@ local game_end_schema = {
 	-- to use for game end.
 	use_base = false,
 	fields = {
-		{ name = "player", type = "int", num_of_bits = 5 },
-		{ name = "time", type = "int", num_of_bits = 13 },
-		{ name = "player_won", type = "bool" },
+		{ name = "player",     field_type = "int",  num_of_bits = 5 },
+		{ name = "time",       field_type = "int",  num_of_bits = 13 },
+		{ name = "player_won", field_type = "bool" },
 	},
 }
 
@@ -130,6 +198,7 @@ local function flush()
 	end
 
 	W3CEvents.event_buffer = {}
+	event_buffer_size = 0
 end
 
 -- Monotonic clock to get time since game started
@@ -152,7 +221,7 @@ local function estimate_event_size(schema_name, event)
 	local event_size_bits = 0
 
 	for _, field in ipairs(schema.fields) do
-		if field.type ~= "string" then
+		if field.field_type ~= "string" then
 			event_size_bits = event_size_bits + field.num_of_bits
 		else
 			local string_value = event[field.name]
@@ -174,12 +243,22 @@ local function add_base_schema_data(event)
 	-- Only set the event fields if they actually exist on the base schema
 	-- as the base schema can be changed
 	for _, field in ipairs(schema.fields) do
-		if field.name == "time" then
+		if field.name == "time" and event["time"] == nil then
 			event["time"] = now()
-		elseif field.name == "player" then
+		elseif field.name == "player" and event["player"] == nil then
 			event["player"] = GetPlayerId(GetLocalPlayer())
 		end
 	end
+end
+
+local function ordered_payload(schema, event)
+	local payload = {}
+	for _, field in ipairs(schema.fields) do
+		local value = event[field.name]
+		assert(value ~= nil, "Missing field [" .. field.name .. "] for schema [" .. schema.name .. "]")
+		table.insert(payload, value)
+	end
+	return payload
 end
 
 ---Sends a checksum payload using configured function to get the checksum value.
@@ -291,7 +370,16 @@ end
 ---@param interval integer How frequently to create this event
 ---@return function stop_function Function that can be called to stop and clean up the tracking event. All events that were created
 ---before calling this function will still be created and sent.
-function W3CEvents:track(name, getter, interval)
+function W3CEvents.track(self_or_name, maybe_name_or_getter, maybe_getter_or_interval, maybe_interval)
+	local name = self_or_name
+	local getter = maybe_name_or_getter
+	local interval = maybe_getter_or_interval
+	if self_or_name == W3CEvents then
+		name = maybe_name_or_getter
+		getter = maybe_getter_or_interval
+		interval = maybe_interval
+	end
+
 	if not initialized then
 		error(ERRORS.NOT_INIT_ERROR)
 	end
@@ -305,7 +393,7 @@ function W3CEvents:track(name, getter, interval)
 	end
 
 	local timer = CreateTimer()
-	self.trackers[timer] = true
+	W3CEvents.trackers[timer] = true
 
 	TimerStart(timer, interval, true, function()
 		local val = nil
@@ -314,22 +402,38 @@ function W3CEvents:track(name, getter, interval)
 		else
 			return
 		end
-		self:event(name, val)
+
+		if val == nil or (type(val) == "table" and next(val) == nil) then
+			return
+		elseif type(val) == "table" and type(val[1]) == "table" then
+			for _, payload in ipairs(val) do
+				W3CEvents.event(name, payload)
+			end
+		else
+			W3CEvents.event(name, val)
+		end
 	end)
 
 	return function()
-		if not self.trackers[timer] then
+		if not W3CEvents.trackers[timer] then
 			return
 		end
 		PauseTimer(timer)
 		DestroyTimer(timer)
-		self.trackers[timer] = nil
+		W3CEvents.trackers[timer] = nil
 	end
 end
 
 ---@param name string Name of the event. Must match the name of a schema that has been registered with `W3CEvents.register`
 ---@param event Event Event to create and send. Fields and their values must match the fields configured in the matching schema
-function W3CEvents:event(name, event)
+function W3CEvents.event(self_or_name, maybe_event, maybe_unused)
+	local name = self_or_name
+	local event = maybe_event
+	if self_or_name == W3CEvents then
+		name = maybe_event
+		event = maybe_unused
+	end
+
 	if not initialized then
 		error(ERRORS.NOT_INIT_ERROR)
 	end
@@ -346,26 +450,39 @@ function W3CEvents:event(name, event)
 		error("Schema [" .. name .. "] is not registered but an event is being created.")
 	end
 
-	if W3CData:should_use_base(name) and self.set_base_event_data then
-		self.set_base_event_data(event)
+	if W3CData:should_use_base(name) and W3CEvents.set_base_event_data then
+		W3CEvents.set_base_event_data(event)
 	end
+
+	local schema = W3CData:get_schema(name)
+	local payload = ordered_payload(schema, event)
 
 	-- Updates checksum with raw event data, not packed, as it doesn't really matter which we use and
 	-- this avoids having to pack every event just to update the checksum
-	checksum:update(table.concat(event))
+	if checksum then
+		local checksum_payload = {}
+		for _, value in ipairs(payload) do
+			table.insert(checksum_payload, tostring(value))
+		end
+		checksum:update(table.concat(checksum_payload))
+	end
 
 	local size_estimate = estimate_event_size(name, event)
 	if event_buffer_size + size_estimate > MAX_PAYLOAD_SIZE_BYTES then
 		flush()
-	else
-		event_buffer_size = event_buffer_size + size_estimate
 	end
+	event_buffer_size = event_buffer_size + size_estimate
 
-	table.insert(self.event_buffer, { name, event })
+	table.insert(W3CEvents.event_buffer, { schema_name = name, payload = payload })
 end
 
 ---@param player_results W3CEventsGameEnd
-function W3CEvents:end_game(player_results)
+function W3CEvents.end_game(self_or_player_results, maybe_player_results)
+	local player_results = self_or_player_results
+	if self_or_player_results == W3CEvents then
+		player_results = maybe_player_results
+	end
+
 	if not initialized then
 		error(ERRORS.NOT_INIT_ERROR)
 	end
@@ -379,14 +496,20 @@ function W3CEvents:end_game(player_results)
 	end
 
 	for _, player_result in ipairs(player_results) do
-		self:event(EVENTS.GAME_END, { time = now(), player = player_result.player, player_won = player_result.won })
+		W3CEvents.event(EVENTS.GAME_END, { time = now(), player = player_result.player, player_won = player_result.won })
 	end
 
+	flush()
 	shutdown()
 end
 
 ---@param schemas Schema[]
-function W3CEvents:register_all_schemas(schemas)
+function W3CEvents.register_all_schemas(self_or_schemas, maybe_schemas)
+	local schemas = self_or_schemas
+	if self_or_schemas == W3CEvents then
+		schemas = maybe_schemas
+	end
+
 	if not initialized then
 		error(ERRORS.NOT_INIT_ERROR)
 	end

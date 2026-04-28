@@ -1,4 +1,4 @@
-import * as W3CMetrics from "../lua/w3cMetrics"
+import * as W3CEvents from "../lua/w3cEvents";
 
 export function trackPlayerUnitTrained() {
     const trigger = CreateTrigger();
@@ -26,7 +26,6 @@ function trackPlayerTraining() {
     if (eventId === EVENT_PLAYER_UNIT_TRAIN_START) {
         typeId = GetTrainedUnitType();
         name = GetObjectName(typeId);
-        isHero = IsHeroUnitId(typeId); // helper below
     } else {
         const unit = GetTrainedUnit();
         typeId = GetUnitTypeId(unit);
@@ -36,19 +35,14 @@ function trackPlayerTraining() {
 
     const eventType =
         eventId === EVENT_PLAYER_UNIT_TRAIN_START
-            ? isHero ? "HeroStarted" : "UnitStarted"
+            ? "UnitStarted"
             : eventId === EVENT_PLAYER_UNIT_TRAIN_CANCEL
             ? isHero ? "HeroCancelled" : "UnitCancelled"
             : isHero ? "HeroTrained" : "UnitTrained";
 
-    W3CMetrics.event(eventType, {
+    W3CEvents.event(eventType, {
         player: id,
         name,
         typeId,
     });
 }
-
-function IsHeroUnitId(unitId: number): boolean {
-    return IsUnitType(CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), unitId, 0, 0, 0), UNIT_TYPE_HERO);
-}
-    

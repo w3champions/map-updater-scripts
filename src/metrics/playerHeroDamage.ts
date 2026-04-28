@@ -1,5 +1,5 @@
 import { Players } from "w3ts/globals";
-import * as W3CMetrics from "../lua/w3cMetrics"
+import * as W3CEvents from "../lua/w3cEvents";
 
 type HeroDamageStats = {
     creepDone: number;
@@ -29,7 +29,7 @@ export function trackPlayerHeroDamage() {
     TriggerAddCondition(heroDamageTaken, Condition(checkIsPlayerHeroTarget));
     TriggerAddAction(heroDamageTaken, onHeroDamaged);
 
-    W3CMetrics.track("HeroDamage", () => heroDamageMap, 5.0);
+    W3CEvents.track("HeroDamage", getHeroDamageEvents, 5.0);
 }
 
 function checkIsPlayerHeroSource() {
@@ -108,6 +108,33 @@ function onHeroDamaged() {
 
     heroDamageMap[player][heroName][`${unitType}Taken`] += damage;
 
+}
+
+function getHeroDamageEvents(): W3CEvents.EventPayload[] {
+    const events: W3CEvents.EventPayload[] = [];
+
+    for (const player in heroDamageMap) {
+        const playerId = tonumber(player) as number;
+        for (const hero in heroDamageMap[playerId]) {
+            const stats = heroDamageMap[playerId][hero];
+            events.push({
+                player: playerId,
+                hero,
+                creepDone: stats.creepDone,
+                creepTaken: stats.creepTaken,
+                structureDone: stats.structureDone,
+                structureTaken: stats.structureTaken,
+                heroDone: stats.heroDone,
+                heroTaken: stats.heroTaken,
+                workerDone: stats.workerDone,
+                workerTaken: stats.workerTaken,
+                unitDone: stats.unitDone,
+                unitTaken: stats.unitTaken,
+            });
+        }
+    }
+
+    return events;
 }
 
 function classifyDamageTarget(target: unit): UnitCategory {

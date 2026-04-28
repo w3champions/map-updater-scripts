@@ -1,26 +1,31 @@
-﻿import * as W3CMetrics from "../lua/w3cMetrics"
+﻿import * as W3CEvents from "../lua/w3cEvents";
 
 import { trackPlayerState } from "./playerState";
 import { trackPlayerHeroDamage } from "./playerHeroDamage";
 import { trackUnitDeaths } from "./unitDeaths";
 import { trackPlayerUnitTrained } from "./playerUnits";
 import { trackBuildings } from "./playerBuildings";
-import { trackHeroes } from "./heros";
+import { trackHeroes } from "./heroes";
 import { trackResearch } from "./research";
+import { metricSchemas } from "./schemas";
 
-export function initMetrics(prefix) {
-    W3CMetrics.init(prefix);
-    const players = {};
+export function initMetrics() {
+    W3CEvents.initialize({
+        checksum: { enabled: true },
+        base_schema: { enabled: true },
+        logging: { enabled: false },
+    });
+    W3CEvents.register_all_schemas(metricSchemas);
+
     for (let i = 0; i < bj_MAX_PLAYERS; i++) {
         const player = Player(i);
         if (GetPlayerSlotState(player) === PLAYER_SLOT_STATE_PLAYING) {
-            const name = GetPlayerName(player);
-            const id = GetPlayerId(player);
-            players[id] = { name };
+            W3CEvents.event("PlayerDetails", {
+                player: GetPlayerId(player),
+                name: GetPlayerName(player),
+            });
         }
     }
-
-    W3CMetrics.event("PlayerDetails", players);
 }
 
 export function setupTrackMetrics() {

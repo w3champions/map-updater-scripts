@@ -124,6 +124,9 @@ Below is a table showing bits and the numbers they allow up to 24 bits / 3 bytes
 require("src.lua.libDeflate")
 local json = require("src.lua.json")
 
+local bitbuffer = require("src.lua.w3cbitbuffer")
+local schema_module = require("src.lua.w3cschema")
+
 ---@alias FieldType "bool" | "byte" | "short" | "int" | "number" | "float" | "string"
 ---@alias FieldName string
 ---@alias SchemaId integer
@@ -133,15 +136,16 @@ local json = require("src.lua.json")
 
 ---@class Field Field description for a schema.
 ---@field name string Name of the field.
----@field type FieldType Type of the field. Decimal numbers use `float`. `number` is used only when using `minimum` and `maxiumum`
+---@field field_type FieldType Type of the field. Decimal numbers use `float`. `number` is used only when using `minimum` and `maxiumum`
 ---@field num_of_bits? integer Number of bits used by this field. Requires `type = "int"` if used. Only valid for integer types.
 ---@field unsigned? boolean Whether the field is unsigned or not. Only applies to `byte`, `short` and `int` types
 ---@field minimum? number Minimum number for a field, only used when `tyoe = "number"`
 ---@field maximum? number Maximum number for a field, only used when `type = "number"``
 
----@class Schema Schema used for an event
+---@class SchemaW Schema used for an event
 ---@field version integer Version of the schema
 ---@field name string Name of the schema
+---@field id? integer Id for the schema
 ---@field use_base? boolean Whether this schema should include the "base" schema fields or not. Defaults to `false`
 ---@field fields Field[] All fields for this schema
 
@@ -206,144 +210,23 @@ local INTERNAL_SCHEMA_NAMES = {
 
 ---@class W3CData
 ---@field config W3CDataConfig
----@field schemas table<integer, Schema>
 local W3CData = {
 	config = { base_schema = { enabled = true } },
-	-- Base schemas required for basic functionality. DO NOT REMOVE or things will break.
-	-- The order needs to match the indexes specified in `INTERNAL_SCHEMA_ID`, as they're used as indexes to this table.
-	schemas = {
-		{
-			-- Used to send all schemas after being registered so that they can be used in parsing
-			version = 1,
-			name = INTERNAL_SCHEMA_NAMES.SCHEMA_REGISTRY,
-			fields = {
-				-- Schemas don't support nested fields or types so we just send everything as json
-				-- that will be parsed instead.
-				{ name = "schemas_json", type = "string" },
-			},
-		},
-		-- Used for sending checksums.
-		{ version = 1, name = INTERNAL_SCHEMA_NAMES.CHECKSUM, fields = { { name = "checksum", type = "string" } } },
-		-- Base empty schema as the library has specific handling that expects this to exist.
-		{ version = 0, name = INTERNAL_SCHEMA_NAMES.BASE, fields = {} },
-	},
 }
 
--- Mapping of names to ids, used for lookup.
--- Schema IDs are used for compressed data as they're much smaller than the string names.
-local schema_name_to_id_mapping = {
-	schema_registry = INTERNAL_SCHEMA_ID.SCHEMA,
-	checksum = INTERNAL_SCHEMA_ID.CHECKSUM,
-	base = INTERNAL_SCHEMA_ID.BASE,
-}
+-- Internal schema registry. IDs must match INTERNAL_SCHEMA_ID constants.
+-- SCHEMA(1) and CHECKSUM(2) are registered normally; BASE(3) starts with no fields
+-- and is populated when the user calls register_schema({name="base", ...}).
+local registry = schema_module.Registry.new()
+registry:register({ name = INTERNAL_SCHEMA_NAMES.SCHEMA_REGISTRY, version = 1, fields = { { name = "schemas_json", field_type = "string" } } })
+registry:register({ name = INTERNAL_SCHEMA_NAMES.CHECKSUM,         version = 1, fields = { { name = "checksum",     field_type = "string" } } })
+local _base_placeholder = { id = INTERNAL_SCHEMA_ID.BASE, name = INTERNAL_SCHEMA_NAMES.BASE, version = 0, use_base = false, fields = {} }
+registry.by_id[INTERNAL_SCHEMA_ID.BASE]             = _base_placeholder
+registry.by_name[INTERNAL_SCHEMA_NAMES.BASE]        = _base_placeholder
+registry.next_id = 4
 
----Parses a "number" type field and ensures that the minimum and maximum values are valid if set.
----Sets the field.type to `byte`, `short` or `int` depending on the minimum and maximum values.
----Sets `field.unsigned` if the minimum is >= 0
----@param field Field
-local function parse_number_field(field)
-	if field.type ~= "number" then
-		return
-	end
+local bit_writer = bitbuffer.Writer.new()
 
-	if field.maximum and field.minimum and field.maximum <= field.minimum then
-		error(
-			field.name
-				.. " maximum value ["
-				.. tostring(field.maximum)
-				.. "] needs to be larger than the minimum value ["
-				.. tostring(field.minimum)
-				.. "]"
-		)
-	end
-
-	if field.minimum and field.minimum >= 0 then
-		field.unsigned = true
-	end
-
-	if field.unsigned then
-		if field.maximum and field.maximum <= LIMITS.BYTE.UNSIGNED then
-			field.type = "byte"
-		elseif field.maximum and field.maximum <= LIMITS.SHORT.UNSIGNED then
-			field.type = "short"
-		else
-			field.type = "int"
-		end
-	else
-		if
-			field.minimum
-			and field.minimum >= LIMITS.BYTE.SIGNED_LO
-			and field.maximum
-			and field.maximum <= LIMITS.BYTE.SIGNED_HI
-		then
-			field.type = "byte"
-		elseif
-			field.minimum
-			and field.minimum >= LIMITS.SHORT.SIGNED_LO
-			and field.maximum
-			and field.maximum <= LIMITS.SHORT.SIGNED_HI
-		then
-			field.type = "short"
-		else
-			field.type = "int"
-		end
-	end
-end
-
---- Sets bit values for all types we support. Bit values are used in packing and unpacking
---- If `field.type = "int"` then we allow custom bit sizes, otherwise specific bit sizes are used for everything.
----@param schema Schema Schema to set bit values for
-local function configure_schema_fields(schema)
-	for _, field in ipairs(schema.fields) do
-		assert(
-			field.name,
-			"Schema fields require a name to be set but a field for schema ["
-				.. schema.name
-				.. "] does not have a name."
-		)
-		assert(
-			field.type,
-			"Schema fields require a type to be set but field [" .. field.name .. "] does not have a type."
-		)
-
-		-- Convert number fields to other integer fields so we can set types.
-		if field.type == "number" then
-			assert(
-				field.maximum or field.minimum,
-				"Schema fields with a 'number' type require a minimum or maximum to be set but field ["
-					.. field.name
-					.. "] has neither."
-			)
-			parse_number_field(field)
-		else
-			assert(
-				field.maximum == nil and field.minimum == nil,
-				"Schema fields can only set a 'maximum' or 'minimum' when their type is 'number' but field ["
-					.. field.name
-					.. "] had one set while having type ["
-					.. field.type
-					.. "]"
-			)
-		end
-
-		if field.type == "bool" then
-			field.num_of_bits = 1
-		elseif field.type == "byte" then
-			field.num_of_bits = 8
-		elseif field.type == "short" then
-			field.num_of_bits = 16
-		elseif field.type == "int" then
-			field.num_of_bits = field.num_of_bits or 32
-		elseif field.type == "float" then
-			-- Lua floating numbers are 64 bit but we assume we can safely cast to 32 bit to compress and uncompress.
-			-- It's unlikely we'll need to preserve double precision for anything
-			field.num_of_bits = 32
-		elseif field.type == "string" then
-			-- not used but if not set it breaks parsing bit sizes due to nil field
-			field.num_of_bits = -1
-		end
-	end
-end
 
 ---@param config? W3CDataConfig
 function W3CData.init(config)
@@ -359,29 +242,19 @@ end
 function W3CData:register_schema(schema)
 	assert(schema.name, "Schemas require a name to be set")
 	assert(schema.version, "Schemas require a version to be set")
-
 	assert(schema.name ~= INTERNAL_SCHEMA_NAMES.CHECKSUM, "Setting schema for checksum is not allowed")
 	assert(schema.name ~= INTERNAL_SCHEMA_NAMES.SCHEMA_REGISTRY, "Setting schema for schema_registry is not allowed")
 
-	configure_schema_fields(schema)
-
-	-- Base schema exists by default and is always first to prevent errors where
-	-- users may enable using the base schema without actually registering one themselves.
 	if schema.name:lower() == INTERNAL_SCHEMA_NAMES.BASE then
-		self.schemas[INTERNAL_SCHEMA_ID.BASE] = schema
+		registry:update(schema)
 		return
 	end
 
-	if schema_name_to_id_mapping[schema.name] then
-		-- If schema already exists just return. Schemas should only be registered once, we don't allow overriding
+	if registry:get_by_name(schema.name) then
 		return
 	end
 
-	local schema_id = #self.schemas + 1
-	schema.use_base = schema.use_base or false
-
-	self.schemas[schema_id] = schema
-	schema_name_to_id_mapping[schema.name] = schema_id
+	registry:register(schema)
 end
 
 --- Registers multiple schemas to be used for compression and decompression.
@@ -396,7 +269,14 @@ end
 ---@param schema_name string Name of the schema to get an id for
 ---@return integer schema_id Id of the schema if it's been registered, otherwise nil
 function W3CData:get_schema_id(schema_name)
-	return schema_name_to_id_mapping[schema_name]
+	local s = registry:get_by_name(schema_name)
+	return s and s.id
+end
+
+---Returns the total number of registered schemas.
+---@return integer
+function W3CData:schema_count()
+	return registry.next_id - 1
 end
 
 ---Get a registered schema given a schema name
@@ -411,16 +291,15 @@ end
 ---@param schema_name string Name of the schema to check
 ---@return boolean schema_exists True if the schema has been registered, false if not.
 function W3CData:has_schema(schema_name)
-	return self:get_schema(schema_name) and true or false
+	return registry:has(schema_name)
 end
 
 ---Checks whether a schema should include the base schema
 ---@param schema_name string Name of the schema to check
 ---@return boolean should_use_base True if the schema should include the base schema, false if not
 function W3CData:should_use_base(schema_name)
-	local schema = self:get_schema(schema_name)
-
-	return (self.config.base_schema.enabled and schema.use_base) and true or false
+	local schema = registry:get_by_name(schema_name)
+	return (self.config.base_schema.enabled and schema and schema.use_base) and true or false
 end
 
 --- COBS encodes a string to remove null bytes so that it can be safely sent using BlzSendSyncData.
@@ -488,22 +367,20 @@ end
 ---@param schema_id integer Id of the schema to get
 ---@return Schema Schema Schema including base schema fields if configured
 function W3CData:get_schema_by_id(schema_id)
-	if not self.config.base_schema.enabled then
-		return self.schemas[schema_id] or {}
-	end
+	local specific = registry:get(schema_id) or {}
 
-	local specific = self.schemas[schema_id] or {}
-	if not specific.use_base then
+	if not self.config.base_schema.enabled or not specific.use_base then
 		return specific
 	end
 
-	local base = self.schemas[INTERNAL_SCHEMA_ID.BASE]
+	local base = registry:get(INTERNAL_SCHEMA_ID.BASE)
 
 	local schema = {
-		version = specific.version,
-		name = specific.name,
+		version  = specific.version,
+		name     = specific.name,
 		use_base = specific.use_base,
-		fields = {},
+		id       = specific.id,
+		fields   = {},
 	}
 
 	for _, field in ipairs(base.fields) do
@@ -560,8 +437,9 @@ local function validate_value_min_max(value, field)
 	end
 end
 
+---@param field Field
 local function validate_number_limits(value, field)
-	if field.type == "byte" then
+	if field.field_type == "byte" then
 		assert(
 			math.type(value) == "integer",
 			"Expected byte value for field " .. field.name .. " but received float value [" .. value .. "]"
@@ -590,7 +468,7 @@ local function validate_number_limits(value, field)
 					.. field.name
 			)
 		end
-	elseif field.type == "short" then
+	elseif field.field_type == "short" then
 		assert(math.type(value) == "integer", "Expected short value for field " .. field.name .. " but received float.")
 
 		if not field.unsigned then
@@ -616,7 +494,7 @@ local function validate_number_limits(value, field)
 					.. field.name
 			)
 		end
-	elseif field.type == "int" then
+	elseif field.field_type == "int" then
 		assert(math.type(value) == "integer", "Expected int value for field " .. field.name .. " but received float.")
 
 		if not field.unsigned then
@@ -644,13 +522,13 @@ end
 ---@param value string | number
 ---@param field Field
 local function validate_value(value, field)
-	if field.type == "string" then
+	if field.field_type == "string" then
 		assert(type(value) == "string", "Expected string for field " .. field.name)
 		return
-	elseif field.type == "float" then
+	elseif field.field_type == "float" then
 		assert(type(value) == "number", "Expected number (float) for field " .. field.name)
 		return
-	elseif field.type == "bool" then
+	elseif field.field_type == "bool" then
 		assert(type(value) == "boolean", "Expected boolean for field " .. field.name)
 		return
 	end
@@ -660,14 +538,13 @@ local function validate_value(value, field)
 	validate_number_limits(value, field)
 end
 
---- Packs a table that matches a schema in to a single base255, bit packed byte string.
+--- Packs a table that matches a schema into a raw bit-packed byte string.
 --- Asserts that the length of the data and schema match. Also asserts that data fields match the expected types as described in the schema.
 ---
---- Strings a compressed using Deflate compression. Each string has a 2 byte length added before the string byte data.
---- Floats are not compressed and are added directly as 4 bytes
---- Integers use zigzag encoding to map negative values to positives for packing.
---- String is Consistent Overhead Byte Stuffing (COBS) encoded to remove null bytes.
---- String is "base255" encoded, using character values for bytes directly, with null bytes removed due to COBS.
+--- Strings are Deflate compressed. Each string has a 2 byte length prefix.
+--- Floats are stored as 4 bytes (32-bit). Integers use zigzag encoding for signed values.
+--- COBS encoding (null byte removal for safe BlzSendSyncData transmission) is applied at the
+--- payload level in encode_payload/generate_checksum_payload, not here.
 ---@param schema_id integer Schema ID of the schema that the data is for
 ---@param data table Data to pack bits for
 ---@return string packed Byte string with packed data
@@ -678,86 +555,24 @@ function W3CData:pack_bits(schema_id, data)
 		"Mismatched field count for schema [" .. schema.name .. "], expected: " .. #schema.fields .. ", got: " .. #data
 	)
 
-	local result = {}
-	local bit_buffer = 0 -- In progress bits for packing
-	local bit_count = 0
-
-	-- Writes remaining bit buffer and resets buffer and count.
-	local function flush_bits()
-		if bit_count > 0 then
-			table.insert(result, bit_buffer & 0xFF)
-			bit_buffer = 0
-			bit_count = 0
-		end
-	end
-
 	for i, field in ipairs(schema.fields) do
 		local value = data[i]
+		validate_value(value, field)
 
-		-- If the field has a type set, validate that the value is within the bit size.
-		-- Don't currently check if the type is not set and the bit is set explicitly as I expect
-		-- people doing that to know what values are valid and what are not.
-		if field.type then
-			validate_value(value, field)
-
-			if field.type == "string" then
-				-- Don't pack strings, just use LibDeflate to compress them
-				-- Small strings will result in larger sizes, but it's easier than dealing with utf-8 variable lengths
-				-- Need to flush leftover bits from bit packed fields as string are byte aligned, not bit packed.
-				flush_bits()
-
-				-- If we fail to compress for some reason just use an empty string to not break everything else
-				local compressed = LibDeflate.CompressDeflate(value) or ""
-
-				-- 2 byte length for strings. A single packet is 255 bytes but we support chunking so 1 byte is not enough
-				local len = #compressed
-				table.insert(result, (len >> 8) & 0xFF)
-				table.insert(result, len & 0xFF)
-
-				for x = 1, len do
-					table.insert(result, compressed:byte(x))
-				end
-			elseif field.type == "float" then
-				-- Need to flush leftover bits from bit packed fields as floats are byte aligned, not bit packed.
-				flush_bits()
-
-				-- Don't compress floats, not worth the effort or complexity. Just use 4 bytes for them
-				local packed = string.pack("f", value)
-				for f = 1, #packed do
-					table.insert(result, packed:byte(f))
-				end
-			else
-				-- All other values
-				if field.type == "bool" then
-					value = value and 1 or 0
-				end
-
-				-- For signed values we zigzag encode so that we can support both signed and unsigned.
-				if not field.unsigned and field.type ~= "bool" then
-					value = zigzag_encode(value)
-				end
-
-				-- add value and size to buffer and count so we can write until we have less than 1 byte in the buffer.
-				bit_buffer = bit_buffer | (value << bit_count)
-				bit_count = bit_count + field.num_of_bits
-
-				-- Flush full bytes from bit buffer to output
-				while bit_count >= 8 do
-					table.insert(result, bit_buffer & 0xFF)
-
-					bit_buffer = bit_buffer >> 8
-					bit_count = bit_count - 8
-				end
-			end
+		if field.field_type == "string" then
+			bit_writer:string(value)
+		elseif field.field_type == "float" then
+			bit_writer:float(value)
+		elseif field.field_type == "bool" then
+			bit_writer:bool(value)
+		elseif field.unsigned then
+			bit_writer:unsigned(value, field.num_of_bits)
+		else
+			bit_writer:signed(value, field.num_of_bits)
 		end
 	end
 
-	-- Flush any leftover bits left in the buffer
-	if bit_count > 0 then
-		table.insert(result, bit_buffer)
-	end
-
-	return string.char(table.unpack(result))
+	return bit_writer:flush()
 end
 
 ---Packs a table containing multiple events to be packed together. Uses pack_bits for each individual event in the batch data.
@@ -802,74 +617,23 @@ end
 ---@return table unpacked_data Table containing the unpacked data parsed using the schema
 ---@return Schema schema The schema that was used to parse the packed data.
 function W3CData:unpack_bits(schema_id, data)
+	local bit_reader = bitbuffer.Reader.new(data)
 	local schema = self:get_schema_by_id(schema_id)
 	local result = {}
-	local bit_buffer = 0 -- Holds leftover bits from the previous bytes
-	local bit_count = 0
-	local data_index = 1
-
-	local function get_bits(bits)
-		while bit_count < bits do
-			-- Fill the buffer with bits
-			local byte = data:byte(data_index)
-
-			bit_buffer = bit_buffer | (byte << bit_count)
-			bit_count = bit_count + 8
-			data_index = data_index + 1
-		end
-
-		-- Extract the fields specific bits
-		local mask = (1 << bits) - 1
-		local value = bit_buffer & mask
-
-		-- Remove extracted fields from the buffer
-		bit_buffer = bit_buffer >> bits
-		bit_count = bit_count - bits
-
-		return value
-	end
 
 	for _, field in ipairs(schema.fields) do
-		-- Handle strings by using LibDeflate
-		if field.type == "string" then
-			-- First 2 bytes are the length of the string
-			local len_hi = data:byte(data_index)
-			local len_lo = data:byte(data_index + 1)
-			local length = (len_hi << 8) | len_lo
-
-			data_index = data_index + 2
-
-			-- Extract and decompress the string
-			local string_data = data:sub(data_index, data_index + length - 1)
-			local decompressed = LibDeflate.DecompressDeflate(string_data) or ""
-
-			table.insert(result, decompressed)
-
-			data_index = data_index + length
-		elseif field.type == "float" then
-			-- Floats aren't compressed for now
-			-- Read 4 bytes and unpack as float
-			local float_bytes = data:sub(data_index, data_index + 3)
-			local value = string.unpack("f", float_bytes)
-
-			table.insert(result, value)
-
-			data_index = data_index + 4
+		if field.field_type == "string" then
+			table.insert(result, bit_reader:string())
+		elseif field.field_type == "float" then
+			table.insert(result, bit_reader:float())
+		elseif field.field_type == "bool" then
+			table.insert(result, bit_reader:bool())
 		else
-			-- All integer types
-			local value
-
-			if field.unsigned or field.type == "bool" then
-				value = get_bits(field.num_of_bits)
+			if field.unsigned then
+				table.insert(result, bit_reader:unsigned(field.num_of_bits))
 			else
-				value = zigzag_decode(get_bits(field.num_of_bits))
+				table.insert(result, bit_reader:signed(field.num_of_bits))
 			end
-
-			if field.type == "bool" then
-				value = (value == 1)
-			end
-
-			table.insert(result, value)
 		end
 	end
 
@@ -898,7 +662,7 @@ function W3CData:unpack_batch(packed)
 
 		-- Calculate how many bytes for this full event
 		for _, field in ipairs(schema.fields) do
-			if field.type == "string" then
+			if field.field_type == "string" then
 				-- For strings the length is the first 2 bytes of the data
 				local len_hi = packed:byte(temp_index)
 				local len_lo = packed:byte(temp_index + 1)
@@ -1006,7 +770,7 @@ function W3CData:encode_payload(events, max_size)
 	local packed = self:pack_batch_with_name(events)
 
 	if #packed <= max_size then
-		table.insert(result, string.char(HEADER_VALUES.EVENT) .. packed)
+		table.insert(result, W3CData.cobs_encode(string.char(HEADER_VALUES.EVENT) .. packed))
 		return result, false
 	end
 
@@ -1016,7 +780,7 @@ function W3CData:encode_payload(events, max_size)
 	for _, chunk in ipairs(chunks) do
 		local header =
 			string.char(HEADER_VALUES.CHUNK, (chunk.id >> 8) & 0xFF, chunk.id & 0xFF, chunk.count, chunk.index)
-		table.insert(result, header .. chunk.payload)
+		table.insert(result, W3CData.cobs_encode(header .. chunk.payload))
 	end
 
 	return result, true
@@ -1029,6 +793,7 @@ function W3CData:decode_payloads(payloads)
 	local chunk_payloads = {}
 
 	for _, sync_data in ipairs(payloads) do
+		sync_data = W3CData.cobs_decode(sync_data)
 		local first = sync_data:byte(1)
 		if (first & HEADER_VALUES.EVENT) ~= 0 then
 			local data = sync_data:sub(2)
@@ -1068,25 +833,20 @@ function W3CData:decode_payloads(payloads)
 	return result
 end
 
----Parses an unpacked payload containing `{ schema_id, { schema_values }}`
+---Parses an unpacked payload containing `{ schema_name, { schema_values }}`
 ---back to a parsed table in the format `{ schema_name, { schema_field_name = payload_value }}`
 ---@param unpacked table The payload to unpack and parse
 function W3CData:parse_unpacked(unpacked)
 	local result = {}
 	for _, event in ipairs(unpacked) do
-		local unpacked_event = {}
-
-		local schema_id = unpacked_event[1]
+		local schema_name = event[1]
 		local data = event[2]
-		local schema = self:get_schema_by_id(schema_id)
-		table.insert(event, schema.name)
+		local schema = self:get_schema(schema_name)
 		local field_data = {}
-
 		for i, field in ipairs(schema.fields) do
 			field_data[field.name] = data[i]
 		end
-		table.insert(event, field_data)
-		table.insert(result, event)
+		table.insert(result, { schema_name, field_data })
 	end
 	return result
 end
@@ -1095,7 +855,7 @@ end
 ---@param crc string CRC byte string to be added to a checksum packet
 function W3CData:generate_checksum_payload(crc)
 	local packed = self:pack_bits(INTERNAL_SCHEMA_ID.CHECKSUM, { crc })
-	return string.char(HEADER_VALUES.CHECKSUM) .. packed
+	return W3CData.cobs_encode(string.char(HEADER_VALUES.CHECKSUM) .. packed)
 end
 
 ---Generate payloads containing schema registry. Used so that the schemas can be sent using BlzSendSyncData and
@@ -1103,9 +863,14 @@ end
 ---@return table<string> payloads String payloads to send using BlzSendSyncData
 function W3CData:generate_registry_payloads()
 	local schema_payload = {}
-	for _, schema in ipairs(self.schemas) do
-		-- Use function so it applies base schema if needed
-		schema_payload[#schema_payload + 1] = self:get_schema(schema.name)
+	local ids = {}
+	for id in pairs(registry.by_id) do
+		ids[#ids + 1] = id
+	end
+	table.sort(ids)
+	for _, id in ipairs(ids) do
+		-- Apply base schema merging via get_schema so the payload reflects what decoders will see
+		schema_payload[#schema_payload + 1] = self:get_schema(registry.by_id[id].name)
 	end
 	local event = {
 		{

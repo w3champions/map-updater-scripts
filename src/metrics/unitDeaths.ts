@@ -1,4 +1,4 @@
-import * as W3CMetrics from "../lua/w3cMetrics"
+import * as W3CEvents from "../lua/w3cEvents";
 import { Players } from "w3ts/globals";
 
 export function trackUnitDeaths() {
@@ -17,22 +17,17 @@ function trackPlayerUnitDeath() {
 
     const id = GetPlayerId(player);
 
-    const payload: W3CMetrics.EventPayload = {
+    const payload: W3CEvents.EventPayload = {
         player: id,
-        value: null
+        name: GetUnitName(unit),
     };
 
-    const state = {};
-    state["name"] = GetUnitName(unit);
-
-    payload.value = state;
-
     if (IsUnitType(unit, UNIT_TYPE_STRUCTURE)) {
-        W3CMetrics.event("StructureDeath", payload);
+        W3CEvents.event("StructureDeath", payload);
     } else if (IsUnitType(unit, UNIT_TYPE_PEON)) {
-        W3CMetrics.event("WorkerDeath", payload);
+        W3CEvents.event("WorkerDeath", payload);
     } else {
-        W3CMetrics.event("UnitDeath", payload);
+        W3CEvents.event("UnitDeath", payload);
     }
 
     const killingUnit = GetKillingUnit();
@@ -45,15 +40,13 @@ function trackPlayerUnitDeath() {
             DestroyTimer(timer);
             const xp = GetHeroXP(killingUnit);
             const heroName = GetUnitName(killingUnit);
-            const xpPayload: W3CMetrics.EventPayload = {
+            const xpPayload: W3CEvents.EventPayload = {
                 player: killingPlayerId,
-                value: {
-                    name: heroName,
-                    xp,
-                    source: "opponent"
-                }
-            }
-            W3CMetrics.event("HeroXp", xpPayload);
+                name: heroName,
+                xp,
+                source: "opponent",
+            };
+            W3CEvents.event("HeroXp", xpPayload);
         })
     }
 }
@@ -71,17 +64,15 @@ function trackCreepKill() {
     const id = GetPlayerId(player);
     const unitName = GetUnitName(unit);
 
-    const payload: W3CMetrics.EventPayload = {
+    const payload: W3CEvents.EventPayload = {
         player: id,
-        value: {
-            name: unitName
-        }
+        name: unitName,
     };
 
     if (killingPlayer === player) {
-        W3CMetrics.event("CreepKill", payload);
+        W3CEvents.event("CreepKill", payload);
     } else if (killingPlayer === Players[PLAYER_NEUTRAL_AGGRESSIVE].handle) {
-        W3CMetrics.event("CreepDeny", payload);
+        W3CEvents.event("CreepDeny", payload);
     }
 
     if (IsUnitType(killingUnit, UNIT_TYPE_HERO)) {
@@ -90,15 +81,13 @@ function trackCreepKill() {
             DestroyTimer(timer);
             const xp = GetHeroXP(killingUnit);
             const heroName = GetUnitName(killingUnit);
-            const xpPayload: W3CMetrics.EventPayload = {
+            const xpPayload: W3CEvents.EventPayload = {
                 player: id,
-                value: {
-                    name: heroName,
-                    xp,
-                    source: "creep"
-                }
-            }
-            W3CMetrics.event("HeroXp", xpPayload);
+                name: heroName,
+                xp,
+                source: "creep",
+            };
+            W3CEvents.event("HeroXp", xpPayload);
         });
     }
 }

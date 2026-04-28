@@ -1,4 +1,4 @@
-import * as W3CMetrics from "../lua/w3cMetrics";
+import * as W3CEvents from "../lua/w3cEvents";
 
 export function trackResearch() {
     const trigger = CreateTrigger();
@@ -16,12 +16,10 @@ function trackResearchFinished() {
     const playerId = GetPlayerId(GetTriggerPlayer());
     const name = GetObjectName(research);
 
-    const payload: W3CMetrics.EventPayload = {
+    const payload: W3CEvents.EventPayload = {
         player: playerId,
-        value: {
-            name
-        }
-    }
+        name,
+    };
 
-    W3CMetrics.event("ResearchDone", payload);
+    W3CEvents.event("ResearchDone", payload);
 }

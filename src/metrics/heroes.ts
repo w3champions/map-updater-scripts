@@ -1,11 +1,9 @@
-import { ItemProps } from "war3-objectdata-th/dist/cjs/generated/items";
-import * as W3Metrics from "../lua/w3cMetrics";
+import * as W3CEvents from "../lua/w3cEvents";
 
 export function trackHeroes() {
     const heroLevel = CreateTrigger();
     const heroSkill = CreateTrigger();
     const heroInventory = CreateTrigger();
-    const heroXp = CreateTrigger();
 
     for (let i = 0; i < bj_MAX_PLAYERS; i++) {
         if (GetPlayerSlotState(Player(i)) == PLAYER_SLOT_STATE_PLAYING) {
@@ -35,33 +33,28 @@ function trackHeroLevel() {
     const player = GetOwningPlayer(unit);
     const id = GetPlayerId(player);
 
-    const payload: W3Metrics.EventPayload = {
+    const payload: W3CEvents.EventPayload = {
         player: id,
-        value: {},
-    }
+        hero: GetUnitName(unit),
+        level: GetHeroLevel(unit),
+    };
 
-    payload.value["hero"] = GetUnitName(unit);
-    payload.value["level"] = GetHeroLevel(unit);
-
-    W3Metrics.event("HeroLevel", payload);
+    W3CEvents.event("HeroLevel", payload);
 }
 
 function trackHeroSkill() {
     const hero = GetTriggerUnit();
     const id = GetPlayerId(GetOwningPlayer(hero));
 
-    const payload: W3Metrics.EventPayload = {
+    const payload: W3CEvents.EventPayload = {
         player: id,
-        value: {},
+        hero: GetUnitName(hero),
+        heroLevel: GetHeroLevel(hero),
+        skill: GetObjectName(GetLearnedSkill()),
+        skillLevel: GetLearnedSkillLevel(),
     };
 
-    payload.value["hero"] = GetUnitName(hero);
-    payload.value["heroLevel"] = GetHeroLevel(hero);
-
-    payload.value["skill"] = GetObjectName(GetLearnedSkill());
-    payload.value["skillLevel"] = GetLearnedSkillLevel();
-
-    W3Metrics.event("HeroSkill", payload);
+    W3CEvents.event("HeroSkill", payload);
 }
 
 function trackHeroInventory() {
@@ -70,11 +63,9 @@ function trackHeroInventory() {
     const itemName = GetItemName(item);
     const id = GetPlayerId(GetOwningPlayer(hero));
 
-    const payload: W3Metrics.EventPayload = {
+    const payload: W3CEvents.EventPayload = {
         player: id,
-        value: {
-            item: itemName
-        },
+        item: itemName,
     };
 
     let eventType = "";
@@ -84,7 +75,7 @@ function trackHeroInventory() {
         eventType = "HeroItemPickup";
         for (let i = 0; i < bj_MAX_INVENTORY; i++) {
             if (UnitItemInSlot(hero, i) === item) {
-                payload.value["slot"] = i;
+                payload.slot = i;
             }
         }
     } else if (eventId === EVENT_PLAYER_UNIT_DROP_ITEM) {
@@ -95,5 +86,5 @@ function trackHeroInventory() {
         eventType = "HeroItemSold";
     }
 
-    W3Metrics.event(eventType, payload);
+    W3CEvents.event(eventType, payload);
 }
