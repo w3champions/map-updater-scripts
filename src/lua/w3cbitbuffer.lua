@@ -1,4 +1,4 @@
-require("src.lua.libDeflate")
+require("lua.libDeflate")
 
 ---@class Writer
 ---@field buffer table

@@ -8,7 +8,7 @@ local json = require("src.lua.json")
 local schemas = {
 	{
 		version = 1,
-		name = "base",
+		name = "shared",
 		fields = {
 			{ name = "player", field_type = "byte", unsigned = true },
 			{ name = "time", field_type = "byte", unsigned = true },
@@ -17,7 +17,7 @@ local schemas = {
 	{
 		version = 1,
 		name = "UnitTrained",
-		use_base = true,
+		include_defaults = true,
 		fields = {
 			{ name = "unit_type_id", field_type = "byte", unsigned = true },
 		},
@@ -25,7 +25,7 @@ local schemas = {
 	{
 		version = 1,
 		name = "PlayerState",
-		use_base = true,
+		include_defaults = true,
 		fields = {
 			{ name = "gold", field_type = "short" },
 			{ name = "wood", field_type = "short" },
@@ -40,7 +40,7 @@ local schemas = {
 	{
 		version = 1,
 		name = "PlayerStateBitSize",
-		use_base = true,
+		include_defaults = true,
 		fields = {
 			{ name = "gold",         field_type = "int", num_of_bits = 11 },
 			{ name = "wood",         field_type = "int", num_of_bits = 11 },
@@ -55,7 +55,7 @@ local schemas = {
 	{
 		version = 1,
 		name = "PlayerStateMinMax",
-		use_base = true,
+		include_defaults = true,
 		fields = {
 			{ name = "gold",     field_type = "number", minimum = 0,    maximum = 25000 },
 			{ name = "food_cap", field_type = "number", minimum = 0,    maximum = 100   },
@@ -65,7 +65,7 @@ local schemas = {
 	{
 		version = 1,
 		name = "PlayerConfig",
-		use_base = true,
+		include_defaults = true,
 		fields = {
 			{ name = "player_name", field_type = "string" },
 			{ name = "bool_field",  field_type = "bool"   },
@@ -74,7 +74,7 @@ local schemas = {
 	{
 		version = 1,
 		name = "EventWithFloats",
-		use_base = true,
+		include_defaults = true,
 		fields = {
 			{ name = "float_value", field_type = "float" },
 		},
@@ -316,13 +316,13 @@ local function test_schema_payloads()
 			assert(registered_schema, "Schema not found for name " .. schema.name)
 			assert(schema.version == registered_schema.version, "Schema versions don't match")
 			assert(
-				schema.use_base == registered_schema.use_base,
+				schema.include_defaults == registered_schema.include_defaults,
 				"Schema ["
 					.. schema.name
-					.. "] use_base does not match -- "
-					.. tostring(schema.use_base)
+					.. "] include_defaults does not match -- "
+					.. tostring(schema.include_defaults)
 					.. " : "
-					.. tostring(registered_schema.use_base)
+					.. tostring(registered_schema.include_defaults)
 			)
 
 			for index, field in ipairs(schema.fields) do
@@ -349,37 +349,37 @@ local function test_has_schema()
 	print("Testing has_schema")
 	assert(W3CData:has_schema("PlayerState") == true, "PlayerState should exist")
 	assert(W3CData:has_schema("UnitTrained") == true, "UnitTrained should exist")
-	assert(W3CData:has_schema("base") == true, "base should exist")
+	assert(W3CData:has_schema("shared") == true, "shared should exist")
 	assert(W3CData:has_schema("NonExistent") == false, "NonExistent should not exist")
 	assert(W3CData:has_schema("") == false, "empty string should not exist")
 	print("has_schema test passed")
 end
 
-local function test_should_use_base()
+local function test_should_include_defaults()
 	print("------")
-	print("Testing should_use_base")
-	assert(W3CData:should_use_base("PlayerState") == true, "PlayerState uses base")
-	assert(W3CData:should_use_base("UnitTrained") == true, "UnitTrained uses base")
-	assert(W3CData:should_use_base("base") == false, "base schema itself does not use base")
-	assert(W3CData:should_use_base("EventWithFloats") == true, "EventWithFloats uses base")
-	print("should_use_base test passed")
+	print("Testing should_include_defaults")
+	assert(W3CData:should_include_defaults("PlayerState") == true, "PlayerState includes defaults")
+	assert(W3CData:should_include_defaults("UnitTrained") == true, "UnitTrained includes defaults")
+	assert(W3CData:should_include_defaults("shared") == false, "shared schema itself does not include defaults")
+	assert(W3CData:should_include_defaults("EventWithFloats") == true, "EventWithFloats includes defaults")
+	print("should_include_defaults test passed")
 end
 
-local function test_base_schema_disabled()
+local function test_shared_schema_disabled()
 	print("------")
-	print("Testing base_schema.enabled = false")
-	W3CData.init({ base_schema = { enabled = false } })
+	print("Testing shared_schema.enabled = false")
+	W3CData.init({ shared_schema = { enabled = false } })
 
 	local schema = W3CData:get_schema("PlayerState")
 	for _, field in ipairs(schema.fields) do
 		assert(
 			field.name ~= "player" and field.name ~= "time",
-			"Base fields should not appear when base_schema.enabled = false"
+			"Shared fields should not appear when shared_schema.enabled = false"
 		)
 	end
 
-	W3CData.init({ base_schema = { enabled = true } })
-	print("base_schema.enabled=false test passed")
+	W3CData.init({ shared_schema = { enabled = true } })
+	print("shared_schema.enabled=false test passed")
 end
 
 local function test_cobs()
@@ -484,6 +484,21 @@ local function test_error_paths()
 
 	expect_error(function()
 		local reg = w3cschema.Registry.new()
+		reg:register({ name = "Bad", version = 1, fields = { { name = "x", field_type = "byte", num_of_bits = 4 } } })
+	end, "num_of_bits on non-int field")
+
+	expect_error(function()
+		local reg = w3cschema.Registry.new()
+		reg:register({ name = "Bad", version = 1, fields = { { name = "x", field_type = "int", num_of_bits = 0 } } })
+	end, "num_of_bits lower bound")
+
+	expect_error(function()
+		local reg = w3cschema.Registry.new()
+		reg:register({ name = "Bad", version = 1, fields = { { name = "x", field_type = "int", num_of_bits = 33 } } })
+	end, "num_of_bits upper bound")
+
+	expect_error(function()
+		local reg = w3cschema.Registry.new()
 		reg:register({ name = "Bad", version = 1, fields = { { name = "x", field_type = "byte", minimum = 0 } } })
 	end, "minimum on non-number field")
 
@@ -504,6 +519,17 @@ local function test_error_paths()
 		local schema_id = W3CData:get_schema_id("UnitTrained")
 		W3CData:pack_bits(schema_id, { "not_a_number", 10, 5 })
 	end, "pack_bits wrong value type")
+
+	-- pack_bits custom-width bounds
+	expect_error(function()
+		local schema_id = W3CData:get_schema_id("BoundaryTest")
+		W3CData:pack_bits(schema_id, { 0, 0, 0, -1025 })
+	end, "pack_bits signed custom-width underflow")
+
+	expect_error(function()
+		local schema_id = W3CData:get_schema_id("BoundaryTest")
+		W3CData:pack_bits(schema_id, { 0, 0, 0, 1024 })
+	end, "pack_bits signed custom-width overflow")
 
 	print("Error path tests passed")
 end
@@ -538,10 +564,10 @@ local function test_numeric_boundaries()
 end
 
 test_has_schema()
-test_should_use_base()
-test_base_schema_disabled()
+test_should_include_defaults()
+test_shared_schema_disabled()
 test_cobs()
 test_cobs_in_payload()
 test_parse_unpacked()
-test_error_paths()
 test_numeric_boundaries()
+test_error_paths()

@@ -2,7 +2,7 @@ import * as W3CEvents from "../lua/w3cEvents";
 
 const f = W3CEvents.field;
 const schema = W3CEvents.schema;
-const withBase = { use_base: true };
+const withoutDefaults = { include_defaults: false };
 
 const namedUnitFields: W3CEvents.Field[] = [
     f("name", "string"),
@@ -17,7 +17,7 @@ export const metricSchemas: W3CEvents.Schema[] = [
     schema("PlayerDetails", [
         f("player", "int"),
         f("name", "string"),
-    ]),
+    ], withoutDefaults),
     schema("PlayerState", [
         f("gold", "int"),
         f("gold_upkeep", "int"),
@@ -25,7 +25,7 @@ export const metricSchemas: W3CEvents.Schema[] = [
         f("wood_upkeep", "int"),
         f("food_cap", "int"),
         f("food_used", "int"),
-    ], withBase),
+    ]),
     schema("HeroDamage", [
         f("hero", "string"),
         f("creepDone", "float"),
@@ -38,37 +38,37 @@ export const metricSchemas: W3CEvents.Schema[] = [
         f("workerTaken", "float"),
         f("unitDone", "float"),
         f("unitTaken", "float"),
-    ], withBase),
+    ]),
     ...["UnitStarted", "UnitCancelled", "UnitTrained", "HeroCancelled", "HeroTrained"].map((name) =>
-        schema(name, namedUnitFields, withBase)
+        schema(name, namedUnitFields)
     ),
     ...["StructureStart", "StructureCancel", "StructureBuilt"].map((name) =>
-        schema(name, namedUnitFields, withBase)
+        schema(name, namedUnitFields)
     ),
-    schema("ResearchDone", namedEventFields, withBase),
+    schema("ResearchDone", namedEventFields),
     schema("HeroLevel", [
         f("hero", "string"),
         f("level", "int"),
-    ], withBase),
+    ]),
     schema("HeroSkill", [
         f("hero", "string"),
         f("heroLevel", "int"),
         f("skill", "string"),
         f("skillLevel", "int"),
-    ], withBase),
+    ]),
     schema("HeroItemPickup", [
         f("item", "string"),
         f("slot", "int"),
-    ], withBase),
+    ]),
     ...["HeroItemDrop", "HeroItemBought", "HeroItemSold"].map((name) =>
-        schema(name, [f("item", "string")], withBase)
+        schema(name, [f("item", "string")])
     ),
     ...["StructureDeath", "WorkerDeath", "UnitDeath", "CreepKill", "CreepDeny"].map((name) =>
-        schema(name, namedEventFields, withBase)
+        schema(name, namedEventFields)
     ),
     schema("HeroXp", [
         f("name", "string"),
         f("xp", "int"),
         f("source", "string"),
-    ], withBase),
+    ]),
 ];

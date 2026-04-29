@@ -34,7 +34,7 @@ Schemas are in the format:
 {
   version:    integer,
   name:       string,
-  use_base?:  boolean
+  include_defaults?:  boolean
   fields: [
     { 
       name:     string,
@@ -121,11 +121,11 @@ Below is a table showing bits and the numbers they allow up to 24 bits / 3 bytes
 
 -- TODO: Still need to update the event library to use this library and test that it all works inside WC3
 
-require("src.lua.libDeflate")
-local json = require("src.lua.json")
+require("lua.libDeflate")
+local json = require("lua.json")
 
-local bitbuffer = require("src.lua.w3cbitbuffer")
-local schema_module = require("src.lua.w3cschema")
+local bitbuffer = require("lua.w3cbitbuffer")
+local schema_module = require("lua.w3cschema")
 
 ---@alias FieldType "bool" | "byte" | "short" | "int" | "number" | "float" | "string"
 ---@alias FieldName string
@@ -146,18 +146,18 @@ local schema_module = require("src.lua.w3cschema")
 ---@field version integer Version of the schema
 ---@field name string Name of the schema
 ---@field id? integer Id for the schema
----@field use_base? boolean Whether this schema should include the "base" schema fields or not. Defaults to `false`
+---@field include_defaults? boolean Whether this schema should include the default fields or not. Defaults to `true`
 ---@field fields Field[] All fields for this schema
 
 ---@class Payload Payload that maps a schema name to a table when being packed.
 ---@field schema_name string Name of the schema that the payload is for
 ---@field payload table<PayloadValue> Table containing the payload values
 
----@class BaseSchemaConfig Config for W3CData base schema
----@field enabled boolean Whether using the base schema is enabled or not
+---@class SharedSchemaConfig Config for W3CData shared schema
+---@field enabled boolean Whether using the shared schema is enabled or not
 
 ---@class W3CDataConfig Config for W3CData
----@field base_schema BaseSchemaConfig Config for base schema
+---@field shared_schema SharedSchemaConfig Config for shared schema
 
 ---@class Chunk Chunk of a payload, for when a single payload is too large to be sent at once
 ---@field id integer Unique ID for a payload. All chunks for a single payload will share the same id
@@ -179,18 +179,18 @@ local INT_MASK = 0xFFFFFFFF
 -- Limits for integers, used to validate values are within the exepcted number range
 local LIMITS = {
 	BYTE = {
-		SIGNED_LO = (-2 << 7),
-		SIGNED_HI = (2 << 7) - 1,
+		SIGNED_LO = (-1 << 7),
+		SIGNED_HI = (1 << 7) - 1,
 		UNSIGNED = (1 << 8) - 1,
 	},
 	SHORT = {
-		SIGNED_LO = (-2 << 15),
-		SIGNED_HI = (2 << 15) - 1,
+		SIGNED_LO = (-1 << 15),
+		SIGNED_HI = (1 << 15) - 1,
 		UNSIGNED = (1 << 16) - 1,
 	},
 	INT = {
-		SIGNED_LO = (-2 << 31),
-		SIGNED_HI = (2 << 31) - 1,
+		SIGNED_LO = (-1 << 31),
+		SIGNED_HI = (1 << 31) - 1,
 		UNSIGNED = (1 << 32) - 1,
 	},
 }
@@ -199,30 +199,30 @@ local LIMITS = {
 local INTERNAL_SCHEMA_ID = {
 	SCHEMA = 1,
 	CHECKSUM = 2,
-	BASE = 3,
+	SHARED = 3,
 }
 
 local INTERNAL_SCHEMA_NAMES = {
 	SCHEMA_REGISTRY = "schema_registry",
 	CHECKSUM = "checksum",
-	BASE = "base",
+	SHARED = "shared",
 }
 
 ---@class W3CData
 ---@field config W3CDataConfig
 local W3CData = {
-	config = { base_schema = { enabled = true } },
+	config = { shared_schema = { enabled = true } },
 }
 
 -- Internal schema registry. IDs must match INTERNAL_SCHEMA_ID constants.
--- SCHEMA(1) and CHECKSUM(2) are registered normally; BASE(3) starts with no fields
--- and is populated when the user calls register_schema({name="base", ...}).
+-- SCHEMA(1) and CHECKSUM(2) are registered normally; SHARED(3) starts with no fields
+-- and is populated when the user calls register_schema({name="shared", ...}).
 local registry = schema_module.Registry.new()
 registry:register({ name = INTERNAL_SCHEMA_NAMES.SCHEMA_REGISTRY, version = 1, fields = { { name = "schemas_json", field_type = "string" } } })
 registry:register({ name = INTERNAL_SCHEMA_NAMES.CHECKSUM,         version = 1, fields = { { name = "checksum",     field_type = "string" } } })
-local _base_placeholder = { id = INTERNAL_SCHEMA_ID.BASE, name = INTERNAL_SCHEMA_NAMES.BASE, version = 0, use_base = false, fields = {} }
-registry.by_id[INTERNAL_SCHEMA_ID.BASE]             = _base_placeholder
-registry.by_name[INTERNAL_SCHEMA_NAMES.BASE]        = _base_placeholder
+local _shared_placeholder = { id = INTERNAL_SCHEMA_ID.SHARED, name = INTERNAL_SCHEMA_NAMES.SHARED, version = 0, include_defaults = false, fields = {} }
+registry.by_id[INTERNAL_SCHEMA_ID.SHARED]             = _shared_placeholder
+registry.by_name[INTERNAL_SCHEMA_NAMES.SHARED]        = _shared_placeholder
 registry.next_id = 4
 
 local bit_writer = bitbuffer.Writer.new()
@@ -231,13 +231,13 @@ local bit_writer = bitbuffer.Writer.new()
 ---@param config? W3CDataConfig
 function W3CData.init(config)
 	LibDeflate.InitCompressor()
-	W3CData.config = config or { base_schema = { enabled = true } }
+	W3CData.config = config or { shared_schema = { enabled = true } }
 end
 
 --- Register a schema to be used for compression and decompression.
---- Schemas with the name "base" will be combined with all other schemas if `config.base_schema.enabled = true` and
---- the `schema.use_base = true`
---- Using a base schema is disabled by default for registered schemas.
+--- Schemas with the name "shared" will be combined with all other schemas if `config.shared_schema.enabled = true` and
+--- the `schema.include_defaults = true`
+--- Including default fields is enabled by default for registered schemas.
 ---@param schema Schema Schema to be registered
 function W3CData:register_schema(schema)
 	assert(schema.name, "Schemas require a name to be set")
@@ -245,7 +245,7 @@ function W3CData:register_schema(schema)
 	assert(schema.name ~= INTERNAL_SCHEMA_NAMES.CHECKSUM, "Setting schema for checksum is not allowed")
 	assert(schema.name ~= INTERNAL_SCHEMA_NAMES.SCHEMA_REGISTRY, "Setting schema for schema_registry is not allowed")
 
-	if schema.name:lower() == INTERNAL_SCHEMA_NAMES.BASE then
+	if schema.name:lower() == INTERNAL_SCHEMA_NAMES.SHARED then
 		registry:update(schema)
 		return
 	end
@@ -294,12 +294,12 @@ function W3CData:has_schema(schema_name)
 	return registry:has(schema_name)
 end
 
----Checks whether a schema should include the base schema
+---Checks whether a schema should include the default fields
 ---@param schema_name string Name of the schema to check
----@return boolean should_use_base True if the schema should include the base schema, false if not
-function W3CData:should_use_base(schema_name)
+---@return boolean should_include_defaults True if the schema should include the default fields, false if not
+function W3CData:should_include_defaults(schema_name)
 	local schema = registry:get_by_name(schema_name)
-	return (self.config.base_schema.enabled and schema and schema.use_base) and true or false
+	return (self.config.shared_schema.enabled and schema and schema.include_defaults) and true or false
 end
 
 --- COBS encodes a string to remove null bytes so that it can be safely sent using BlzSendSyncData.
@@ -363,27 +363,27 @@ function W3CData.cobs_decode(input)
 	return table.concat(output)
 end
 
---- Gets a schema by id. Includes the base schema fields if configured.
+--- Gets a schema by id. Includes the shared schema fields if configured.
 ---@param schema_id integer Id of the schema to get
----@return Schema Schema Schema including base schema fields if configured
+---@return Schema Schema Schema including shared schema fields if configured
 function W3CData:get_schema_by_id(schema_id)
 	local specific = registry:get(schema_id) or {}
 
-	if not self.config.base_schema.enabled or not specific.use_base then
+	if not self.config.shared_schema.enabled or not specific.include_defaults then
 		return specific
 	end
 
-	local base = registry:get(INTERNAL_SCHEMA_ID.BASE)
+	local shared = registry:get(INTERNAL_SCHEMA_ID.SHARED)
 
 	local schema = {
 		version  = specific.version,
 		name     = specific.name,
-		use_base = specific.use_base,
+		include_defaults = specific.include_defaults,
 		id       = specific.id,
 		fields   = {},
 	}
 
-	for _, field in ipairs(base.fields) do
+	for _, field in ipairs(shared.fields) do
 		table.insert(schema.fields, field)
 	end
 	for _, field in ipairs(specific.fields) do
@@ -438,83 +438,94 @@ local function validate_value_min_max(value, field)
 end
 
 ---@param field Field
+---@return integer, integer
+local function get_integer_limits(field)
+	local bits = field.num_of_bits
+
+	if field.field_type == "byte" then
+		if field.unsigned then
+			return 0, LIMITS.BYTE.UNSIGNED
+		end
+		return LIMITS.BYTE.SIGNED_LO, LIMITS.BYTE.SIGNED_HI
+	elseif field.field_type == "short" then
+		if field.unsigned then
+			return 0, LIMITS.SHORT.UNSIGNED
+		end
+		return LIMITS.SHORT.SIGNED_LO, LIMITS.SHORT.SIGNED_HI
+	elseif field.field_type == "int" then
+		if field.unsigned then
+			if bits >= 32 then
+				return 0, LIMITS.INT.UNSIGNED
+			end
+			return 0, (1 << bits) - 1
+		end
+
+		if bits >= 32 then
+			return LIMITS.INT.SIGNED_LO, LIMITS.INT.SIGNED_HI
+		end
+
+		local max = (1 << (bits - 1)) - 1
+		return -1 - max, max
+	end
+
+	error("Unsupported integer field type: " .. tostring(field.field_type))
+end
+
+---@param field Field
 local function validate_number_limits(value, field)
+	local min_value, max_value = get_integer_limits(field)
+
 	if field.field_type == "byte" then
 		assert(
 			math.type(value) == "integer",
 			"Expected byte value for field " .. field.name .. " but received float value [" .. value .. "]"
 		)
 
-		if not field.unsigned then
-			assert(
-				value >= LIMITS.BYTE.SIGNED_LO and value <= LIMITS.BYTE.SIGNED_HI,
-				"Expected signed byte ("
-					.. LIMITS.BYTE.SIGNED_LO
-					.. " - "
-					.. LIMITS.BYTE.SIGNED_HI
-					.. ") for value ["
-					.. value
-					.. "] for field "
-					.. field.name
-			)
-		else
-			assert(
-				value >= 0 and value <= LIMITS.BYTE.UNSIGNED,
-				"Expected byte (0 - "
-					.. LIMITS.BYTE.UNSIGNED
-					.. ") for value ["
-					.. value
-					.. "] for field "
-					.. field.name
-			)
-		end
+		assert(
+			value >= min_value and value <= max_value,
+			"Expected "
+				.. (field.unsigned and "unsigned" or "signed")
+				.. " byte ("
+				.. min_value
+				.. " - "
+				.. max_value
+				.. ") for value ["
+				.. value
+				.. "] for field "
+				.. field.name
+		)
 	elseif field.field_type == "short" then
 		assert(math.type(value) == "integer", "Expected short value for field " .. field.name .. " but received float.")
 
-		if not field.unsigned then
-			assert(
-				value >= LIMITS.SHORT.SIGNED_LO and value <= LIMITS.SHORT.SIGNED_HI,
-				"Expected signed short ("
-					.. LIMITS.SHORT.SIGNED_LO
-					.. " - "
-					.. LIMITS.SHORT.SIGNED_HI
-					.. ") for value ["
-					.. value
-					.. "] for field "
-					.. field.name
-			)
-		else
-			assert(
-				value >= 0 and value <= LIMITS.SHORT.UNSIGNED,
-				"Expected short (0 - "
-					.. LIMITS.SHORT.UNSIGNED
-					.. ") for value ["
-					.. value
-					.. "] for field "
-					.. field.name
-			)
-		end
+		assert(
+			value >= min_value and value <= max_value,
+			"Expected "
+				.. (field.unsigned and "unsigned" or "signed")
+				.. " short ("
+				.. min_value
+				.. " - "
+				.. max_value
+				.. ") for value ["
+				.. value
+				.. "] for field "
+				.. field.name
+		)
 	elseif field.field_type == "int" then
 		assert(math.type(value) == "integer", "Expected int value for field " .. field.name .. " but received float.")
 
-		if not field.unsigned then
-			assert(
-				value >= LIMITS.INT.SIGNED_LO and value <= LIMITS.INT.SIGNED_HI,
-				"Expected signed integer ("
-					.. LIMITS.INT.SIGNED_LO
-					.. " - "
-					.. LIMITS.INT.SIGNED_HI
-					.. ") for value ["
-					.. value
-					.. "] for field "
-					.. field.name
-			)
-		else
-			assert(
-				value >= 0 and value <= LIMITS.INT.UNSIGNED,
-				"Expected integer (0 - " .. LIMITS.INT.UNSIGNED .. ") for value [" .. value .. "] field " .. field.name
-			)
-		end
+		assert(
+			value >= min_value and value <= max_value,
+			"Expected "
+				.. (field.unsigned and "unsigned" or "signed")
+				.. " integer ("
+				.. min_value
+				.. " - "
+				.. max_value
+				.. ") for value ["
+				.. value
+				.. "] for field "
+				.. field.name
+		)
 	end
 end
 
@@ -869,7 +880,7 @@ function W3CData:generate_registry_payloads()
 	end
 	table.sort(ids)
 	for _, id in ipairs(ids) do
-		-- Apply base schema merging via get_schema so the payload reflects what decoders will see
+		-- Apply shared schema merging via get_schema so the payload reflects what decoders will see
 		schema_payload[#schema_payload + 1] = self:get_schema(registry.by_id[id].name)
 	end
 	local event = {

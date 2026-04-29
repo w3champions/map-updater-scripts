@@ -22,14 +22,14 @@ local LIMITS = {
 ---@class SchemaDefinition
 ---@field version integer
 ---@field name string
----@field use_base? boolean
+---@field include_defaults? boolean
 ---@field fields W3CField[]
 
 ---@class Schema
 ---@field id integer
 ---@field version integer
 ---@field name string
----@field use_base boolean
+---@field include_defaults boolean
 ---@field fields W3CField[]
 
 ---@class Registry
@@ -93,6 +93,17 @@ local function process_fields(schema_name, raw_fields)
 		local ft = field.field_type
 		local unsigned = field.unsigned or false
 
+		if field.num_of_bits ~= nil then
+			assert(
+				ft == "int",
+				"Schema [" .. schema_name .. "] field [" .. field.name .. "] num_of_bits override is only allowed for type 'int'"
+			)
+			assert(
+				math.type(field.num_of_bits) == "integer" and field.num_of_bits >= 1 and field.num_of_bits <= 32,
+				"Schema [" .. schema_name .. "] field [" .. field.name .. "] num_of_bits must be an integer between 1 and 32"
+			)
+		end
+
 		if ft == "number" then
 			assert(
 				field.minimum or field.maximum,
@@ -130,7 +141,7 @@ local function _register(registry, schema_definition)
 		id       = id,
 		name     = schema_definition.name,
 		version  = schema_definition.version,
-		use_base = schema_definition.use_base or false,
+		include_defaults = schema_definition.include_defaults ~= false,
 		fields   = process_fields(schema_definition.name, schema_definition.fields),
 	}
 
@@ -156,7 +167,7 @@ function Registry:register(schema_definition)
 	return _register(self, schema_definition)
 end
 
----Updates the fields and version of an already-registered schema (e.g. the base schema).
+---Updates the fields and version of an already-registered schema (e.g. the shared schema).
 ---@param schema_definition SchemaDefinition
 ---@return integer id, Schema schema
 function Registry:update(schema_definition)
@@ -168,7 +179,7 @@ function Registry:update(schema_definition)
 		id       = existing.id,
 		name     = schema_definition.name,
 		version  = schema_definition.version,
-		use_base = schema_definition.use_base or false,
+		include_defaults = schema_definition.include_defaults ~= false,
 		fields   = process_fields(schema_definition.name, schema_definition.fields),
 	}
 

@@ -12,7 +12,7 @@ import { metricSchemas } from "./schemas";
 export function initMetrics() {
     W3CEvents.initialize({
         checksum: { enabled: true },
-        base_schema: { enabled: true },
+        shared_schema: { enabled: true },
         logging: { enabled: false },
     });
     W3CEvents.register_all_schemas(metricSchemas);
@@ -26,6 +26,8 @@ export function initMetrics() {
             });
         }
     }
+
+    W3CEvents.flush(true);
 }
 
 export function setupTrackMetrics() {

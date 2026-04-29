@@ -1,7 +1,9 @@
 export function initialize(config?: W3CEventsConfig): void;
+export function register_shared_schema(schema: Schema, setter: (event: EventPayload) => void): void;
 export function register_all_schemas(schemas: Schema[]): void;
 export function event(name: string, payload: EventPayload): void;
 export function track(name: string, getter: () => EventPayload | EventPayload[], interval: number): () => void;
+export function flush(immediate?: boolean): void;
 export function end_game(playerResults: W3CEventsGameEndPlayer[]): void;
 export function boolField(name: string): Field;
 export function byteField(name: string, options?: IntegerFieldOptions): Field;
@@ -36,23 +38,33 @@ export type FieldOptions = IntegerFieldOptions;
 
 export interface SchemaOptions {
     version?: number;
-    use_base?: boolean;
+    include_defaults?: boolean;
 }
 
 export interface Schema {
     version: number;
     name: string;
-    use_base?: boolean;
+    include_defaults?: boolean;
     fields: Field[];
 }
 
 export interface W3CEventsConfig {
-    checksum: ChecksumConfig;
-    base_schema: BooleanConfig;
-    logging: BooleanConfig;
+    checksum?: Partial<ChecksumConfig>;
+    shared_schema?: Partial<EventSharedSchemaConfig>;
+    flush?: FlushConfig;
+    logging?: Partial<BooleanConfig>;
 }
 
 export interface ChecksumConfig extends BooleanConfig {
+    get_checksum?: () => string;
+    interval?: number;
+}
+
+export interface EventSharedSchemaConfig extends BooleanConfig {
+    set_shared_event_data?: (event: EventPayload) => void;
+}
+
+export interface FlushConfig {
     interval?: number;
 }
 
