@@ -218,8 +218,18 @@ local W3CData = {
 -- SCHEMA(1) and CHECKSUM(2) are registered normally; SHARED(3) starts with no fields
 -- and is populated when the user calls register_schema({name="shared", ...}).
 local registry = schema_module.Registry.new()
-registry:register({ name = INTERNAL_SCHEMA_NAMES.SCHEMA_REGISTRY, version = 1, fields = { { name = "schemas_json", field_type = "string" } } })
-registry:register({ name = INTERNAL_SCHEMA_NAMES.CHECKSUM,         version = 1, fields = { { name = "checksum",     field_type = "string" } } })
+registry:register({
+	name = INTERNAL_SCHEMA_NAMES.SCHEMA_REGISTRY,
+	version = 1,
+	include_defaults = false,
+	fields = { { name = "schemas_json", field_type = "string" } },
+})
+registry:register({
+	name = INTERNAL_SCHEMA_NAMES.CHECKSUM,
+	version = 1,
+	include_defaults = false,
+	fields = { { name = "checksum", field_type = "string" } },
+})
 local _shared_placeholder = { id = INTERNAL_SCHEMA_ID.SHARED, name = INTERNAL_SCHEMA_NAMES.SHARED, version = 0, include_defaults = false, fields = {} }
 registry.by_id[INTERNAL_SCHEMA_ID.SHARED]             = _shared_placeholder
 registry.by_name[INTERNAL_SCHEMA_NAMES.SHARED]        = _shared_placeholder
@@ -298,6 +308,10 @@ end
 ---@param schema_name string Name of the schema to check
 ---@return boolean should_include_defaults True if the schema should include the default fields, false if not
 function W3CData:should_include_defaults(schema_name)
+	if type(schema_name) == "string" and schema_name:lower() == INTERNAL_SCHEMA_NAMES.SHARED then
+		return false
+	end
+
 	local schema = registry:get_by_name(schema_name)
 	return (self.config.shared_schema.enabled and schema and schema.include_defaults) and true or false
 end

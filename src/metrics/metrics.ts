@@ -8,6 +8,8 @@ import { trackBuildings } from "./playerBuildings";
 import { trackHeroes } from "./heroes";
 import { trackResearch } from "./research";
 import { metricSchemas } from "./schemas";
+import { orderContextSchemas } from "./orderContextSchemas";
+import { trackOrderContext } from "./orderContext";
 
 export function initMetrics() {
     W3CEvents.initialize({
@@ -15,7 +17,7 @@ export function initMetrics() {
         shared_schema: { enabled: true },
         logging: { enabled: false },
     });
-    W3CEvents.register_all_schemas(metricSchemas);
+    W3CEvents.register_all_schemas([...metricSchemas, ...orderContextSchemas]);
 
     for (let i = 0; i < bj_MAX_PLAYERS; i++) {
         const player = Player(i);
@@ -41,4 +43,5 @@ export function setupEventMetrics() {
     trackBuildings();
     trackHeroes();
     trackResearch();
+    trackOrderContext();
 }

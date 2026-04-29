@@ -1,18 +1,12 @@
-package.path = "./?.lua;./?/init.lua;" .. package.path
+package.path = table.concat({
+	"./?.lua",
+	"./src/?.lua",
+	package.path,
+}, ";")
 
-local function alias_module(alias_name, module_name)
-	local module = require(module_name)
-	package.loaded[alias_name] = module
-	return module
-end
-
-alias_module("lua.libDeflate", "src.lua.libDeflate")
-alias_module("lua.json", "src.lua.json")
-alias_module("lua.w3cbitbuffer", "src.lua.w3cbitbuffer")
-alias_module("lua.w3cschema", "src.lua.w3cschema")
-
-local W3CChecksum = alias_module("lua.w3cChecksum", "src.lua.w3cChecksum")
-local W3CData = alias_module("lua.w3cdata", "src.lua.w3cdata")
+local bootstrap = require("lua.test_bootstrap")
+local W3CChecksum = bootstrap.W3CChecksum
+local W3CData = bootstrap.W3CData
 
 local sent_sync_packets = {}
 local current_player_id = 0
@@ -55,7 +49,7 @@ function DestroyTimer(timer)
 	timer.destroyed = true
 end
 
-local W3CEvents = require("src.lua.w3cEvents")
+local W3CEvents = bootstrap.W3CEvents
 
 local function framed_event(schema_name, payload)
 	local schema_id = W3CData:get_schema_id(schema_name)
@@ -90,13 +84,13 @@ local function test_checksum_framing()
 	})
 
 	W3CEvents:register_all_schemas({
-		W3CEvents:schema("SchemaA", {
+		W3CEvents.schema("SchemaA", {
 			W3CEvents.byteField("value"),
 		}, { include_defaults = false }),
-		W3CEvents:schema("SchemaB", {
+		W3CEvents.schema("SchemaB", {
 			W3CEvents.byteField("value"),
 		}, { include_defaults = false }),
-		W3CEvents:schema("Pair", {
+		W3CEvents.schema("Pair", {
 			W3CEvents.byteField("left"),
 			W3CEvents.byteField("right"),
 		}, { include_defaults = false }),
@@ -163,6 +157,35 @@ local function test_checksum_framing()
 
 	assert(#sent_sync_packets > 0, "Schema registration should emit sync payloads")
 	print("W3CEvents checksum framing test passed")
+
+	local packets_before_end_game = #sent_sync_packets
+	local end_game_events = {
+		{ player = 0, won = true },
+		{ player = 1, won = false },
+	}
+
+	W3CEvents:end_game(end_game_events)
+
+	assert_equal(#sent_sync_packets, packets_before_end_game + 2, "end_game should immediately send final events and checksum")
+
+	local final_checksum = W3CData:decode_payloads({ sent_sync_packets[#sent_sync_packets].payload })[1][1]
+	assert_equal(
+		final_checksum,
+		checksum_for({
+			{ schema_name = "SchemaA", payload = schema_a_payload },
+			{ schema_name = "SchemaB", payload = schema_b_payload },
+			{ schema_name = "Pair", payload = pair_payload_a },
+			{ schema_name = "Pair", payload = pair_payload_b },
+			{ schema_name = "W3CGameEnd", payload = { 0, 0, true } },
+			{ schema_name = "W3CGameEnd", payload = { 1, 0, false } },
+		}),
+		"Final checksum should include W3CGameEnd events"
+	)
+
+	local final_events = W3CData:decode_payloads({ sent_sync_packets[#sent_sync_packets - 1].payload })
+	assert_equal(final_events[#final_events - 1][1], "W3CGameEnd", "end_game should flush game end events before checksum")
+	assert_equal(final_events[#final_events][1], "W3CGameEnd", "end_game should flush all game end events before checksum")
+	print("W3CEvents final checksum test passed")
 end
 
 test_checksum_framing()

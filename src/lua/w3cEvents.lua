@@ -627,7 +627,8 @@ function W3CEvents.end_game(self_or_player_results, maybe_player_results)
 		W3CEvents.event(EVENTS.GAME_END, { time = now(), player = player_result.player, player_won = player_result.won })
 	end
 
-	flush()
+	flush(true)
+	send_checksum()
 	shutdown()
 end
 

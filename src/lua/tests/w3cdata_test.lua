@@ -1,8 +1,15 @@
-local W3CData = require("src.lua.w3cdata")
+package.path = table.concat({
+	"./?.lua",
+	"./src/?.lua",
+	package.path,
+}, ";")
+
+local bootstrap = require("lua.test_bootstrap")
+local W3CData = bootstrap.W3CData
 W3CData.init()
 
-local W3CChecksum = require("src.lua.w3cChecksum")
-local json = require("src.lua.json")
+local W3CChecksum = bootstrap.W3CChecksum
+local json = bootstrap.json
 
 ---@type table<integer, Schema>
 local schemas = {
@@ -465,7 +472,7 @@ local function test_error_paths()
 	assert(ok, "Duplicate registration should be a silent no-op")
 
 	-- Registry-level validation (tested via w3cschema directly)
-	local w3cschema = require("src.lua.w3cschema")
+	local w3cschema = bootstrap.W3CSchema
 
 	expect_error(function()
 		local reg = w3cschema.Registry.new()
@@ -541,6 +548,7 @@ local function test_numeric_boundaries()
 	W3CData:register_schema({
 		version = 1,
 		name = "BoundaryTest",
+		include_defaults = false,
 		fields = {
 			{ name = "signed_byte",   field_type = "byte"                    },
 			{ name = "unsigned_byte", field_type = "byte", unsigned = true   },
