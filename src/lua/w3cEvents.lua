@@ -1,3 +1,31 @@
+--[[
+
+`W3CEvents` provides a simple API for emitting structured game events.
+
+Typical usage:
+
+--------------------
+
+W3CEvents.initialize()
+
+W3CEvents:register_all_schemas({
+  W3CEvents.schema("PlayerState", {
+    W3CEvents.intField("gold"),
+    W3CEvents.intField("wood"),
+  }),
+})
+
+W3CEvents:event("PlayerState", {
+  gold = 500,
+  wood = 120,
+})
+
+----------------------
+
+`player` and `time` are added automatically to all events.
+
+--]]
+
 local W3CData = require("lua.w3cdata")
 local W3CChecksum = require("lua.w3cChecksum")
 
@@ -23,16 +51,16 @@ local ERRORS = {
 	SCHEMA_REGISTERED_ERROR = "W3CEvents.register_all_schemas has not been used. Registering schemas is required before creating any events",
 }
 
----@alias Event PayloadValue
+---@alias Event table<string, string | number | boolean>
 
 ---@class ChecksumConfig
 ---@field enabled boolean
----@field get_checksum? function
----@field interval? integer
+---@field get_checksum? function Optional override used to generate checksum payload values.
+---@field interval? integer Interval in seconds for periodic checksum packets.
 
 ---@class EventSharedSchemaConfig
 ---@field enabled boolean
----@field set_shared_event_data? function
+---@field set_shared_event_data? function Optional override used to populate shared schema fields.
 
 ---@class BooleanConfig
 ---@field enabled boolean
@@ -113,6 +141,12 @@ local function create_integer_field(name, field_type, options)
 	return field
 end
 
+--- Creates a field definition for use in `W3CEvents.schema`.
+--- This is the generic helper used by the typed field builders below.
+---@param name string Field name
+---@param field_type FieldType Field type understood by `W3CData`
+---@param options? FieldOptions Optional field configuration
+---@return Field field
 function W3CEvents.field(name, field_type, options)
 	if field_type == "byte" or field_type == "short" or field_type == "int" or field_type == "number" then
 		return create_integer_field(name, field_type, options)
@@ -132,6 +166,11 @@ function W3CEvents.field(name, field_type, options)
 	return field
 end
 
+--- Creates a schema definition to be registered later with `register_all_schemas`.
+---@param name string Schema name
+---@param fields Field[] Schema fields
+---@param options? SchemaOptions Schema options such as `version` and `include_defaults`
+---@return Schema schema
 function W3CEvents.schema(name, fields, options)
 	options = options or {}
 	return {
@@ -142,26 +181,47 @@ function W3CEvents.schema(name, fields, options)
 	}
 end
 
+--- Convenience helper for a `bool` field.
+---@param name string
+---@return Field
 function W3CEvents.boolField(name)
 	return { name = name, field_type = "bool" }
 end
 
+--- Convenience helper for a `byte` field.
+---@param name string
+---@param options? IntegerFieldOptions
+---@return Field
 function W3CEvents.byteField(name, options)
 	return create_integer_field(name, "byte", options)
 end
 
+--- Convenience helper for a `short` field.
+---@param name string
+---@param options? IntegerFieldOptions
+---@return Field
 function W3CEvents.shortField(name, options)
 	return create_integer_field(name, "short", options)
 end
 
+--- Convenience helper for an `int` field.
+---@param name string
+---@param options? IntegerFieldOptions
+---@return Field
 function W3CEvents.intField(name, options)
 	return create_integer_field(name, "int", options)
 end
 
+--- Convenience helper for a `float` field.
+---@param name string
+---@return Field
 function W3CEvents.floatField(name)
 	return { name = name, field_type = "float" }
 end
 
+--- Convenience helper for a `string` field.
+---@param name string
+---@return Field
 function W3CEvents.stringField(name)
 	return { name = name, field_type = "string" }
 end
@@ -261,8 +321,13 @@ local function debug_payload_headers(payloads)
 	end
 end
 
----Flushes the current `W3CEvents.event_buffer`, sending all events to `BlzSendSyncData` using the configured `W3CEvents.config.prefix`
----Events are only sent by a single player.
+--- Flushes the current event buffer by encoding it with `W3CData` and sending the
+--- resulting payload packets through `BlzSendSyncData`.
+---
+--- Normal event payloads are only emitted by the configured flush player
+--- (`PLAYER_INDEX_TO_FLUSH`). Other players still update their local checksum state
+--- and send checksum packets.
+---@param immediate? boolean When true, send all payload packets immediately instead of spacing them over time
 local function flush(immediate)
 	-- Don't flush if we've disabled events. Disabled in `W3CEvents:end_game()`
 	if game_ended or #W3CEvents.event_buffer == 0 then
@@ -333,8 +398,8 @@ local function estimate_event_size(schema_name, event)
 	return event_size_bytes
 end
 
---- Used to set shared schema fields on events. Done like this to allow it to
---- be overridden in `W3CEvents.config.shared_schema`
+--- Default shared-schema field setter. This populates `time` and `player` when those
+--- fields exist on the registered shared schema and are not already present.
 ---@param event Event
 local function add_shared_schema_data(event)
 	local schema = W3CData:get_schema(EVENTS.SHARED)
@@ -349,6 +414,10 @@ local function add_shared_schema_data(event)
 	end
 end
 
+--- Converts a keyed event table into the positional payload format required by `W3CData`.
+---@param schema Schema
+---@param event Event
+---@return table payload
 local function ordered_payload(schema, event)
 	local payload = {}
 	for _, field in ipairs(schema.fields) do
@@ -377,7 +446,7 @@ local function update_checksum_for_event(schema_name, payload)
 	checksum:update(framed)
 end
 
----Sends a checksum payload using configured function to get the checksum value.
+--- Sends a checksum payload using the configured checksum getter.
 local function send_checksum()
 	if W3CEvents.config.checksum.enabled then
 		local checksum_value = W3CEvents.config.checksum.get_checksum()
@@ -386,14 +455,13 @@ local function send_checksum()
 	end
 end
 
---- Set and Update checksum functions used for checksum payloads. Done like this
---- to allow them to be overridden in `W3CEvents.config.checksum`
+--- Default checksum getter used when no custom checksum getter is configured.
 local function get_checksum()
 	return checksum:finalize()
 end
 
----Setup monotonic clock to get game time and checksum clock to send checksum packets
----on a set interval
+--- Creates and starts the timers used by this module:
+--- the monotonic game clock, the periodic checksum timer, and the periodic flush timer.
 local function setup_timers()
 	if not clock then
 		clock = CreateTimer()
@@ -411,6 +479,8 @@ local function setup_timers()
 	end
 end
 
+--- Stops and destroys all timers managed by this module and prevents further events
+--- from being accepted.
 local function shutdown()
 	if clock then
 		PauseTimer(clock)
@@ -436,8 +506,11 @@ local function shutdown()
 	game_ended = true
 end
 
----Registers a shared schema that will be included in all other events, if those events
----also have `include_defaults` enabled and `W3CEvents.config.shared_schema.enabled = true`
+--- Registers the shared/default schema used to populate common event fields.
+--- This schema must be named `shared`.
+---
+--- When shared schema support is enabled, schemas with `include_defaults ~= false`
+--- are decoded and packed with these shared fields prepended.
 ---@param schema Schema Shared schema to register.
 ---@param setter function Function used to set values on events for the shared schema
 function W3CEvents:register_shared_schema(schema, setter)
@@ -453,8 +526,11 @@ function W3CEvents:register_shared_schema(schema, setter)
 	self.set_shared_event_data = setter
 end
 
----Initializes W3CEvents. Call this before anything else.
----@param config W3CEventsConfig
+--- Initializes `W3CEvents` and its underlying `W3CData` instance.
+---
+--- This must be called before registering schemas, emitting events, or starting
+--- trackers. Initialization is idempotent until `end_game()` is called.
+---@param config? W3CEventsConfig
 function W3CEvents.initialize(config)
 	if initialized then
 		return
@@ -489,12 +565,18 @@ function W3CEvents.initialize(config)
 	initialized = true
 end
 
----Creates events for `name` on a set interval, calling the `getter` to get the value used for the event.
----@param name string Name of the event. Must match the name of a schema that has been registered with `W3CEvents.register`
----@param getter function Getter function that provides the event data
----@param interval integer How frequently to create this event
----@return function stop_function Function that can be called to stop and clean up the tracking event. All events that were created
----before calling this function will still be created and sent.
+--- Registers a timer-driven event source.
+---
+--- The getter may return:
+--- - `nil` to emit nothing
+--- - a single keyed payload table for one event
+--- - an array of keyed payload tables to emit multiple events on the same tick
+---
+--- Returned events are still buffered and flushed according to the normal flush rules.
+---@param name string Name of the event schema to emit
+---@param getter function Getter function that provides event payload data
+---@param interval integer How frequently to sample the getter, in seconds
+---@return function stop_function Function that stops the tracker. Already-buffered events remain queued.
 function W3CEvents.track(self_or_name, maybe_name_or_getter, maybe_getter_or_interval, maybe_interval)
 	local name = self_or_name
 	local getter = maybe_name_or_getter
@@ -550,6 +632,8 @@ function W3CEvents.track(self_or_name, maybe_name_or_getter, maybe_getter_or_int
 	end
 end
 
+--- Flushes the buffered event payloads, if any.
+---@param immediate? boolean When true, send all payload packets immediately instead of staggering them on a timer
 function W3CEvents.flush(self_or_immediate, maybe_immediate)
 	local immediate = self_or_immediate
 	if self_or_immediate == W3CEvents then
@@ -559,8 +643,14 @@ function W3CEvents.flush(self_or_immediate, maybe_immediate)
 	flush(immediate)
 end
 
----@param name string Name of the event. Must match the name of a schema that has been registered with `W3CEvents.register`
----@param event Event Event to create and send. Fields and their values must match the fields configured in the matching schema
+--- Queues a single event payload for later flush.
+---
+--- The event must match a registered schema. If shared schema defaults are enabled,
+--- missing shared fields such as `player` and `time` are populated automatically.
+--- The event is added to the checksum stream immediately, even if the payload itself
+--- has not yet been flushed.
+---@param name string Name of the event schema to emit
+---@param event Event Keyed payload table matching the registered schema
 function W3CEvents.event(self_or_name, maybe_event, maybe_unused)
 	local name = self_or_name
 	local event = maybe_event
@@ -604,6 +694,8 @@ function W3CEvents.event(self_or_name, maybe_event, maybe_unused)
 	debug_log("queued event " .. tostring(name) .. "; buffer=" .. tostring(#W3CEvents.event_buffer) .. "; bytes~" .. tostring(event_buffer_size))
 end
 
+--- Emits one `W3CGameEnd` event per player result, immediately flushes the final
+--- buffered payloads, sends a trailing checksum, and shuts the library down.
 ---@param player_results W3CEventsGameEnd
 function W3CEvents.end_game(self_or_player_results, maybe_player_results)
 	local player_results = self_or_player_results
@@ -632,6 +724,8 @@ function W3CEvents.end_game(self_or_player_results, maybe_player_results)
 	shutdown()
 end
 
+--- Registers all event schemas and sends the schema registry payloads immediately.
+--- This can only be called once per game.
 ---@param schemas Schema[]
 function W3CEvents.register_all_schemas(self_or_schemas, maybe_schemas)
 	local schemas = self_or_schemas

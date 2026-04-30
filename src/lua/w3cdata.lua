@@ -1,31 +1,44 @@
 --[[
 
-Library to handle compression and decompression of schema based data.
+Library to encode and decode schema-based event payloads for BlzSendSyncData.
 
-This library should generally not be used directly as this is intended to be used within libraries themselves so
-they can encode and decode data for BlzSendSyncData.
+This library is the low-level transport layer used by higher-level helpers such as
+`W3CEvents`. It is responsible for schema registration, bit-packing payloads,
+chunking oversized packets, generating checksum/schema-registry payloads, and
+decoding received SyncData back into schema/value tuples.
 
 Basic Usage:
 
-- Register an event schema
+- Initialize the library and register one or more schemas
 
-W3CData.register_schema("PlayerState", { 
-  { name: "gold", type: "int" },
-  { name: "wood", type: "int" },
-  { name: "upkeep", type: "byte" },
+W3CData.init()
+
+W3CData:register_schema({
+  version = 1,
+  name = "PlayerState",
+  fields = {
+    { name = "gold", field_type = "int" },
+    { name = "wood", field_type = "int" },
+    { name = "upkeep", field_type = "byte" },
+  },
 })
 
-- Create a payload to send
-local events = { 
-    { "PlayerState", { 50, 100, 0 } } -- { schema_name, { gold, wood, upkeep } } 
-} 
-local payload = W3CData:encode_payload(events)
+- Create payloads to send. Each payload entry is `{ schema_name = ..., payload = { ... } }`
+- and payload values are positional, in schema field order.
+
+local payloads = W3CData:encode_payload({
+  {
+    schema_name = "PlayerState",
+    payload = { 50, 100, 0 },
+  },
+}, 180)
 
 ---
-To parse a payload just use W3CData:decode_payload
+To parse received payloads, use `W3CData:decode_payloads`.
 
 - Decode data sent
-local packed = W3CData:decode_payload(payload)
+local unpacked = W3CData:decode_payloads(payloads)
+local parsed = W3CData:parse_unpacked(unpacked)
 
 --------
 
@@ -34,60 +47,66 @@ Schemas are in the format:
 {
   version:    integer,
   name:       string,
-  include_defaults?:  boolean
+  include_defaults?: boolean,
   fields: [
-    { 
-      name:     string,
-      type:     "bool" | "byte" | "short" | "int" | "float" | "string",
-      bits?:    integer,
-      signed?:  boolean,
+    {
+      name:        string,
+      field_type:  "bool" | "byte" | "short" | "int" | "number" | "float" | "string",
+      num_of_bits?: integer,
+      unsigned?:   boolean,
+      minimum?:    number,
+      maximum?:    number,
     }
   ]
 }
 
-The fields.bits field is set automatically when registering a schema based on the type set.
+`num_of_bits` is only valid for `"int"` fields. For `"number"` fields, the schema
+registry resolves the field to the smallest concrete integer type that satisfies the
+provided `minimum`/`maximum` bounds.
+
+Bit sizes are assigned automatically when registering a schema:
 
 - bool:   1 bit
 - byte:   8 bits
 - short:  16 bits
-- int:    32 bits
-- float:  32 bits, not able to overwrite
+- int:    32 bits by default, or `num_of_bits` if provided
+- float:  32 bits, not overridable
 
-String does not use a bit size as they are not bit packed.
+String values are not bit-packed.
 
-Floats use 4 bytes and are not compressed. 64-bit floats are converted to 32-bit floats, losing precision.
-Strings have a 2 byte length before the string data. Strings are compressed using raw Deflate to handle utf-8 encoding easily.
+Floats use 4 bytes and are not compressed. 64-bit floats are converted to 32-bit
+floats, losing precision. Strings have a 2-byte length prefix and their contents are
+compressed with raw Deflate to handle utf-8 safely.
 
-If the fields.bits value is set, it overrides the value defined by the type.
+If `num_of_bits` is set on an `"int"` field, it overrides the default 32-bit width.
 
-Signed is used to indentify whether the field should use zigzag encoding to handle negative values or not.
-**NOTE** If you use a negative value and DO NOT set `signed = true`, then the value will be parsed incorrectly as a large number.
+Signed integer fields are zigzag encoded. Unsigned integer fields are written directly.
+**NOTE** If a field can hold negative values, do not mark it `unsigned = true`.
 
 --------
 
-Each packet has a 1 byte header that identifies whether the packet is:
+Each packet has a 1-byte header that identifies whether the packet is:
 
-0x01      - Singular data packet
-0x02      - Batched data packet
-0x03      - Checksum packet       -- Use the W3CChecksum utility for updating and getting checksums
-0x80      - Chunked packet         
+0x01      - Event packet containing one or more packed events
+0x02      - Checksum packet
+0x80      - Chunked event packet
 
 Chunked packets contain additional header data:
 
 [0x80]|[chunk_id_hi]|[chunk_id_lo]|[chunk_count]|[chunk_index]|[payload...]
 
-The chunk_id is a unique id for all associated chunked used for matching.
-The chunk count is the number of chunks for this specific set of chunks
-The chunk index is this specific packets index in the chunks
-The payload is the byte string packed data.
+The chunk_id is a unique id shared by every chunk in the same payload.
+The chunk count is the total number of chunks in that payload.
+The chunk index is the zero-based index of this chunk.
+The payload is raw packed event data for that chunk.
 
 --------
 
 NOTE: The below is not necessary to use unless you really want to minimize the amount of data being used.
 
-Overriding bit sizes for schemas is possible by setting the `field.bits` instead of the `field.type`.
+Overriding bit sizes for schemas is possible by setting `field.num_of_bits` on `"int"` fields.
 This can be useful for making more compressed payloads. As an example, `upkeep` is only ever 0, 1 or 2. We can
-use 2 bits for this instead of the `byte` of 8 bits, allowing us to save 6 bits on every event using this field. 
+use 2 bits for this instead of the `byte` of 8 bits, allowing us to save 6 bits on every event using this field.
 Or a `player` field for player ids will only ever have values 0-32, so we can use 5 bits instead of the `byte`, saving 3 bits.
 
 Below is a table showing bits and the numbers they allow up to 24 bits / 3 bytes.
@@ -119,8 +138,6 @@ Below is a table showing bits and the numbers they allow up to 24 bits / 3 bytes
 
 --]]
 
--- TODO: Still need to update the event library to use this library and test that it all works inside WC3
-
 require("lua.libDeflate")
 local json = require("lua.json")
 
@@ -136,11 +153,11 @@ local schema_module = require("lua.w3cschema")
 
 ---@class Field Field description for a schema.
 ---@field name string Name of the field.
----@field field_type FieldType Type of the field. Decimal numbers use `float`. `number` is used only when using `minimum` and `maxiumum`
----@field num_of_bits? integer Number of bits used by this field. Requires `type = "int"` if used. Only valid for integer types.
----@field unsigned? boolean Whether the field is unsigned or not. Only applies to `byte`, `short` and `int` types
----@field minimum? number Minimum number for a field, only used when `tyoe = "number"`
----@field maximum? number Maximum number for a field, only used when `type = "number"``
+---@field field_type FieldType Type of the field. Decimal numbers use `float`. `number` is resolved to an integer type from `minimum`/`maximum`.
+---@field num_of_bits? integer Optional bit width override for `int` fields only.
+---@field unsigned? boolean Whether the field is unsigned. Applies to integer field types after schema processing.
+---@field minimum? number Minimum value for a `number` field.
+---@field maximum? number Maximum value for a `number` field.
 
 ---@class SchemaW Schema used for an event
 ---@field version integer Version of the schema
@@ -149,9 +166,9 @@ local schema_module = require("lua.w3cschema")
 ---@field include_defaults? boolean Whether this schema should include the default fields or not. Defaults to `true`
 ---@field fields Field[] All fields for this schema
 
----@class Payload Payload that maps a schema name to a table when being packed.
+---@class Payload Payload entry to be packed into an event packet.
 ---@field schema_name string Name of the schema that the payload is for
----@field payload table<PayloadValue> Table containing the payload values
+---@field payload table Payload values in schema field order
 
 ---@class SharedSchemaConfig Config for W3CData shared schema
 ---@field enabled boolean Whether using the shared schema is enabled or not
@@ -377,9 +394,10 @@ function W3CData.cobs_decode(input)
 	return table.concat(output)
 end
 
---- Gets a schema by id. Includes the shared schema fields if configured.
+--- Gets a schema by id. Includes shared fields when the shared schema feature is enabled
+--- and the specific schema has `include_defaults = true`.
 ---@param schema_id integer Id of the schema to get
----@return Schema Schema Schema including shared schema fields if configured
+---@return Schema schema Schema including shared fields when applicable
 function W3CData:get_schema_by_id(schema_id)
 	local specific = registry:get(schema_id) or {}
 
@@ -563,15 +581,16 @@ local function validate_value(value, field)
 	validate_number_limits(value, field)
 end
 
---- Packs a table that matches a schema into a raw bit-packed byte string.
---- Asserts that the length of the data and schema match. Also asserts that data fields match the expected types as described in the schema.
+--- Packs a positional payload table into a raw bit-packed byte string for a schema id.
+--- Asserts that the payload length matches the schema field count and that values match
+--- the expected field types and bounds.
 ---
---- Strings are Deflate compressed. Each string has a 2 byte length prefix.
+--- Strings are Deflate compressed and written with a 2-byte length prefix.
 --- Floats are stored as 4 bytes (32-bit). Integers use zigzag encoding for signed values.
---- COBS encoding (null byte removal for safe BlzSendSyncData transmission) is applied at the
---- payload level in encode_payload/generate_checksum_payload, not here.
+--- COBS encoding (null byte removal for safe BlzSendSyncData transmission) is applied later
+--- by `encode_payload` and `generate_checksum_payload`, not here.
 ---@param schema_id integer Schema ID of the schema that the data is for
----@param data table Data to pack bits for
+---@param data table Payload values in schema field order
 ---@return string packed Byte string with packed data
 function W3CData:pack_bits(schema_id, data)
 	local schema = self:get_schema_by_id(schema_id)
@@ -600,8 +619,8 @@ function W3CData:pack_bits(schema_id, data)
 	return bit_writer:flush()
 end
 
----Packs a table containing multiple events to be packed together. Uses pack_bits for each individual event in the batch data.
----@param batch_data table<SchemaId, table> Table containing a mapping of event data and schema_ids for that data.
+--- Packs multiple schema-id/payload pairs into a single byte string.
+---@param batch_data table<SchemaId, table> Table of `{ schema_id, payload }` entries.
 ---@return string packed_batch Packed string for all data.
 function W3CData:pack_batch(batch_data)
 	local result = {}
@@ -665,9 +684,10 @@ function W3CData:unpack_bits(schema_id, data)
 	return result, schema
 end
 
---- Unpacks a byte string containing batched packed data. For each event, uses W3CData:unpack_bits() using the schema associated with the event.
+--- Unpacks a byte string containing one or more packed events.
+--- For each event, the leading schema id byte is used to select the schema for `unpack_bits`.
 ---@param packed string The byte string with batched packed data.
----@return table<string, table> unpacked_data A table containing the unpacked data mapped to the schema name used to parse the data.
+---@return table<string, table> unpacked_data A table of `{ schema_name, positional_values }` tuples.
 function W3CData:unpack_batch(packed)
 	local index = 1
 	local len = #packed
@@ -781,15 +801,15 @@ function W3CData:unchunk_payload(chunks)
 	return table.concat(result)
 end
 
----Encodes a table of `Payload`, containing `schema_name` and `event_data`, to a table of encoded strings
----that can be sent using BlzSendSyncData.
+--- Encodes one or more payload entries to SyncData-safe packet strings.
 ---
----Event data that is over the `mx_size` will be chunked to multiple payloads.
+--- If the packed event data exceeds `max_size`, it is split into chunk packets.
 ---
 ---@see W3CData.chunk_payload
 ---@param events table<Payload> Table containing all payload events to encode with their associated schema names
 ---@param max_size integer Maximum size for a single data packet
----@return table<string>, boolean encoded_payload
+---@return table<string> encoded_payload
+---@return boolean is_chunked True when the packed event data was chunked into multiple packets
 function W3CData:encode_payload(events, max_size)
 	local result = {}
 	local packed = self:pack_batch_with_name(events)
@@ -811,7 +831,11 @@ function W3CData:encode_payload(events, max_size)
 	return result, true
 end
 
----Decodes a byte string containing a header and packed or chunked data to return the parsed event data
+--- Decodes one or more SyncData payload strings into unpacked event tuples.
+--- Event packets return `{ schema_name, positional_values }` entries.
+--- Checksum packets return the unpacked checksum payload values.
+---@param payloads string[] SyncData payload strings, optionally including chunked packets
+---@return table decoded Unpacked event tuples in receive order, with chunk groups appended once complete
 function W3CData:decode_payloads(payloads)
 	local result = {}
 
@@ -858,9 +882,11 @@ function W3CData:decode_payloads(payloads)
 	return result
 end
 
----Parses an unpacked payload containing `{ schema_name, { schema_values }}`
----back to a parsed table in the format `{ schema_name, { schema_field_name = payload_value }}`
----@param unpacked table The payload to unpack and parse
+--- Converts unpacked positional payload tuples into keyed field tables.
+--- Input entries are expected to be in the format `{ schema_name, positional_values }`.
+--- Output entries are returned as `{ schema_name, { field_name = payload_value } }`.
+---@param unpacked table The unpacked payload tuples to parse
+---@return table parsed Parsed payload entries keyed by schema field name
 function W3CData:parse_unpacked(unpacked)
 	local result = {}
 	for _, event in ipairs(unpacked) do
@@ -876,15 +902,17 @@ function W3CData:parse_unpacked(unpacked)
 	return result
 end
 
----Generate a checksum packet to be sent.
+--- Generates a checksum packet to be sent via BlzSendSyncData.
 ---@param crc string CRC byte string to be added to a checksum packet
+---@return string payload COBS-encoded checksum packet
 function W3CData:generate_checksum_payload(crc)
 	local packed = self:pack_bits(INTERNAL_SCHEMA_ID.CHECKSUM, { crc })
 	return W3CData.cobs_encode(string.char(HEADER_VALUES.CHECKSUM) .. packed)
 end
 
----Generate payloads containing schema registry. Used so that the schemas can be sent using BlzSendSyncData and
----used to decode and decompress payloads during parsing
+--- Generates schema registry packets so receivers can reconstruct the schema set used by this encoder.
+--- The generated registry includes internal schemas as well as any user-registered schemas, with shared
+--- fields already merged into schemas that include defaults.
 ---@return table<string> payloads String payloads to send using BlzSendSyncData
 function W3CData:generate_registry_payloads()
 	local schema_payload = {}

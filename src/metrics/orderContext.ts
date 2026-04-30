@@ -170,8 +170,8 @@ function rememberUnit(target: unit) {
 function refreshTrackedVision() {
     const currentTime = nowSeconds();
 
-    for (const playerIdKey in trackedPlayers) {
-        const playerId = trackedPlayers[playerIdKey];
+    for (let index = 0; index < trackedPlayers.length; index++) {
+        const playerId = trackedPlayers[index];
         const actingPlayer = Player(playerId);
         for (const handleIdKey in trackedUnits) {
             const handleId = tonumber(handleIdKey) as number;
