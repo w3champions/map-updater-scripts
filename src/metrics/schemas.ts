@@ -7,6 +7,7 @@ const withoutDefaults = { include_defaults: false };
 const namedUnitFields: W3CEvents.Field[] = [
     f("name", "string"),
     f("typeId", "int"),
+    f("unitType", "string"),
 ];
 
 const namedEventFields: W3CEvents.Field[] = [
@@ -39,7 +40,7 @@ export const metricSchemas: W3CEvents.Schema[] = [
         f("unitDone", "float"),
         f("unitTaken", "float"),
     ]),
-    ...["UnitStarted", "UnitCancelled", "UnitTrained", "HeroCancelled", "HeroTrained"].map((name) =>
+    ...["UnitStarted", "UnitCancelled", "UnitTrained"].map((name) =>
         schema(name, namedUnitFields)
     ),
     ...["StructureStart", "StructureCancel", "StructureBuilt"].map((name) =>

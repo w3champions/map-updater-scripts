@@ -21,28 +21,30 @@ function trackPlayerTraining() {
 
     let name = "";
     let typeId = 0;
-    let isHero = false;
+    let unitType = "unit";
 
     if (eventId === EVENT_PLAYER_UNIT_TRAIN_START) {
         typeId = GetTrainedUnitType();
         name = GetObjectName(typeId);
+        unitType = IsHeroUnitId(typeId) ? "hero" : "unit";
     } else {
         const unit = GetTrainedUnit();
         typeId = GetUnitTypeId(unit);
         name = GetUnitName(unit);
-        isHero = IsUnitType(unit, UNIT_TYPE_HERO);
+        unitType = IsUnitType(unit, UNIT_TYPE_HERO) ? "hero" : "unit";
     }
 
     const eventType =
         eventId === EVENT_PLAYER_UNIT_TRAIN_START
             ? "UnitStarted"
             : eventId === EVENT_PLAYER_UNIT_TRAIN_CANCEL
-            ? isHero ? "HeroCancelled" : "UnitCancelled"
-            : isHero ? "HeroTrained" : "UnitTrained";
+            ? "UnitCancelled"
+            : "UnitTrained";
 
     W3CEvents.event(eventType, {
         player: id,
         name,
         typeId,
+        unitType,
     });
 }
