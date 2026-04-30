@@ -31,7 +31,7 @@ local W3CChecksum = require("lua.w3cChecksum")
 
 local MAX_PAYLOAD_SIZE_BYTES = 180
 local CHECKSUM_INTERVAL_SECS = 30
-local FLUSH_INTERVAL_SECS = 30
+local FLUSH_INTERVAL_SECS = 5
 local PLAYER_INDEX_TO_FLUSH = 0
 
 -- This needs to be "WC" for W3Champions to be able to automatically parse events.
@@ -698,6 +698,7 @@ end
 --- buffered payloads, sends a trailing checksum, and shuts the library down.
 ---@param player_results W3CEventsGameEnd
 function W3CEvents.end_game(self_or_player_results, maybe_player_results)
+    debug_log("Ending game")
 	local player_results = self_or_player_results
 	if self_or_player_results == W3CEvents then
 		player_results = maybe_player_results
@@ -719,8 +720,11 @@ function W3CEvents.end_game(self_or_player_results, maybe_player_results)
 		W3CEvents.event(EVENTS.GAME_END, { time = now(), player = player_result.player, player_won = player_result.won })
 	end
 
-	flush(true)
-	send_checksum()
+    debug_log("Flushing events")
+    flush(true)
+	debug_log("Sending checksum")
+    send_checksum()
+	debug_log("Shutting down")
 	shutdown()
 end
 

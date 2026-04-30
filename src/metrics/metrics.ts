@@ -8,6 +8,7 @@ import { trackBuildings } from "./playerBuildings";
 import { trackHeroes } from "./heroes";
 import { trackResearch } from "./research";
 import { metricSchemas } from "./schemas";
+import { trackGameEnd } from "./gameEnd";
 
 export function initMetrics() {
     W3CEvents.initialize();
@@ -37,4 +38,5 @@ export function setupEventMetrics() {
     trackBuildings();
     trackHeroes();
     trackResearch();
+    trackGameEnd();
 }
