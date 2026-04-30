@@ -1,3 +1,12 @@
+--[[
+
+Utility for creating data schemas for use by W3CEvents.
+
+Data schemas are used to define the fields for an event created by W3CEvents. These data schemas are used to allow
+for efficient data compression of event data.
+
+]]--
+
 ---@alias FieldType "bool" | "byte" | "short" | "int" | "number" | "float" | "string"
 
 local VALID_FIELD_TYPES = {

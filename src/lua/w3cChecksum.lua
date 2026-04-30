@@ -1,3 +1,9 @@
+--[[
+
+Utility for generating CRC32 checksums. Used by W3CEvents.
+
+]]--
+
 local CRC32_POLY = 0xEDB88320
 local CRC32_TABLE = {}
 

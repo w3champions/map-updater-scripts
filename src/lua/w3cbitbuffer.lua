@@ -1,3 +1,12 @@
+--[[
+
+Utility for reading and writing compressed byte data. Used by W3CEvents internally to compress event data sent.
+
+Uses LibDeflate nad bit packing.
+
+]]--
+
+
 require("lua.libDeflate")
 
 ---@class Writer
