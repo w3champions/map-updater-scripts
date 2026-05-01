@@ -19,6 +19,7 @@ export function trackGameEnd() {
     }
 
     TriggerRegisterGameEvent(gameTrigger, EVENT_GAME_END_LEVEL);
+    TriggerRegisterGameEvent(gameTrigger, EVENT_GAME_VICTORY);
 
     TriggerAddAction(playerTrigger, () => {
         if (ended) {

@@ -23,8 +23,6 @@ export function initMetrics() {
             });
         }
     }
-
-    W3CEvents.flush(true);
 }
 
 export function setupTrackMetrics() {
