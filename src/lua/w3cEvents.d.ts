@@ -3,7 +3,6 @@ export function register_shared_schema(schema: Schema, setter: (event: EventPayl
 export function register_all_schemas(schemas: Schema[]): void;
 export function event(name: string, payload: EventPayload): void;
 export function track(name: string, getter: () => EventPayload | EventPayload[], interval: number): () => void;
-export function flush(immediate?: boolean): void;
 export function end_game(playerResults: W3CEventsGameEndPlayer[]): void;
 export function boolField(name: string): Field;
 export function byteField(name: string, options?: IntegerFieldOptions): Field;
@@ -57,7 +56,7 @@ export interface W3CEventsConfig {
 
 export interface ChecksumConfig extends BooleanConfig {
     get_checksum?: () => string;
-    interval?: number;
+    event_interval?: number;
 }
 
 export interface EventSharedSchemaConfig extends BooleanConfig {
@@ -65,7 +64,7 @@ export interface EventSharedSchemaConfig extends BooleanConfig {
 }
 
 export interface FlushConfig {
-    interval?: number;
+    event_count?: number;
 }
 
 export interface BooleanConfig {

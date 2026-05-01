@@ -30,9 +30,9 @@ local W3CData = require("lua.w3cdata")
 local W3CChecksum = require("lua.w3cChecksum")
 
 local MAX_PAYLOAD_SIZE_BYTES = 180
-local CHECKSUM_INTERVAL_SECS = 30
-local FLUSH_INTERVAL_SECS = 5
 local PLAYER_INDEX_TO_FLUSH = 0
+local DEFAULT_FLUSH_EVENT_COUNT = 64
+local CHECKSUM_EVENT_INTERVAL = 10
 
 -- This needs to be "WC" for W3Champions to be able to automatically parse events.
 -- Prefixes larger than 2 characters may cause latency issues. See below post, although it's specific to the other
@@ -56,7 +56,7 @@ local ERRORS = {
 ---@class ChecksumConfig
 ---@field enabled boolean
 ---@field get_checksum? function Optional override used to generate checksum payload values.
----@field interval? integer Interval in seconds for periodic checksum packets.
+---@field event_interval? integer Interval in number of events for periodic checksum packets.
 
 ---@class EventSharedSchemaConfig
 ---@field enabled boolean
@@ -66,7 +66,7 @@ local ERRORS = {
 ---@field enabled boolean
 
 ---@class FlushConfig
----@field interval? number
+---@field event_count? integer Number of buffered events required to trigger an automatic flush.
 
 ---@class W3CEventsConfig
 ---@field checksum ChecksumConfig
@@ -88,9 +88,9 @@ local W3CEvents = {
 	event_buffer = {},
 	trackers = {},
 	config = {
-		checksum = { enabled = true },
+		checksum = { enabled = true, event_interval = CHECKSUM_EVENT_INTERVAL },
 		shared_schema = { enabled = true },
-		flush = { interval = FLUSH_INTERVAL_SECS },
+		flush = { event_count = DEFAULT_FLUSH_EVENT_COUNT },
 		logging = { enabled = false },
 	},
 }
@@ -231,6 +231,8 @@ local event_buffer_size = 0
 local game_ended = false
 local initialized = false
 local schemas_registered = false
+local event_sequence = 0
+local events_since_checksum = 0
 
 ---@type W3CChecksum
 local checksum = nil
@@ -242,7 +244,8 @@ local shared_schema = {
 	include_defaults = false,
 	fields = {
 		{ name = "player", field_type = "int", num_of_bits = 5 }, -- Up to 32 player ids
-		{ name = "time",   field_type = "int", num_of_bits = 13 }, -- Up to ~2 hours 16 minutes
+		{ name = "time", field_type = "int", num_of_bits = 13 }, -- Up to ~2 hours 16 minutes
+		{ name = "sequence", field_type = "int" },
 	},
 }
 
@@ -254,8 +257,9 @@ local game_end_schema = {
 	-- to use for game end.
 	include_defaults = false,
 	fields = {
-		{ name = "player",     field_type = "int",  num_of_bits = 5 },
-		{ name = "time",       field_type = "int",  num_of_bits = 13 },
+		{ name = "player", field_type = "int", num_of_bits = 5 },
+		{ name = "time", field_type = "int", num_of_bits = 13 },
+		{ name = "sequence", field_type = "int" },
 		{ name = "player_won", field_type = "bool" },
 	},
 }
@@ -264,37 +268,6 @@ local function debug_log(message)
 	if W3CEvents.config.logging and W3CEvents.config.logging.enabled then
 		print("[W3CEvents] " .. message)
 	end
-end
-
-local function send_payloads(payloads, immediate)
-	if immediate then
-		for _, payload in ipairs(payloads) do
-			BlzSendSyncData(SYNC_DATA_PREFIX, payload)
-		end
-		debug_log("sent " .. tostring(#payloads) .. " payload(s) immediately")
-		return
-	end
-
-	local timer = CreateTimer()
-	local index = 1
-
-	-- Iterate through all payloads on a timer, sending every 0.2 seconds until
-	-- all payloads are sent. To prevent us sending huge amounts of SyncData all at
-	-- once causing latency issues
-	-- 0.2 seconds results in sending a maximum of 1275 bytes/second, a little over 1kb, if
-	-- all payloads use all 255 bytes possible
-	-- WC3 has a max bandwidth of 4kb/s before having issues
-	TimerStart(timer, 0.2, true, function()
-		if index <= #payloads then
-			local payload = payloads[index]
-			index = index + 1
-			BlzSendSyncData(SYNC_DATA_PREFIX, payload)
-		else
-			PauseTimer(timer)
-			DestroyTimer(timer)
-			debug_log("sent " .. tostring(#payloads) .. " payload(s) on timer")
-		end
-	end)
 end
 
 local function debug_payload_headers(payloads)
@@ -327,8 +300,7 @@ end
 --- Normal event payloads are only emitted by the configured flush player
 --- (`PLAYER_INDEX_TO_FLUSH`). Other players still update their local checksum state
 --- and send checksum packets.
----@param immediate? boolean When true, send all payload packets immediately instead of spacing them over time
-local function flush(immediate)
+local function flush()
 	-- Don't flush if we've disabled events. Disabled in `W3CEvents:end_game()`
 	if game_ended or #W3CEvents.event_buffer == 0 then
 		if not game_ended then
@@ -352,7 +324,9 @@ local function flush(immediate)
 		end
 		debug_log("encoded " .. tostring(#payloads) .. " payload packet(s)")
 		debug_payload_headers(payloads)
-		send_payloads(payloads, immediate)
+		for _, payload in ipairs(payloads) do
+			BlzSendSyncData(SYNC_DATA_PREFIX, payload)
+		end
 	else
 		debug_log("flush skipped on local player " .. tostring(local_player_id))
 	end
@@ -364,12 +338,6 @@ end
 -- Monotonic clock to get time since game started
 ---@type timer
 local clock = nil
-
----@type timer
-local checksum_clock = nil
-
----@type timer
-local flush_clock = nil
 
 local function now()
 	return math.floor(TimerGetElapsed(clock))
@@ -410,6 +378,8 @@ local function add_shared_schema_data(event)
 			event["time"] = now()
 		elseif field.name == "player" and event["player"] == nil then
 			event["player"] = GetPlayerId(GetLocalPlayer())
+		elseif field.name == "sequence" and event["sequence"] == nil then
+			event["sequence"] = event_sequence + 1
 		end
 	end
 end
@@ -446,12 +416,28 @@ local function update_checksum_for_event(schema_name, payload)
 	checksum:update(framed)
 end
 
+local function should_flush_buffer()
+	local flush_config = W3CEvents.config.flush
+	if not flush_config or flush_config.event_count == nil then
+		return false
+	end
+
+	return flush_config.event_count > 0 and #W3CEvents.event_buffer >= flush_config.event_count
+end
+
 --- Sends a checksum payload using the configured checksum getter.
-local function send_checksum()
-	if W3CEvents.config.checksum.enabled then
+---@param force? boolean When true, emit the checksum even if the event interval has not been reached.
+local function send_checksum(force)
+	if not W3CEvents.config.checksum.enabled then
+		return
+	end
+
+	local interval = W3CEvents.config.checksum.event_interval or CHECKSUM_EVENT_INTERVAL
+	if force or (interval > 0 and events_since_checksum >= interval) then
 		local checksum_value = W3CEvents.config.checksum.get_checksum()
 		local payload = W3CData:generate_checksum_payload(checksum_value)
 		BlzSendSyncData(SYNC_DATA_PREFIX, payload)
+		events_since_checksum = 0
 	end
 end
 
@@ -460,22 +446,11 @@ local function get_checksum()
 	return checksum:finalize()
 end
 
---- Creates and starts the timers used by this module:
---- the monotonic game clock, the periodic checksum timer, and the periodic flush timer.
+--- Creates and starts the timer used by this module for the monotonic game clock.
 local function setup_timers()
 	if not clock then
 		clock = CreateTimer()
 		TimerStart(clock, 1e9, false, nil)
-	end
-
-	if not checksum_clock and W3CEvents.config.checksum.enabled then
-		checksum_clock = CreateTimer()
-		TimerStart(checksum_clock, W3CEvents.config.checksum.interval, true, send_checksum)
-	end
-
-	if not flush_clock and W3CEvents.config.flush and W3CEvents.config.flush.interval and W3CEvents.config.flush.interval > 0 then
-		flush_clock = CreateTimer()
-		TimerStart(flush_clock, W3CEvents.config.flush.interval, true, flush)
 	end
 end
 
@@ -485,16 +460,6 @@ local function shutdown()
 	if clock then
 		PauseTimer(clock)
 		DestroyTimer(clock)
-	end
-
-	if checksum_clock then
-		PauseTimer(checksum_clock)
-		DestroyTimer(checksum_clock)
-	end
-
-	if flush_clock then
-		PauseTimer(flush_clock)
-		DestroyTimer(flush_clock)
 	end
 
 	for timer in pairs(W3CEvents.trackers) do
@@ -556,7 +521,7 @@ function W3CEvents.initialize(config)
 		checksum = W3CChecksum.new()
 
 		W3CEvents.config.checksum.get_checksum = W3CEvents.config.checksum.get_checksum or get_checksum
-		W3CEvents.config.checksum.interval = W3CEvents.config.checksum.interval or CHECKSUM_INTERVAL_SECS
+		W3CEvents.config.checksum.event_interval = W3CEvents.config.checksum.event_interval or CHECKSUM_EVENT_INTERVAL
 	end
 
 	W3CData:register_schema(game_end_schema)
@@ -632,17 +597,6 @@ function W3CEvents.track(self_or_name, maybe_name_or_getter, maybe_getter_or_int
 	end
 end
 
---- Flushes the buffered event payloads, if any.
----@param immediate? boolean When true, send all payload packets immediately instead of staggering them on a timer
-function W3CEvents.flush(self_or_immediate, maybe_immediate)
-	local immediate = self_or_immediate
-	if self_or_immediate == W3CEvents then
-		immediate = maybe_immediate
-	end
-
-	flush(immediate)
-end
-
 --- Queues a single event payload for later flush.
 ---
 --- The event must match a registered schema. If shared schema defaults are enabled,
@@ -683,22 +637,30 @@ function W3CEvents.event(self_or_name, maybe_event, maybe_unused)
 	local payload = ordered_payload(schema, event)
 
 	update_checksum_for_event(name, payload)
-
-	local size_estimate = estimate_event_size(name, event)
-	if event_buffer_size + size_estimate > MAX_PAYLOAD_SIZE_BYTES then
-		flush()
-	end
-	event_buffer_size = event_buffer_size + size_estimate
+	event_buffer_size = event_buffer_size + estimate_event_size(name, event)
 
 	table.insert(W3CEvents.event_buffer, { schema_name = name, payload = payload })
-	debug_log("queued event " .. tostring(name) .. "; buffer=" .. tostring(#W3CEvents.event_buffer) .. "; bytes~" .. tostring(event_buffer_size))
+	event_sequence = event_sequence + 1
+	events_since_checksum = events_since_checksum + 1
+	debug_log(
+		"queued event "
+			.. tostring(name)
+			.. "; buffer="
+			.. tostring(#W3CEvents.event_buffer)
+			.. "; bytes~"
+			.. tostring(event_buffer_size)
+	)
+
+	if should_flush_buffer() then
+		flush()
+	end
 end
 
 --- Emits one `W3CGameEnd` event per player result, immediately flushes the final
 --- buffered payloads, sends a trailing checksum, and shuts the library down.
 ---@param player_results W3CEventsGameEnd
 function W3CEvents.end_game(self_or_player_results, maybe_player_results)
-    debug_log("Ending game")
+	debug_log("Ending game")
 	local player_results = self_or_player_results
 	if self_or_player_results == W3CEvents then
 		player_results = maybe_player_results
@@ -717,13 +679,21 @@ function W3CEvents.end_game(self_or_player_results, maybe_player_results)
 	end
 
 	for _, player_result in ipairs(player_results) do
-		W3CEvents.event(EVENTS.GAME_END, { time = now(), player = player_result.player, player_won = player_result.won })
+		W3CEvents.event(
+			EVENTS.GAME_END,
+			{
+				time = now(),
+				player = player_result.player,
+				sequence = event_sequence + 1,
+				player_won = player_result.won,
+			}
+		)
 	end
 
-    debug_log("Flushing events")
-    flush(true)
+	debug_log("Flushing events")
+	flush()
 	debug_log("Sending checksum")
-    send_checksum()
+	send_checksum(true)
 	debug_log("Shutting down")
 	shutdown()
 end

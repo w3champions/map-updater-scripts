@@ -10,6 +10,7 @@ local W3CData = bootstrap.W3CData
 
 local sent_sync_packets = {}
 local current_player_id = 0
+local created_timers = {}
 
 function Player(id)
 	return { id = id }
@@ -28,7 +29,9 @@ function BlzSendSyncData(prefix, payload)
 end
 
 function CreateTimer()
-	return { elapsed = 0 }
+	local timer = { elapsed = 0 }
+	created_timers[#created_timers + 1] = timer
+	return timer
 end
 
 function TimerStart(timer, timeout, periodic, callback)
@@ -73,14 +76,32 @@ local function assert_not_equal(actual, expected, label)
 	assert(actual ~= expected, label .. ": values should differ")
 end
 
+
+local function packet_payloads(start_index)
+	local payloads = {}
+	for index = start_index or 1, #sent_sync_packets do
+		payloads[#payloads + 1] = sent_sync_packets[index].payload
+	end
+	return payloads
+end
+
+local function unique_string(seed)
+	local chars = {}
+	for index = 1, 120 do
+		local code = 33 + ((seed * 17 + index * 13) % 90)
+		chars[#chars + 1] = string.char(code)
+	end
+	return table.concat(chars)
+end
+
 local function test_checksum_framing()
 	print("------")
-	print("Testing W3CEvents checksum framing")
+	print("Testing W3CEvents buffered flushing")
 
 	W3CEvents.initialize({
-		checksum = { enabled = true },
+		checksum = { enabled = true, event_interval = 99 },
 		shared_schema = { enabled = false },
-		flush = { interval = 0 },
+		flush = { event_count = 2 },
 	})
 
 	W3CEvents:register_all_schemas({
@@ -93,6 +114,9 @@ local function test_checksum_framing()
 		W3CEvents.schema("Pair", {
 			W3CEvents.byteField("left"),
 			W3CEvents.byteField("right"),
+		}, { include_defaults = false }),
+		W3CEvents.schema("Large", {
+			W3CEvents.stringField("value"),
 		}, { include_defaults = false }),
 	})
 
@@ -113,7 +137,12 @@ local function test_checksum_framing()
 		"Framed bytes should preserve field boundaries"
 	)
 
+	local packets_after_registry = #sent_sync_packets
+	W3CEvents:flush()
+	assert_equal(#sent_sync_packets, packets_after_registry, "empty flush should not send packets")
+
 	W3CEvents:event("SchemaA", { value = 5 })
+	assert_equal(#sent_sync_packets, packets_after_registry, "single event should remain buffered before threshold")
 	assert_equal(
 		W3CEvents.config.checksum.get_checksum(),
 		checksum_for({
@@ -123,6 +152,7 @@ local function test_checksum_framing()
 	)
 
 	W3CEvents:event("SchemaB", { value = 5 })
+	assert_equal(#sent_sync_packets, packets_after_registry + 1, "reaching threshold should flush buffered events")
 	assert_equal(
 		W3CEvents.config.checksum.get_checksum(),
 		checksum_for({
@@ -144,6 +174,7 @@ local function test_checksum_framing()
 	)
 
 	W3CEvents:event("Pair", { left = 12, right = 3 })
+	assert_equal(#sent_sync_packets, packets_after_registry + 2, "second threshold flush should send the next buffered batch")
 	assert_equal(
 		W3CEvents.config.checksum.get_checksum(),
 		checksum_for({
@@ -156,7 +187,31 @@ local function test_checksum_framing()
 	)
 
 	assert(#sent_sync_packets > 0, "Schema registration should emit sync payloads")
-	print("W3CEvents checksum framing test passed")
+	print("W3CEvents threshold flush test passed")
+
+	local stop_tracking = W3CEvents:track("SchemaA", function()
+		return { value = 9 }
+	end, 1)
+	local tracker_timer = created_timers[#created_timers]
+	local packets_before_tracker = #sent_sync_packets
+	tracker_timer.callback()
+	assert_equal(#sent_sync_packets, packets_before_tracker, "tracker event should buffer until threshold")
+	tracker_timer.callback()
+	assert_equal(#sent_sync_packets, packets_before_tracker + 1, "tracker events should flush through the same buffer threshold")
+	stop_tracking()
+
+	W3CEvents.config.flush.event_count = 0
+	local packets_before_large_flush = #sent_sync_packets
+	local large_values = {}
+	for index = 1, 6 do
+		local large_value = unique_string(index)
+		large_values[#large_values + 1] = large_value
+		W3CEvents:event("Large", { value = large_value })
+	end
+	W3CEvents:flush()
+	local large_flush_payloads = packet_payloads(packets_before_large_flush + 1)
+	assert(#large_flush_payloads > 1, "large buffered flush should send multiple payload packets")
+	assert_equal(#W3CData:decode_payloads(large_flush_payloads), 6, "multi-packet flush should deliver the full buffered batch")
 
 	local packets_before_end_game = #sent_sync_packets
 	local end_game_events = {
@@ -176,8 +231,16 @@ local function test_checksum_framing()
 			{ schema_name = "SchemaB", payload = schema_b_payload },
 			{ schema_name = "Pair", payload = pair_payload_a },
 			{ schema_name = "Pair", payload = pair_payload_b },
-			{ schema_name = "W3CGameEnd", payload = { 0, 0, true } },
-			{ schema_name = "W3CGameEnd", payload = { 1, 0, false } },
+			{ schema_name = "SchemaA", payload = { 9 } },
+			{ schema_name = "SchemaA", payload = { 9 } },
+			{ schema_name = "Large", payload = { large_values[1] } },
+			{ schema_name = "Large", payload = { large_values[2] } },
+			{ schema_name = "Large", payload = { large_values[3] } },
+			{ schema_name = "Large", payload = { large_values[4] } },
+			{ schema_name = "Large", payload = { large_values[5] } },
+			{ schema_name = "Large", payload = { large_values[6] } },
+			{ schema_name = "W3CGameEnd", payload = { 0, 0, 13, true } },
+			{ schema_name = "W3CGameEnd", payload = { 1, 0, 14, false } },
 		}),
 		"Final checksum should include W3CGameEnd events"
 	)
