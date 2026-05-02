@@ -42,6 +42,8 @@ function trackHeroLevel() {
         player: id,
         hero: GetUnitName(unit),
         level: GetHeroLevel(unit),
+        x: GetUnitX(unit),
+        y: GetUnitY(unit),
     };
 
     W3CEvents.event("HeroLevel", payload);
@@ -57,6 +59,8 @@ function trackHeroSkill() {
         heroLevel: GetHeroLevel(hero),
         skill: GetObjectName(GetLearnedSkill()),
         skillLevel: GetLearnedSkillLevel(),
+        x: GetUnitX(hero),
+        y: GetUnitY(hero),
     };
 
     W3CEvents.event("HeroSkill", payload);
@@ -71,6 +75,8 @@ function trackHeroInventory() {
     const payload: W3CEvents.EventPayload = {
         player: id,
         item: itemName,
+        x: GetUnitX(hero),
+        y: GetUnitY(hero),
     };
 
     let eventType = "";

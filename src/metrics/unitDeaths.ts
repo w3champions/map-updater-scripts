@@ -10,7 +10,7 @@ export function trackUnitDeaths() {
     TriggerAddAction(trigger, trackCreepKill);
 }
 
-function emitChangedHeroXpAfterDelay(player: player, source: string) {
+function emitChangedHeroXpAfterDelay(player: player, source: string, sourcePlayer = -1) {
     if (player === Players[PLAYER_NEUTRAL_AGGRESSIVE].handle) {
         return;
     }
@@ -48,6 +48,7 @@ function emitChangedHeroXpAfterDelay(player: player, source: string) {
                 heroTypeId: GetUnitTypeId(hero),
                 xp,
                 source,
+                sourcePlayer,
             };
             W3CEvents.event("HeroXp", xpPayload);
         }
@@ -68,6 +69,8 @@ function trackPlayerUnitDeath() {
     const payload: W3CEvents.EventPayload = {
         player: id,
         name: GetUnitName(unit),
+        dyingUnitX: GetUnitX(unit),
+        dyingUnitY: GetUnitY(unit),
     };
 
     if (IsUnitType(unit, UNIT_TYPE_STRUCTURE)) {
@@ -80,7 +83,7 @@ function trackPlayerUnitDeath() {
 
     const killingUnit = GetKillingUnit();
     const killingPlayer = GetOwningPlayer(killingUnit);
-    emitChangedHeroXpAfterDelay(killingPlayer, "opponent");
+    emitChangedHeroXpAfterDelay(killingPlayer, "opponent", id);
 }
 
 function trackCreepKill() {
@@ -97,9 +100,12 @@ function trackCreepKill() {
     const payload: W3CEvents.EventPayload = {
         player: killingPlayerId,
         name: unitName,
+        dyingUnitX: GetUnitX(unit),
+        dyingUnitY: GetUnitY(unit),
     };
 
     if (killingPlayer !== Players[PLAYER_NEUTRAL_AGGRESSIVE].handle) {
+        payload.killingUnit = GetUnitName(killingUnit);
         W3CEvents.event("CreepKill", payload);
     } else {
         W3CEvents.event("CreepDeny", payload);

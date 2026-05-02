@@ -47,6 +47,8 @@ function trackConstructEvents() {
         name: GetUnitName(structure),
         typeId: GetUnitTypeId(structure),
         unitType: "structure",
+        x: GetUnitX(structure),
+        y: GetUnitY(structure),
     };
 
     W3CEvents.event(eventType, payload);

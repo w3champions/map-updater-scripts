@@ -8,10 +8,14 @@ const namedUnitFields: W3CEvents.Field[] = [
     f("name", "string"),
     f("typeId", "int"),
     f("unitType", "string"),
+    f("x", "float"),
+    f("y", "float"),
 ];
 
 const namedEventFields: W3CEvents.Field[] = [
     f("name", "string"),
+    f("dyingUnitX", "float"),
+    f("dyingUnitY", "float"),
 ];
 
 export const metricSchemas: W3CEvents.Schema[] = [
@@ -58,28 +62,48 @@ export const metricSchemas: W3CEvents.Schema[] = [
     schema("HeroLevel", [
         f("hero", "string"),
         f("level", "int"),
+        f("x", "float"),
+        f("y", "float"),
     ]),
     schema("HeroSkill", [
         f("hero", "string"),
         f("heroLevel", "int"),
         f("skill", "string"),
         f("skillLevel", "int"),
+        f("x", "float"),
+        f("y", "float"),
     ]),
     schema("HeroItemPickup", [
         f("item", "string"),
         f("slot", "int"),
+        f("x", "float"),
+        f("y", "float"),
     ]),
     ...["HeroItemDrop", "HeroItemBought", "HeroItemSold"].map((name) =>
-        schema(name, [f("hero", "string"), f("heroTypeId", "int"), f("item", "string"), f("itemTypeId", "int")])
+        schema(name, [
+            f("hero", "string"),
+            f("heroTypeId", "int"),
+            f("item", "string"),
+            f("itemTypeId", "int"),
+            f("x", "float"),
+            f("y", "float"),
+        ])
     ),
-    ...["StructureDeath", "WorkerDeath", "UnitDeath", "CreepKill", "CreepDeny"].map((name) =>
+    ...["StructureDeath", "WorkerDeath", "UnitDeath", "CreepDeny"].map((name) =>
         schema(name, namedEventFields)
     ),
+    schema("CreepKill", [
+        f("name", "string"),
+        f("killingUnit", "string"),
+        f("dyingUnitX", "float"),
+        f("dyingUnitY", "float"),
+    ]),
     schema("HeroXp", [
         f("name", "string"),
         f("heroTypeId", "int"),
         f("xp", "int"),
         f("source", "string"),
+        f("sourcePlayer", "int"),
     ]),
     schema("HeroItemUse", [
        f("hero", "string"),

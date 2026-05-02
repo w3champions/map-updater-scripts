@@ -22,13 +22,14 @@ function trackPlayerTraining() {
     let name = "";
     let typeId = 0;
     let unitType = "unit";
+    let unit = GetTriggerUnit();
 
     if (eventId === EVENT_PLAYER_UNIT_TRAIN_START) {
         typeId = GetTrainedUnitType();
         name = GetObjectName(typeId);
         unitType = IsHeroUnitId(typeId) ? "hero" : "unit";
     } else {
-        const unit = GetTrainedUnit();
+        unit = GetTrainedUnit();
         typeId = GetUnitTypeId(unit);
         name = GetUnitName(unit);
         unitType = IsUnitType(unit, UNIT_TYPE_HERO) ? "hero" : "unit";
@@ -46,5 +47,7 @@ function trackPlayerTraining() {
         name,
         typeId,
         unitType,
+        x: GetUnitX(unit),
+        y: GetUnitY(unit),
     });
 }
