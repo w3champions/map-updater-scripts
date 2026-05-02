@@ -787,9 +787,19 @@ function W3CEvents.register_all_schemas(self_or_schemas, maybe_schemas)
     W3CData:register_all_schemas(schemas)
 
     local payloads = W3CData:generate_registry_payloads()
-    for _, payload in ipairs(payloads) do
-        BlzSendSyncData(SYNC_DATA_PREFIX, payload)
+    
+    local index = 1
+    local timer = CreateTimer()
+    local function send_next_batch()
+        if index > #payloads then
+            PauseTimer(timer)
+            DestroyTimer(timer)
+            return
+        end
+        BlzSendSyncData(SYNC_DATA_PREFIX, payloads[index])
+        index = index + 1
     end
+    TimerStart(timer, 0.1, true, send_next_batch)
     debug_log("registered schemas; sent " .. tostring(#payloads) .. " schema payload(s)")
 
     schemas_registered = true
