@@ -231,6 +231,8 @@ local W3CData = {
 	config = { shared_schema = { enabled = true } },
 }
 
+local next_chunk_id = 1
+
 -- Internal schema registry. IDs must match INTERNAL_SCHEMA_ID constants.
 -- SCHEMA(1) and CHECKSUM(2) are registered normally; SHARED(3) starts with no fields
 -- and is populated when the user calls register_schema({name="shared", ...}).
@@ -259,6 +261,17 @@ local bit_writer = bitbuffer.Writer.new()
 function W3CData.init(config)
 	LibDeflate.InitCompressor()
 	W3CData.config = config or { shared_schema = { enabled = true } }
+	next_chunk_id = 1
+end
+
+---@return integer
+local function allocate_chunk_id()
+	local chunk_id = next_chunk_id
+	next_chunk_id = next_chunk_id + 1
+	if next_chunk_id > 65535 then
+		next_chunk_id = 1
+	end
+	return chunk_id
 end
 
 --- Register a schema to be used for compression and decompression.
@@ -819,7 +832,7 @@ function W3CData:encode_payload(events, max_size)
 		return result, false
 	end
 
-	local id = math.random(1, 65535)
+	local id = allocate_chunk_id()
 	local chunks = self:chunk_payload(packed, max_size - 5, id)
 
 	for _, chunk in ipairs(chunks) do
@@ -840,6 +853,7 @@ function W3CData:decode_payloads(payloads)
 	local result = {}
 
 	local chunk_payloads = {}
+	local chunk_order = {}
 
 	for _, sync_data in ipairs(payloads) do
 		sync_data = W3CData.cobs_decode(sync_data)
@@ -862,7 +876,10 @@ function W3CData:decode_payloads(payloads)
 			local chunk_id = (id_hi << 8) | id_lo
 			local payload = sync_data:sub(6)
 
-			chunk_payloads[chunk_id] = chunk_payloads[chunk_id] or {}
+			if not chunk_payloads[chunk_id] then
+				chunk_payloads[chunk_id] = {}
+				chunk_order[#chunk_order + 1] = chunk_id
+			end
 			table.insert(chunk_payloads[chunk_id], {
 				id = chunk_id,
 				count = count,
@@ -872,7 +889,8 @@ function W3CData:decode_payloads(payloads)
 		end
 	end
 
-	for _, chunk in pairs(chunk_payloads) do
+	for _, chunk_id in ipairs(chunk_order) do
+		local chunk = chunk_payloads[chunk_id]
 		local unchunked = self:unchunk_payload(chunk)
 		for _, unpacked in ipairs(self:unpack_batch(unchunked)) do
 			result[#result + 1] = unpacked

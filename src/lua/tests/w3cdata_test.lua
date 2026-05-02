@@ -279,6 +279,78 @@ test_chunking("PlayerState", player_state_events, 20)
 test_chunking("PlayerState", player_state_events, 3)
 test_chunking("UnitTrained", unit_trained_events, 12)
 
+local function chunk_id_from_payload(payload)
+	local decoded = W3CData.cobs_decode(payload)
+	local id_hi = decoded:byte(2)
+	local id_lo = decoded:byte(3)
+	return (id_hi << 8) | id_lo
+end
+
+local function test_chunk_ids_are_deterministic()
+	print("------")
+	print("Testing deterministic chunk ids")
+
+	local first_batch = {}
+	local second_batch = {}
+	for index = 1, 20 do
+		first_batch[#first_batch + 1] = { schema_name = "PlayerState", payload = player_state_events[((index - 1) % #player_state_events) + 1] }
+		second_batch[#second_batch + 1] = { schema_name = "PlayerState", payload = player_state_events[((index - 1) % #player_state_events) + 1] }
+	end
+
+	local first_payloads, first_chunked = W3CData:encode_payload(first_batch, 200)
+	local second_payloads, second_chunked = W3CData:encode_payload(second_batch, 200)
+
+	assert(first_chunked, "First batch should be chunked")
+	assert(second_chunked, "Second batch should be chunked")
+	local first_chunk_id = chunk_id_from_payload(first_payloads[1])
+	local second_chunk_id = chunk_id_from_payload(second_payloads[1])
+	local expected_second_chunk_id = (first_chunk_id % 65535) + 1
+	assert(second_chunk_id == expected_second_chunk_id, "Chunk ids should increment deterministically")
+
+	print("Deterministic chunk id test passed")
+end
+
+test_chunk_ids_are_deterministic()
+
+local function test_chunk_group_order_is_deterministic()
+	print("------")
+	print("Testing deterministic chunk group ordering")
+
+	local batch_a = {}
+	local batch_b = {}
+	for index = 1, 20 do
+		batch_a[#batch_a + 1] = { schema_name = "PlayerState", payload = player_state_events[((index - 1) % #player_state_events) + 1] }
+		batch_b[#batch_b + 1] = { schema_name = "PlayerConfig", payload = player_config_events[((index - 1) % #player_config_events) + 1] }
+	end
+
+	local payloads_a, chunked_a = W3CData:encode_payload(batch_a, 200)
+	local payloads_b, chunked_b = W3CData:encode_payload(batch_b, 200)
+	assert(chunked_a and chunked_b, "Both batches should be chunked")
+
+	local mixed_payloads = {}
+	local max_parts = math.max(#payloads_a, #payloads_b)
+	for index = 1, max_parts do
+		if payloads_a[index] then
+			mixed_payloads[#mixed_payloads + 1] = payloads_a[index]
+		end
+		if payloads_b[index] then
+			mixed_payloads[#mixed_payloads + 1] = payloads_b[index]
+		end
+	end
+
+	local decoded = W3CData:decode_payloads(mixed_payloads)
+	for index = 1, #batch_a do
+		assert(decoded[index][1] == "PlayerState", "First decoded chunk group should preserve input order")
+	end
+	for index = #batch_a + 1, #decoded do
+		assert(decoded[index][1] == "PlayerConfig", "Second decoded chunk group should preserve input order")
+	end
+
+	print("Deterministic chunk group ordering test passed")
+end
+
+test_chunk_group_order_is_deterministic()
+
 local function test_checksum()
 	for _, schema in ipairs(schemas) do
 		checksum:update(json.encode(schema))
