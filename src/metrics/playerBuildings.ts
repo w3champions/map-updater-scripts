@@ -8,6 +8,9 @@ export function trackBuildings() {
             TriggerRegisterPlayerUnitEvent(trigger, Player(i), EVENT_PLAYER_UNIT_CONSTRUCT_START);
             TriggerRegisterPlayerUnitEvent(trigger, Player(i), EVENT_PLAYER_UNIT_CONSTRUCT_CANCEL);
             TriggerRegisterPlayerUnitEvent(trigger, Player(i), EVENT_PLAYER_UNIT_CONSTRUCT_FINISH);
+            TriggerRegisterPlayerUnitEvent(trigger, Player(i), EVENT_PLAYER_UNIT_UPGRADE_START);
+            TriggerRegisterPlayerUnitEvent(trigger, Player(i), EVENT_PLAYER_UNIT_UPGRADE_CANCEL);
+            TriggerRegisterPlayerUnitEvent(trigger, Player(i), EVENT_PLAYER_UNIT_UPGRADE_FINISH);
         }
     }
     TriggerAddCondition(trigger, Condition(isStructure));
@@ -31,12 +34,19 @@ function trackConstructEvents() {
         eventType = "StructureStart";
     } else if (eventId === EVENT_PLAYER_UNIT_CONSTRUCT_CANCEL) {
         eventType = "StructureCancel";
+    } else if (eventId === EVENT_PLAYER_UNIT_UPGRADE_START) {
+        eventType = "UpgradeStart";
+    } else if (eventId === EVENT_PLAYER_UNIT_UPGRADE_CANCEL) {
+        eventType = "UpgradeCancel";
+    } else if (eventId === EVENT_PLAYER_UNIT_UPGRADE_FINISH) {
+        eventType = "UpgradeComplete";
     }
 
     const payload: W3CEvents.EventPayload = {
         player: playerId,
         name: GetUnitName(structure),
         typeId: GetUnitTypeId(structure),
+        unitType: "structure",
     };
 
     W3CEvents.event(eventType, payload);

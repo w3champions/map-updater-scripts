@@ -4,22 +4,37 @@ export function trackResearch() {
     const trigger = CreateTrigger();
     for (let i = 0; i < bj_MAX_PLAYERS; i++) {
         if (GetPlayerSlotState(Player(i)) === PLAYER_SLOT_STATE_PLAYING) {
-            TriggerRegisterPlayerUnitEvent(trigger, Player(i),  EVENT_PLAYER_UNIT_RESEARCH_FINISH)
+            TriggerRegisterPlayerUnitEvent(trigger, Player(i), EVENT_PLAYER_UNIT_RESEARCH_START);
+            TriggerRegisterPlayerUnitEvent(trigger, Player(i), EVENT_PLAYER_UNIT_RESEARCH_CANCEL);
+            TriggerRegisterPlayerUnitEvent(trigger, Player(i), EVENT_PLAYER_UNIT_RESEARCH_FINISH);
         }
     }
 
-    TriggerAddAction(trigger, trackResearchFinished);
+    TriggerAddAction(trigger, trackResearchEvent);
 }
 
-function trackResearchFinished() {
+function trackResearchEvent() {
     const research = GetResearched();
+    const building = GetTriggerUnit();
+    const eventId = GetTriggerEventId();
     const playerId = GetPlayerId(GetTriggerPlayer());
-    const name = GetObjectName(research);
 
     const payload: W3CEvents.EventPayload = {
         player: playerId,
-        name,
+        name: GetObjectName(research),
+        researchId: research,
+        building: GetUnitName(building),
+        buildingTypeId: GetUnitTypeId(building),
+        buildingX: GetUnitX(building),
+        buildingY: GetUnitY(building),
     };
 
-    W3CEvents.event("ResearchDone", payload);
+    const eventName =
+        eventId === EVENT_PLAYER_UNIT_RESEARCH_START
+            ? "ResearchStart"
+            : eventId === EVENT_PLAYER_UNIT_RESEARCH_CANCEL
+            ? "ResearchCancel"
+            : "ResearchComplete";
+
+    W3CEvents.event(eventName, payload);
 }
