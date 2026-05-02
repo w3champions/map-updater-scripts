@@ -49,7 +49,9 @@ export const metricSchemas: W3CEvents.Schema[] = [
         ...["ResearchStart", "ResearchCancel", "ResearchComplete"].map((name) => 
         schema(name, [
             f("name", "string"),
+            f("researchId", "int"),
             f("building", "string"),
+            f("buildingTypeId", "int"),
             f("buildingX", "float"),
             f("buildingY", "float"),
         ])),
@@ -68,23 +70,27 @@ export const metricSchemas: W3CEvents.Schema[] = [
         f("slot", "int"),
     ]),
     ...["HeroItemDrop", "HeroItemBought", "HeroItemSold"].map((name) =>
-        schema(name, [f("hero", "string"), f("item", "string")])
+        schema(name, [f("hero", "string"), f("heroTypeId", "int"), f("item", "string"), f("itemTypeId", "int")])
     ),
     ...["StructureDeath", "WorkerDeath", "UnitDeath", "CreepKill", "CreepDeny"].map((name) =>
         schema(name, namedEventFields)
     ),
     schema("HeroXp", [
         f("name", "string"),
+        f("heroTypeId", "int"),
         f("xp", "int"),
         f("source", "string"),
     ]),
     schema("HeroItemUse", [
        f("hero", "string"),
+       f("heroTypeId", "int"),
        f("item", "string"),
+       f("itemTypeId", "int"),
        f("heroX", "float"),
        f("heroY", "float"),
        f("targetX", "float"),
        f("targetY", "float"),
+       f("targetTypeId", "int"),
        f("target", "string"),
        f("targetPlayer", "int"), 
     ]),

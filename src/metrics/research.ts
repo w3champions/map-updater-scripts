@@ -22,7 +22,9 @@ function trackResearchEvent() {
     const payload: W3CEvents.EventPayload = {
         player: playerId,
         name: GetObjectName(research),
+        researchId: research,
         building: GetUnitName(building),
+        buildingTypeId: GetUnitTypeId(building),
         buildingX: GetUnitX(building),
         buildingY: GetUnitY(building),
     };

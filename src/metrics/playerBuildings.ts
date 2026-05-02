@@ -45,6 +45,7 @@ function trackConstructEvents() {
     const payload: W3CEvents.EventPayload = {
         player: playerId,
         name: GetUnitName(structure),
+        typeId: GetUnitTypeId(structure),
         unitType: "structure",
     };
 

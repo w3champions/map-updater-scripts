@@ -86,12 +86,18 @@ function trackHeroInventory() {
     } else if (eventId === EVENT_PLAYER_UNIT_DROP_ITEM) {
         eventType = "HeroItemDrop";
         payload.hero = GetUnitName(hero);
+        payload.heroTypeId = GetUnitTypeId(hero);
+        payload.itemTypeId = GetItemTypeId(item);
     } else if (eventId === EVENT_PLAYER_UNIT_SELL_ITEM) {
         eventType = "HeroItemBought";
         payload.hero = GetUnitName(hero);
+        payload.heroTypeId = GetUnitTypeId(hero);
+        payload.itemTypeId = GetItemTypeId(item);
     } else if (eventId === EVENT_PLAYER_UNIT_PAWN_ITEM) {
         eventType = "HeroItemSold";
         payload.hero = GetUnitName(hero);
+        payload.heroTypeId = GetUnitTypeId(hero);
+        payload.itemTypeId = GetItemTypeId(item);
     }
 
     W3CEvents.event(eventType, payload);
@@ -107,11 +113,14 @@ function trackHeroItemUse() {
     const payload: W3CEvents.EventPayload = {
         player: id,
         hero: GetUnitName(hero),
+        heroTypeId: GetUnitTypeId(hero),
         item: itemName,
+        itemTypeId: GetItemTypeId(item),
         heroX: GetUnitX(hero),
         heroY: GetUnitY(hero),
         targetX: target.x,
         targetY: target.y,
+        targetTypeId: target.typeId,
         target: target.name,
         targetPlayer: target.player,
     };
@@ -122,6 +131,7 @@ function trackHeroItemUse() {
 interface HeroItemUseTarget {
     x: number;
     y: number;
+    typeId: number;
     name: string;
     player: number;
 }
@@ -132,6 +142,7 @@ function getHeroItemUseTarget() : HeroItemUseTarget {
         return {
             x: GetUnitX(targetUnit),
             y: GetUnitY(targetUnit),
+            typeId: GetUnitTypeId(targetUnit),
             name: GetUnitName(targetUnit),
             player: GetPlayerId(GetOwningPlayer(targetUnit)),
         };
@@ -143,6 +154,7 @@ function getHeroItemUseTarget() : HeroItemUseTarget {
     return {
         x: targetX,
         y: targetY,
+        typeId: 0,
         name: "",
         player: -1,
     };
