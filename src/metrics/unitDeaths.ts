@@ -45,7 +45,6 @@ function emitChangedHeroXpAfterDelay(player: player, source: string) {
             const xpPayload: W3CEvents.EventPayload = {
                 player: playerId,
                 name: GetUnitName(hero),
-                heroTypeId: GetUnitTypeId(hero),
                 xp,
                 source,
             };
