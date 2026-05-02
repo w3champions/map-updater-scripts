@@ -31,7 +31,7 @@ local W3CChecksum = require("lua.w3cChecksum")
 
 local MAX_PAYLOAD_SIZE_BYTES = 180
 local PLAYER_INDEX_TO_FLUSH = 0
-local DEFAULT_FLUSH_EVENT_COUNT = 64
+local DEFAULT_FLUSH_EVENT_COUNT = 6
 local CHECKSUM_EVENT_INTERVAL = 10
 
 -- This needs to be "WC" for W3Champions to be able to automatically parse events.
@@ -299,6 +299,62 @@ local function debug_payload_headers(payloads)
     end
 end
 
+--- Returns the positional payload index for the `sequence` field on a schema, if present.
+---@param schema_name string
+---@return integer|nil
+local function sequence_field_index(schema_name)
+    local schema = W3CData:get_schema(schema_name)
+    for index, field in ipairs(schema.fields) do
+        if field.name == "sequence" then
+            return index
+        end
+    end
+
+    return nil
+end
+
+--- Creates a stable, sequence-sorted copy of buffered events before encoding.
+--- Events without a `sequence` field retain their relative order and sort after
+--- sequenced events.
+---@param events table<Payload>
+---@return table<Payload>
+local function sorted_event_buffer(events)
+    local indexed = {}
+
+    for original_index, event in ipairs(events) do
+        local sequence_index = sequence_field_index(event.schema_name)
+        local sequence = sequence_index and event.payload[sequence_index] or nil
+        indexed[#indexed + 1] = {
+            event = event,
+            original_index = original_index,
+            sequence = sequence,
+        }
+    end
+
+    table.sort(indexed, function(a, b)
+        if a.sequence ~= nil and b.sequence ~= nil and a.sequence ~= b.sequence then
+            return a.sequence < b.sequence
+        end
+
+        if a.sequence ~= nil and b.sequence == nil then
+            return true
+        end
+
+        if a.sequence == nil and b.sequence ~= nil then
+            return false
+        end
+
+        return a.original_index < b.original_index
+    end)
+
+    local sorted = {}
+    for _, entry in ipairs(indexed) do
+        sorted[#sorted + 1] = entry.event
+    end
+
+    return sorted
+end
+
 --- Flushes the current event buffer by encoding it with `W3CData` and sending the
 --- resulting payload packets through `BlzSendSyncData`.
 ---
@@ -322,7 +378,12 @@ local function flush()
     debug_log("flush send decision=" .. tostring(should_send))
     if should_send then
         debug_log("encoding event buffer")
-        local ok, payloads = pcall(W3CData.encode_payload, W3CData, W3CEvents.event_buffer, MAX_PAYLOAD_SIZE_BYTES)
+        local ok, payloads = pcall(
+            W3CData.encode_payload,
+            W3CData,
+            sorted_event_buffer(W3CEvents.event_buffer),
+            MAX_PAYLOAD_SIZE_BYTES
+        )
         if not ok then
             debug_log("encode failed: " .. tostring(payloads))
             return
