@@ -29,7 +29,7 @@ export function trackPlayerHeroDamage() {
     TriggerAddCondition(heroDamageTaken, Condition(checkIsPlayerHeroTarget));
     TriggerAddAction(heroDamageTaken, onHeroDamaged);
 
-    W3CEvents.track("HeroDamage", getHeroDamageEvents, 5.0);
+    W3CEvents.track("HeroDamage", getHeroDamageEvents, 1);
 }
 
 function checkIsPlayerHeroSource() {

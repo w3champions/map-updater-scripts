@@ -31,7 +31,7 @@ local W3CChecksum = require("lua.w3cChecksum")
 
 local MAX_PAYLOAD_SIZE_BYTES = 180
 local PLAYER_INDEX_TO_FLUSH = 0
-local DEFAULT_FLUSH_EVENT_COUNT = 6
+local DEFAULT_FLUSH_EVENT_COUNT = 24
 local CHECKSUM_EVENT_INTERVAL = 10
 
 -- This needs to be "WC" for W3Champions to be able to automatically parse events.
@@ -50,6 +50,7 @@ local ERRORS = {
     GAME_ENDED_ERROR = "W3CEvents.end_game has been used, cannot create any more events",
     SCHEMA_REGISTERED_ERROR =
     "W3CEvents.register_all_schemas has not been used. Registering schemas is required before creating any events",
+    TRACK_EVENT_EXISTS = "W3CEvents.track already contains the event: "
 }
 
 ---@alias Event table<string, string | number | boolean>
@@ -82,6 +83,7 @@ local ERRORS = {
 ---@alias W3CEventsGameEnd table<W3CEventsGameEndPlayer>
 
 ---@class TrackCallback
+---@field event_name string
 ---@field func function
 ---@field tick_interval integer
 
@@ -518,7 +520,7 @@ end
 
 local function emit_tracks()
     track_timer_ticks = track_timer_ticks + 1
-    for name, track_callback in pairs(W3CEvents.track_callbacks) do
+    for _, track_callback in pairs(W3CEvents.track_callbacks) do
         if track_timer_ticks % track_callback.tick_interval == 0 then
             local val = nil
             if type(track_callback.func) == "function" then
@@ -531,10 +533,10 @@ local function emit_tracks()
                 return
             elseif type(val) == "table" and type(val[1]) == "table" then
                 for _, payload in ipairs(val) do
-                    W3CEvents.event(name, payload)
+                    W3CEvents.event(track_callback.name, payload)
                 end
             else
-                W3CEvents.event(name, val)
+                W3CEvents.event(track_callback.name, val)
             end
         end
     end
@@ -642,10 +644,11 @@ end
 ---
 --- Returned events are still buffered and flushed according to the normal flush rules.
 ---@param name string Name of the event schema to emit
+---@param player number PlayerID that the event is for
 ---@param getter function Getter function that provides event payload data
 ---@param tick_interval integer How frequently to sample the getter, in ticks. Each tick is 5 seconds by default
 ---@return function stop_function Function that stops the tracker. Already-buffered events remain queued.
-function W3CEvents.track(name, getter, tick_interval)
+function W3CEvents.track(name, player, getter, tick_interval)
     if not initialized then
         error(ERRORS.NOT_INIT_ERROR)
     end
@@ -658,7 +661,11 @@ function W3CEvents.track(name, getter, tick_interval)
         error(ERRORS.GAME_ENDED_ERROR)
     end
 
-    W3CEvents.track_callbacks[name] = { func = getter, tick_interval = tick_interval }
+    if W3CEvents.track_callbacks[name .. "_Player" .. player] ~= nil then
+       error("W3CEvents.track already contains an event [" .. name .. "] for Player [" .. player .. "]")
+    end
+
+    W3CEvents.track_callbacks[name .. "_Player" .. player] = { event = name, func = getter, tick_interval = tick_interval }
     debug_log("tracking " .. tostring(name) .. " every " .. tostring(tick_interval) .. " ticks")
 end
 

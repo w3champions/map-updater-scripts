@@ -4,7 +4,7 @@ export function trackPlayerState() {
     for (let i = 0; i < bj_MAX_PLAYERS; i++) {
         const player = Player(i);
         if (GetPlayerSlotState(player) === PLAYER_SLOT_STATE_PLAYING) {
-            W3CEvents.track("PlayerState", () => getPlayerState(player), 5.0);
+            W3CEvents.track("PlayerState", () => getPlayerState(player), 1);
         }
     }
 }
