@@ -292,12 +292,46 @@ local function test_w3c_events()
 	assert_equal(tracker_flush_events[2][2].sequence, 5, "tracker flush should preserve sequence for second payload")
 	stop_track()
 
+	local stop_empty_track = W3CEvents.track("SchemaA", function()
+		return {}
+	end, 1)
+	local stop_later_track = W3CEvents.track("SchemaB", function()
+		return { player = 1, value = 11 }
+	end, 1)
+	local original_pairs = pairs
+	pairs = function(table_value)
+		if table_value == W3CEvents.track_callbacks then
+			local keys = { "SchemaA", "SchemaB" }
+			local index = 0
+			return function()
+				index = index + 1
+				local key = keys[index]
+				if key then
+					return key, table_value[key]
+				end
+			end
+		end
+
+		return original_pairs(table_value)
+	end
+
+	local packets_before_empty_tracker = #sent_sync_packets
+	tick_timer(tracker_timer, 1)
+	pairs = original_pairs
+	tick_timer(flush_timer, 1)
+	drain_paced_timers()
+	local empty_tracker_events = parse_packet_events(packets_before_empty_tracker + 1)
+	assert_equal(empty_tracker_events[1][1], "SchemaB", "empty tracker should not abort later tracker")
+	assert_equal(empty_tracker_events[1][2].sequence, 6, "later tracker should emit after an empty tracker")
+	stop_empty_track()
+	stop_later_track()
+
 	local packets_before_no_defaults = #sent_sync_packets
 	W3CEvents.event("NoDefaults", { player = 1, value = "details" })
 	tick_timer(flush_timer, 1)
 	drain_paced_timers()
 	local no_defaults_events = parse_packet_events(packets_before_no_defaults + 1)
-	assert_equal(no_defaults_events[1][2].sequence, 6, "non-default gameplay events should still receive sequence")
+	assert_equal(no_defaults_events[1][2].sequence, 7, "non-default gameplay events should still receive sequence")
 
 	W3CEvents.set_sending_players({ 2, 1 })
 	assert_equal(#W3CEvents.sending_player_ids, 2, "multiple senders should be configurable")

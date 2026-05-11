@@ -699,7 +699,8 @@ local function emit_tracks()
             end
 
             if val == nil or (type(val) == "table" and next(val) == nil) then
-                return
+                -- Empty tracker output should only skip this source. Other
+                -- periodic sources may still have events to emit this tick.
             elseif type(val) == "table" and type(val[1]) == "table" then
                 for _, payload in ipairs(val) do
                     W3CEvents.event(track_callback.event, payload)
