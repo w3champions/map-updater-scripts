@@ -333,6 +333,18 @@ local function test_w3c_events()
 	local no_defaults_events = parse_packet_events(packets_before_no_defaults + 1)
 	assert_equal(no_defaults_events[1][2].sequence, 7, "non-default gameplay events should still receive sequence")
 
+	local packets_before_periodic_checksum = #sent_sync_packets
+	W3CEvents.config.checksum.event_interval = 1
+	W3CEvents.event("SchemaA", { player = 1, value = 12 })
+	tick_timer(flush_timer, 1)
+	drain_paced_timers()
+	assert_equal(#sent_sync_packets, packets_before_periodic_checksum + 2, "flush should send periodic checksum after event payload")
+	assert_equal(payload_header(sent_sync_packets[packets_before_periodic_checksum + 1].payload), 0x01, "periodic checksum should follow the event packet")
+	assert_equal(payload_header(sent_sync_packets[packets_before_periodic_checksum + 2].payload), 0x02, "periodic checksum should use checksum payload header")
+	local periodic_checksum = W3CData:decode_payloads({ sent_sync_packets[packets_before_periodic_checksum + 2].payload })[1][1]
+	assert_not_equal(periodic_checksum, "", "periodic checksum should be present")
+	W3CEvents.config.checksum.event_interval = 99
+
 	W3CEvents.set_sending_players({ 2, 1 })
 	assert_equal(#W3CEvents.sending_player_ids, 2, "multiple senders should be configurable")
 	assert_equal(W3CEvents.sending_player_ids[1], 1, "configured senders should be normalized deterministically")

@@ -492,6 +492,8 @@ local function send_payloads_paced(payloads, on_complete, wait_packet_count)
     TimerStart(timer, packet_spacing, true, send_next_packet)
 end
 
+local send_checksum
+
 --- Flushes the current event buffer by encoding it with `W3CData` and sending the
 --- resulting payload packets through `BlzSendSyncData` over a paced timer.
 ---@param on_game_end? function Called once the paced game-end flush window completes.
@@ -500,7 +502,7 @@ local function flush(on_game_end, force_send)
     force_send = force_send or false
     local on_game_end_called = false
 
-    local function finish_game_end_flush()
+    local function run_game_end_callback_if_needed()
         if not (ending_game or game_ended) or not on_game_end or on_game_end_called then
             return
         end
@@ -514,7 +516,7 @@ local function flush(on_game_end, force_send)
         if not game_ended then
             debug_log("flush skipped: empty buffer")
         end
-        finish_game_end_flush()
+        run_game_end_callback_if_needed()
         return
     end
 
@@ -541,7 +543,7 @@ local function flush(on_game_end, force_send)
         )
         if not ok then
             debug_log("encode failed: " .. tostring(encoded_payloads))
-            finish_game_end_flush()
+            run_game_end_callback_if_needed()
             return
         end
 
@@ -562,7 +564,12 @@ local function flush(on_game_end, force_send)
 
     W3CEvents.event_buffer = {}
     event_buffer_size = 0
-    send_payloads_paced(payloads, finish_game_end_flush, payload_count)
+    send_payloads_paced(payloads, function()
+        if should_send and not ending_game and not game_ended then
+            send_checksum(false)
+        end
+        run_game_end_callback_if_needed()
+    end, payload_count)
 end
 
 -- Monotonic clock to get time since game started
@@ -668,7 +675,7 @@ end
 
 --- Sends a checksum payload using the configured checksum getter.
 ---@param force? boolean When true, emit the checksum even if the event interval has not been reached.
-local function send_checksum(force)
+function send_checksum(force)
     if not W3CEvents.config.checksum.enabled then
         return
     end
