@@ -246,6 +246,7 @@ local game_ended = false
 local ending_game = false
 local initialized = false
 local schemas_registered = false
+local schema_registry_sending = false
 local event_sequence = 0
 local events_since_checksum = 0
 
@@ -514,6 +515,11 @@ local function flush(on_game_end, force_send)
             debug_log("flush skipped: empty buffer")
         end
         finish_game_end_flush()
+        return
+    end
+
+    if schema_registry_sending then
+        debug_log("flush skipped: schema registry is still sending")
         return
     end
 
@@ -1000,11 +1006,14 @@ function W3CEvents.register_all_schemas(schemas)
     W3CData:register_all_schemas(schemas)
 
     local payloads = W3CData:generate_registry_payloads()
-    
-    send_payloads_paced(payloads)
-    debug_log("registered schemas; sent " .. tostring(#payloads) .. " schema payload(s)")
 
+    schema_registry_sending = true
     schemas_registered = true
+    send_payloads_paced(payloads, function()
+        schema_registry_sending = false
+        flush()
+    end)
+    debug_log("registered schemas; sent " .. tostring(#payloads) .. " schema payload(s)")
 end
 
 return W3CEvents

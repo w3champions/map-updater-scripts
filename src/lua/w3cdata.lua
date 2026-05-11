@@ -138,6 +138,7 @@ Below is a table showing bits and the numbers they allow up to 24 bits / 3 bytes
 --]]
 
 local json = require("lua.json")
+require("lua.libDeflate")
 
 local bitbuffer = require("lua.w3cbitbuffer")
 local schema_module = require("lua.w3cschema")
@@ -239,7 +240,7 @@ registry:register({
 	name = INTERNAL_SCHEMA_NAMES.SCHEMA_REGISTRY,
 	version = 1,
 	include_defaults = false,
-	fields = { { name = "schemas_json", field_type = "string" } },
+	fields = { { name = "schemas_blob", field_type = "string" } },
 })
 registry:register({
 	name = INTERNAL_SCHEMA_NAMES.CHECKSUM,
@@ -253,6 +254,8 @@ registry.by_name[INTERNAL_SCHEMA_NAMES.SHARED]        = _shared_placeholder
 registry.next_id = 4
 
 local bit_writer = bitbuffer.Writer.new()
+
+LibDeflate.InitCompressor()
 
 
 ---@param config? W3CDataConfig
@@ -665,6 +668,183 @@ function W3CData:pack_batch_with_name(batch_data)
 	return self:pack_batch(mapped)
 end
 
+local REGISTRY_BLOB_MAGIC = "W3CSR"
+local REGISTRY_BLOB_FORMAT = 1
+
+local FIELD_TYPE_CODES = {
+	bool = 1,
+	byte = 2,
+	short = 3,
+	int = 4,
+	float = 5,
+	string = 6,
+}
+
+local FIELD_TYPES_BY_CODE = {}
+for field_type, code in pairs(FIELD_TYPE_CODES) do
+	FIELD_TYPES_BY_CODE[code] = field_type
+end
+
+local FIELD_FLAG_UNSIGNED = 1
+local FIELD_FLAG_HAS_MINIMUM = 2
+local FIELD_FLAG_HAS_MAXIMUM = 4
+
+local function write_u8(buffer, value)
+	assert(value >= 0 and value <= 255, "Value does not fit in u8: " .. tostring(value))
+	buffer[#buffer + 1] = string.char(value)
+end
+
+local function write_u16(buffer, value)
+	assert(value >= 0 and value <= 65535, "Value does not fit in u16: " .. tostring(value))
+	buffer[#buffer + 1] = string.char((value >> 8) & 0xFF, value & 0xFF)
+end
+
+local function write_i32(buffer, value)
+	assert(math.type(value) == "integer", "Registry min/max values must be integers")
+	assert(value >= LIMITS.INT.SIGNED_LO and value <= LIMITS.INT.SIGNED_HI, "Value does not fit in i32")
+	if value < 0 then
+		value = (1 << 32) + value
+	end
+	buffer[#buffer + 1] = string.char((value >> 24) & 0xFF, (value >> 16) & 0xFF, (value >> 8) & 0xFF, value & 0xFF)
+end
+
+local function read_u8(data, index)
+	return data:byte(index), index + 1
+end
+
+local function read_u16(data, index)
+	local hi = data:byte(index)
+	local lo = data:byte(index + 1)
+	return (hi << 8) | lo, index + 2
+end
+
+local function read_i32(data, index)
+	local b1 = data:byte(index)
+	local b2 = data:byte(index + 1)
+	local b3 = data:byte(index + 2)
+	local b4 = data:byte(index + 3)
+	local value = (b1 << 24) | (b2 << 16) | (b3 << 8) | b4
+	if value >= (1 << 31) then
+		value = value - (1 << 32)
+	end
+	return value, index + 4
+end
+
+local function write_string_u8(buffer, value)
+	assert(#value <= 255, "Registry string is too long: " .. value)
+	write_u8(buffer, #value)
+	buffer[#buffer + 1] = value
+end
+
+local function read_string_u8(data, index)
+	local length
+	length, index = read_u8(data, index)
+	local value = data:sub(index, index + length - 1)
+	return value, index + length
+end
+
+local function registry_schemas(data)
+	local schema_payload = {}
+	local ids = {}
+	for id in pairs(registry.by_id) do
+		ids[#ids + 1] = id
+	end
+	table.sort(ids)
+	assert(#ids <= 255, "Schema registry has more than 255 schemas")
+	for _, id in ipairs(ids) do
+		-- Apply shared schema merging via get_schema so the payload reflects what decoders will see
+		schema_payload[#schema_payload + 1] = data:get_schema(registry.by_id[id].name)
+	end
+	return schema_payload
+end
+
+local function encode_registry_blob(schemas)
+	local buffer = { REGISTRY_BLOB_MAGIC }
+	write_u8(buffer, REGISTRY_BLOB_FORMAT)
+	write_u8(buffer, #schemas)
+
+	for _, schema in ipairs(schemas) do
+		write_u8(buffer, schema.id)
+		write_u16(buffer, schema.version)
+		write_u8(buffer, schema.include_defaults and 1 or 0)
+		write_string_u8(buffer, schema.name)
+		write_u8(buffer, #schema.fields)
+
+		for _, field in ipairs(schema.fields) do
+			local flags = 0
+			if field.unsigned then
+				flags = flags | FIELD_FLAG_UNSIGNED
+			end
+			if field.minimum ~= nil then
+				flags = flags | FIELD_FLAG_HAS_MINIMUM
+			end
+			if field.maximum ~= nil then
+				flags = flags | FIELD_FLAG_HAS_MAXIMUM
+			end
+
+			write_u8(buffer, FIELD_TYPE_CODES[field.field_type])
+			write_u8(buffer, field.num_of_bits or 0)
+			write_u8(buffer, flags)
+			write_string_u8(buffer, field.name)
+			if field.minimum ~= nil then
+				write_i32(buffer, field.minimum)
+			end
+			if field.maximum ~= nil then
+				write_i32(buffer, field.maximum)
+			end
+		end
+	end
+
+	return table.concat(buffer)
+end
+
+local function decode_registry_blob(blob)
+	assert(blob:sub(1, #REGISTRY_BLOB_MAGIC) == REGISTRY_BLOB_MAGIC, "Invalid registry blob")
+	local index = #REGISTRY_BLOB_MAGIC + 1
+	local format
+	format, index = read_u8(blob, index)
+	assert(format == REGISTRY_BLOB_FORMAT, "Unsupported registry blob format: " .. tostring(format))
+
+	local schema_count
+	schema_count, index = read_u8(blob, index)
+	local schemas = {}
+
+	for schema_index = 1, schema_count do
+		local schema = { fields = {} }
+		schema.id, index = read_u8(blob, index)
+		schema.version, index = read_u16(blob, index)
+		local include_defaults
+		include_defaults, index = read_u8(blob, index)
+		schema.include_defaults = include_defaults ~= 0
+		schema.name, index = read_string_u8(blob, index)
+
+		local field_count
+		field_count, index = read_u8(blob, index)
+		for field_index = 1, field_count do
+			local type_code
+			local flags
+			local field = {}
+			type_code, index = read_u8(blob, index)
+			field.field_type = FIELD_TYPES_BY_CODE[type_code]
+			field.num_of_bits, index = read_u8(blob, index)
+			flags, index = read_u8(blob, index)
+			field.unsigned = (flags & FIELD_FLAG_UNSIGNED) ~= 0
+			field.name, index = read_string_u8(blob, index)
+			if (flags & FIELD_FLAG_HAS_MINIMUM) ~= 0 then
+				field.minimum, index = read_i32(blob, index)
+			end
+			if (flags & FIELD_FLAG_HAS_MAXIMUM) ~= 0 then
+				field.maximum, index = read_i32(blob, index)
+			end
+			schema.fields[field_index] = field
+		end
+
+		schemas[schema_index] = schema
+	end
+
+	return schemas
+end
+
 --- Unpacks packed bits from using W3CData:pack_bits(). Does everything in reverse.
 ---@param schema_id SchemaId Schema ID for the data being unpacked. Used to correctly unpack the bits to fields
 ---@param data string Byte string containing packed data.
@@ -930,26 +1110,58 @@ end
 --- fields already merged into schemas that include defaults.
 ---@return table<string> payloads String payloads to send using BlzSendSyncData
 function W3CData:generate_registry_payloads()
-	local schema_payload = {}
-	local ids = {}
-	for id in pairs(registry.by_id) do
-		ids[#ids + 1] = id
-	end
-	table.sort(ids)
-	for _, id in ipairs(ids) do
-		-- Apply shared schema merging via get_schema so the payload reflects what decoders will see
-		schema_payload[#schema_payload + 1] = self:get_schema(registry.by_id[id].name)
-	end
+	local schema_payload = registry_schemas(self)
+	local blob = encode_registry_blob(schema_payload)
+	local compressed_blob = LibDeflate.CompressDeflate(blob)
 	local event = {
 		{
 			schema_name = INTERNAL_SCHEMA_NAMES.SCHEMA_REGISTRY,
 			payload = {
-				json.encode(schema_payload),
+				compressed_blob,
 			},
 		},
 	}
 	local encoded, _ = self:encode_payload(event, 180)
 	return encoded
+end
+
+--- Decodes schema registry packets generated by `generate_registry_payloads`.
+---@param payloads string[] String payloads received through SyncData
+---@return Schema[] schemas Decoded schema definitions
+function W3CData:decode_registry_payloads(payloads)
+	local decoded = self:decode_payloads(payloads)
+	assert(#decoded == 1, "Expected exactly one schema registry payload")
+	assert(decoded[1][1] == INTERNAL_SCHEMA_NAMES.SCHEMA_REGISTRY, "Expected schema registry payload")
+	local compressed_blob = decoded[1][2][1]
+	local blob = LibDeflate.DecompressDeflate(compressed_blob)
+	assert(blob, "Failed to decompress schema registry payload")
+	return decode_registry_blob(blob)
+end
+
+--- Returns byte-size stats for the current compact schema registry.
+---@return table stats Registry size statistics
+function W3CData:registry_payload_stats()
+	local payloads = self:generate_registry_payloads()
+	local total_bytes = 0
+	local largest_packet_bytes = 0
+	for _, payload in ipairs(payloads) do
+		total_bytes = total_bytes + #payload
+		if #payload > largest_packet_bytes then
+			largest_packet_bytes = #payload
+		end
+	end
+
+	local compact_blob = encode_registry_blob(registry_schemas(self))
+	local compressed_blob = LibDeflate.CompressDeflate(compact_blob)
+	local legacy_json = json.encode(registry_schemas(self))
+	return {
+		packet_count = #payloads,
+		total_encoded_bytes = total_bytes,
+		largest_packet_bytes = largest_packet_bytes,
+		compact_blob_bytes = #compact_blob,
+		compressed_blob_bytes = #compressed_blob,
+		legacy_json_bytes = #legacy_json,
+	}
 end
 
 return W3CData

@@ -141,6 +141,10 @@ local function parse_packet_events(start_index)
 	return W3CData:parse_unpacked(W3CData:decode_payloads(packet_payloads(start_index)))
 end
 
+local function payload_header(payload)
+	return W3CData.cobs_decode(payload):byte(1)
+end
+
 local function framed_event(schema_name, payload)
 	local schema_id = W3CData:get_schema_id(schema_name)
 	local packed = W3CData:pack_bits(schema_id, payload)
@@ -190,7 +194,7 @@ local function test_w3c_events()
 	assert_equal(W3CEvents.sending_player_ids[1], 1, "default sender should be first active user player")
 	assert_equal(active_timer_by_timeout(15).periodic, true, "flush timer should be periodic")
 
-	W3CEvents.register_all_schemas({
+	local registered_schemas = {
 		W3CEvents.schema("SchemaA", {
 			W3CEvents.byteField("value"),
 		}),
@@ -209,10 +213,38 @@ local function test_w3c_events()
 			W3CEvents.intField("sequence"),
 			W3CEvents.stringField("value"),
 		}, { include_defaults = false }),
-	})
+	}
+
+	for index = 1, 160 do
+		registered_schemas[#registered_schemas + 1] = W3CEvents.schema("ExtraSchema" .. tostring(index), {
+			W3CEvents.stringField("repeatedFieldName"),
+			W3CEvents.intField("repeatedTypeId"),
+			W3CEvents.floatField("repeatedX"),
+			W3CEvents.floatField("repeatedY"),
+		})
+	end
+
+	W3CEvents.register_all_schemas(registered_schemas)
+	local packets_after_register = #sent_sync_packets
+	W3CEvents.event("SchemaA", { player = 1, value = 4 })
+	tick_timer(active_timer_by_timeout(15), 1)
+	assert_equal(#sent_sync_packets, packets_after_register, "event flush should wait for schema registry packets")
+	tick_timer(active_timer_by_timeout(0.1), 1)
+	tick_timer(active_timer_by_timeout(15), 1)
+	assert_equal(payload_header(sent_sync_packets[#sent_sync_packets].payload), 0x80, "only schema registry chunk should send before registry completes")
 	drain_paced_timers()
 
 	local packets_after_registry = #sent_sync_packets
+	local startup_events = parse_packet_events(packets_after_register + 1)
+	local startup_schema_a = nil
+	for _, event in ipairs(startup_events) do
+		if event[1] == "SchemaA" then
+			startup_schema_a = event
+		end
+	end
+	assert(startup_schema_a ~= nil, "buffered startup event should send after schema registry")
+	assert_equal(startup_schema_a[2].sequence, 1, "buffered startup event should keep first sequence")
+
 	W3CEvents.event("SchemaA", { player = 1, value = 5 })
 	W3CEvents.event("SchemaB", { player = 1, value = 5 })
 	assert_equal(#sent_sync_packets, packets_after_registry, "events should not flush by count")
@@ -225,13 +257,14 @@ local function test_w3c_events()
 
 	local first_flush_events = parse_packet_events(packets_after_registry + 1)
 	assert_equal(first_flush_events[1][2].player, 1, "first event should use payload player")
-	assert_equal(first_flush_events[1][2].sequence, 1, "first flushed event should have the lowest sequence")
-	assert_equal(first_flush_events[2][2].sequence, 2, "second flushed event should have the next sequence")
+	assert_equal(first_flush_events[1][2].sequence, 2, "first flushed event should have the lowest sequence")
+	assert_equal(first_flush_events[2][2].sequence, 3, "second flushed event should have the next sequence")
 	assert_equal(
 		W3CEvents.config.checksum.get_checksum(),
 		checksum_for({
-			{ schema_name = "SchemaA", payload = { 1, 0, 1, 5 } },
-			{ schema_name = "SchemaB", payload = { 1, 0, 2, 5 } },
+			{ schema_name = "SchemaA", payload = { 1, 0, 1, 4 } },
+			{ schema_name = "SchemaA", payload = { 1, 0, 2, 5 } },
+			{ schema_name = "SchemaB", payload = { 1, 0, 3, 5 } },
 		}),
 		"Checksum should use framed packed bytes"
 	)
@@ -254,9 +287,9 @@ local function test_w3c_events()
 	assert_equal(#sent_sync_packets, packets_before_tracker + 1, "tracker event should flush on periodic timer")
 	local tracker_flush_events = parse_packet_events(packets_before_tracker + 1)
 	assert_equal(tracker_flush_events[1][2].player, 1, "tracker should emit the first payload player")
-	assert_equal(tracker_flush_events[1][2].sequence, 3, "tracker flush should preserve sequence for first payload")
+	assert_equal(tracker_flush_events[1][2].sequence, 4, "tracker flush should preserve sequence for first payload")
 	assert_equal(tracker_flush_events[2][2].player, 2, "tracker should emit the second payload player")
-	assert_equal(tracker_flush_events[2][2].sequence, 4, "tracker flush should preserve sequence for second payload")
+	assert_equal(tracker_flush_events[2][2].sequence, 5, "tracker flush should preserve sequence for second payload")
 	stop_track()
 
 	local packets_before_no_defaults = #sent_sync_packets
@@ -264,7 +297,7 @@ local function test_w3c_events()
 	tick_timer(flush_timer, 1)
 	drain_paced_timers()
 	local no_defaults_events = parse_packet_events(packets_before_no_defaults + 1)
-	assert_equal(no_defaults_events[1][2].sequence, 5, "non-default gameplay events should still receive sequence")
+	assert_equal(no_defaults_events[1][2].sequence, 6, "non-default gameplay events should still receive sequence")
 
 	W3CEvents.set_sending_players({ 2, 1 })
 	assert_equal(#W3CEvents.sending_player_ids, 2, "multiple senders should be configurable")

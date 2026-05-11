@@ -384,39 +384,54 @@ local function test_schema_payloads()
 	local schema_payload, _ = W3CData:generate_registry_payloads()
 	print("Number of schemas: " .. #schemas .. ", Number of payloads: " .. #schema_payload)
 
-	local parsed = W3CData:decode_payloads(schema_payload)[1][2]
+	local schema_list = W3CData:decode_registry_payloads(schema_payload)
+	assert(#schema_list == W3CData:schema_count(), "Schema count does not match")
+	for _, schema in ipairs(schema_list) do
+		local registered_schema = W3CData:get_schema(schema.name)
 
-	for _, schema_string in ipairs(parsed) do
-		local schema_list = json.decode(schema_string)
-		assert(#schema_list == W3CData:schema_count(), "Schema count does not match")
-		for _, schema in ipairs(schema_list) do
-			local registered_schema = W3CData:get_schema(schema.name)
+		assert(registered_schema, "Schema not found for name " .. schema.name)
+		assert(schema.id == registered_schema.id, "Schema ids don't match")
+		assert(schema.version == registered_schema.version, "Schema versions don't match")
+		assert(
+			schema.include_defaults == registered_schema.include_defaults,
+			"Schema ["
+				.. schema.name
+				.. "] include_defaults does not match -- "
+				.. tostring(schema.include_defaults)
+				.. " : "
+				.. tostring(registered_schema.include_defaults)
+		)
 
-			assert(registered_schema, "Schema not found for name " .. schema.name)
-			assert(schema.version == registered_schema.version, "Schema versions don't match")
+		for index, field in ipairs(schema.fields) do
+			assert(field.name == registered_schema.fields[index].name, "Field name does not match")
+			assert(field.field_type == registered_schema.fields[index].field_type, "Field type does not match")
 			assert(
-				schema.include_defaults == registered_schema.include_defaults,
-				"Schema ["
-					.. schema.name
-					.. "] include_defaults does not match -- "
-					.. tostring(schema.include_defaults)
-					.. " : "
-					.. tostring(registered_schema.include_defaults)
+				field.num_of_bits == registered_schema.fields[index].num_of_bits,
+				"Field number of bits do not match"
 			)
-
-			for index, field in ipairs(schema.fields) do
-				assert(field.name == registered_schema.fields[index].name, "Field name does not match")
-				assert(field.field_type == registered_schema.fields[index].field_type, "Field type does not match")
-				assert(
-					field.num_of_bits == registered_schema.fields[index].num_of_bits,
-					"Field number of bits do not match"
-				)
-				assert(field.unsigned == registered_schema.fields[index].unsigned, "Field unsigned does not match")
-				assert(field.minimum == registered_schema.fields[index].minimum, "Field minimum does not match")
-				assert(field.maximum == registered_schema.fields[index].maximum, "Field maximum does not match")
-			end
+			assert(field.unsigned == registered_schema.fields[index].unsigned, "Field unsigned does not match")
+			assert(field.minimum == registered_schema.fields[index].minimum, "Field minimum does not match")
+			assert(field.maximum == registered_schema.fields[index].maximum, "Field maximum does not match")
 		end
 	end
+
+	local stats = W3CData:registry_payload_stats()
+	print(
+		"Schema registry size: packets="
+			.. tostring(stats.packet_count)
+			.. ", total_bytes="
+			.. tostring(stats.total_encoded_bytes)
+			.. ", largest_packet="
+			.. tostring(stats.largest_packet_bytes)
+			.. ", compact_blob="
+			.. tostring(stats.compact_blob_bytes)
+			.. ", compressed_blob="
+			.. tostring(stats.compressed_blob_bytes)
+			.. ", legacy_json="
+			.. tostring(stats.legacy_json_bytes)
+	)
+	assert(stats.packet_count < 22, "Compact schema registry should use fewer packets than legacy JSON")
+	assert(stats.compressed_blob_bytes < stats.legacy_json_bytes, "Compact schema registry should be smaller than legacy JSON")
 
 	print("Schema registry test passed")
 end
