@@ -23,6 +23,7 @@ const namedDeathFields: W3CEvents.Field[] = [
     f("y", "float"),
     f("killerPlayer", "int"),    // -1 if no player killer
     f("killerTypeId", "int"),    // 0 if no killer unit
+    f("killerUnitName", "string"),
     f("killerX", "float"),
     f("killerY", "float"),
 ];
@@ -213,10 +214,12 @@ export const metricSchemas: W3CEvents.Schema[] = [
         f("targetPlayer", "int"),
         f("sourceCategory", "string"),
         f("sourceTypeId", "int"),
+        f("sourceName", "string"),
         f("sourceX", "float"),
         f("sourceY", "float"),
         f("targetCategory", "string"),
         f("targetTypeId", "int"),
+        f("targetName", "string"),
         f("targetX", "float"),
         f("targetY", "float"),
     ]),
@@ -228,7 +231,9 @@ export const metricSchemas: W3CEvents.Schema[] = [
         f("sourceCategory", "string"),
         f("targetCategory", "string"),
         f("sourceTypeId", "int"),
+        f("sourceName", "string"),
         f("targetTypeId", "int"),
+        f("targetName", "string"),
         f("damage", "float"),
         f("eventCount", "int"),
         f("sourceX", "float"),

@@ -54,11 +54,13 @@ function emitChangedHeroXpAfterDelay(player: player, source: string, sourcePlaye
 
 function killerFields(unit: unit | null) {
     if (unit == null) {
-        return { killerPlayer: -1, killerTypeId: 0, killerX: 0, killerY: 0 };
+        return { killerPlayer: -1, killerTypeId: 0, killerUnitName: "", killerX: 0, killerY: 0 };
     }
+    const killerTypeId = GetUnitTypeId(unit);
     return {
         killerPlayer: GetPlayerId(GetOwningPlayer(unit)),
-        killerTypeId: GetUnitTypeId(unit),
+        killerTypeId,
+        killerUnitName: getUnitName(killerTypeId),
         killerX: GetUnitX(unit),
         killerY: GetUnitY(unit),
     };
@@ -137,6 +139,7 @@ function trackCreepKill() {
             isHero: false,
             killerPlayer: killingPlayerId,
             killerTypeId: killingTypeId,
+            killerUnitName: getUnitName(killingTypeId),
             killerX: GetUnitX(killingUnit),
             killerY: GetUnitY(killingUnit),
         });

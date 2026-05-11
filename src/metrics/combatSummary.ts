@@ -1,5 +1,6 @@
 import { Players } from "w3ts/globals";
 import * as W3CEvents from "../lua/w3cEvents";
+import { getUnitName } from "./objectNames";
 
 type UnitCategory = "hero" | "unit" | "worker" | "structure" | "creep";
 
@@ -128,10 +129,12 @@ function handlePvpDamage(
             targetPlayer: tgtPlayer,
             sourceCategory: srcCat,
             sourceTypeId: srcTypeId,
+            sourceName: getUnitName(srcTypeId),
             sourceX: GetUnitX(source),
             sourceY: GetUnitY(source),
             targetCategory: tgtCat,
             targetTypeId: tgtTypeId,
+            targetName: getUnitName(tgtTypeId),
             targetX: GetUnitX(target),
             targetY: GetUnitY(target),
         });
@@ -171,7 +174,9 @@ function flushWindowData(): W3CEvents.EventPayload[] {
             sourceCategory: w.sourceCategory,
             targetCategory: w.targetCategory,
             sourceTypeId: w.sourceTypeId,
+            sourceName: getUnitName(w.sourceTypeId),
             targetTypeId: w.targetTypeId,
+            targetName: getUnitName(w.targetTypeId),
             damage: w.damage,
             eventCount: count,
             sourceX: w.sumSourceX / count,
