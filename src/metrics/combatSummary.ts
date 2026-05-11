@@ -1,6 +1,5 @@
 import { Players } from "w3ts/globals";
 import * as W3CEvents from "../lua/w3cEvents";
-import { getUnitName } from "./objectNames";
 
 type UnitCategory = "hero" | "unit" | "worker" | "structure" | "creep";
 
@@ -9,8 +8,8 @@ interface WindowStats {
     targetPlayer: number;
     sourceCategory: string;
     targetCategory: string;
-    sourceHeroTypeId: number;
-    targetHeroTypeId: number;
+    sourceTypeId: number;
+    targetTypeId: number;
     damage: number;
     eventCount: number;
     sumSourceX: number;
@@ -19,7 +18,7 @@ interface WindowStats {
     sumTargetY: number;
 }
 
-// Accumulated per 5-second window; keyed by `srcPlayer:tgtPlayer:srcCat:tgtCat`
+// Accumulated per 5-second window; keyed by source/target player, category, and unit type.
 const windowData: Record<string, WindowStats> = {};
 
 // Last PvP damage timestamp per source/target player pair, for CombatStart/End
@@ -70,7 +69,7 @@ function onUnitDamaged() {
     const srcTypeId = GetUnitTypeId(source);
     const tgtTypeId = GetUnitTypeId(target);
 
-    const key = `${sourcePlayer}:${targetPlayer}:${srcCat}:${tgtCat}`;
+    const key = `${sourcePlayer}:${targetPlayer}:${srcCat}:${tgtCat}:${srcTypeId}:${tgtTypeId}`;
 
     if (!windowData[key]) {
         windowData[key] = {
@@ -78,8 +77,8 @@ function onUnitDamaged() {
             targetPlayer,
             sourceCategory: srcCat,
             targetCategory: tgtCat,
-            sourceHeroTypeId: srcCat === "hero" ? srcTypeId : 0,
-            targetHeroTypeId: tgtCat === "hero" ? tgtTypeId : 0,
+            sourceTypeId: srcTypeId,
+            targetTypeId: tgtTypeId,
             damage: 0,
             eventCount: 0,
             sumSourceX: 0,
@@ -171,8 +170,8 @@ function flushWindowData(): W3CEvents.EventPayload[] {
             targetPlayer: w.targetPlayer,
             sourceCategory: w.sourceCategory,
             targetCategory: w.targetCategory,
-            sourceHeroTypeId: w.sourceHeroTypeId,
-            targetHeroTypeId: w.targetHeroTypeId,
+            sourceTypeId: w.sourceTypeId,
+            targetTypeId: w.targetTypeId,
             damage: w.damage,
             eventCount: count,
             sourceX: w.sumSourceX / count,
