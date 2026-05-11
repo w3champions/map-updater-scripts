@@ -75,7 +75,7 @@ Emitted when a unit training begins, is cancelled, or completes.
 | `name` | string | English unit name |
 | `typeId` | int | Unit type id |
 | `unitType` | string | `"hero"` or `"unit"` |
-| `x` | float | On `UnitStarted`: position of the training building. On `UnitTrained`/`UnitCancelled`: position of the trained unit |
+| `x` | float | On `UnitStarted`/`UnitCancelled`: position of the training building. On `UnitTrained`: position of the trained unit |
 | `y` | float | See `x` |
 
 **Source:** `playerUnits.ts` — `EVENT_PLAYER_UNIT_TRAIN_START/CANCEL/FINISH`
@@ -432,7 +432,7 @@ Emitted when a player purchases a unit from a shop (mercenary camp, lab, tavern,
 
 ### SpellEvent
 
-Emitted when a **hero** uses an ability (EFFECT phase only — the moment the ability fires). Only fires for heroes of playing players. Unit spell tracking is deferred pending event volume testing.
+Emitted when a **hero** casts an ability. Only fires for heroes of playing players. Unit spell tracking is deferred pending event volume testing.
 
 **`player`** = casting player
 
@@ -450,7 +450,7 @@ Emitted when a **hero** uses an ability (EFFECT phase only — the moment the ab
 | `targetX` | float | Spell target position |
 | `targetY` | float | Spell target position |
 
-**Source:** `spellEvents.ts` — `EVENT_PLAYER_UNIT_SPELL_EFFECT` (hero condition)
+**Source:** `spellEvents.ts` — `EVENT_PLAYER_UNIT_SPELL_CAST` (hero condition)
 
 ---
 

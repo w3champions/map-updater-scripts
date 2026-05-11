@@ -187,7 +187,7 @@ export const metricSchemas: W3CEvents.Schema[] = [
     ...["HeroReviveStart", "HeroReviveCancel", "HeroReviveFinish"].map((name) =>
         schema(name, heroReviveFields)
     ),
-    // SpellEvent: hero ability casts, EFFECT phase only (see gap analysis for phase expansion)
+    // SpellEvent: hero ability casts.
     schema("SpellEvent", [
         f("caster", "string"),
         f("casterTypeId", "int"),

@@ -20,17 +20,21 @@ function trackPlayerTraining() {
     const player = GetTriggerPlayer();
     const id = GetPlayerId(player);
 
-    let typeId = 0;
-    let unitType = "unit";
     let unit = GetTriggerUnit();
+    let typeId = GetTrainedUnitType();
+    let unitType = IsHeroUnitId(typeId) ? "hero" : "unit";
 
     if (eventId === EVENT_PLAYER_UNIT_TRAIN_START) {
-        typeId = GetTrainedUnitType();
-        unitType = IsHeroUnitId(typeId) ? "hero" : "unit";
-    } else {
+        // The trigger unit is the producing building during train start.
+    } else if (eventId === EVENT_PLAYER_UNIT_TRAIN_FINISH) {
         unit = GetTrainedUnit();
-        typeId = GetUnitTypeId(unit);
-        unitType = IsUnitType(unit, UNIT_TYPE_HERO) ? "hero" : "unit";
+        if (unit != null) {
+            typeId = GetUnitTypeId(unit);
+            unitType = IsUnitType(unit, UNIT_TYPE_HERO) ? "hero" : "unit";
+        }
+    } else {
+        // Train cancel has a trained unit type, but no trained unit handle.
+        unit = GetTriggerUnit();
     }
 
     const eventType =

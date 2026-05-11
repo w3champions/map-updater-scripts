@@ -6,16 +6,16 @@ export function trackSpellEvents() {
 
     for (let i = 0; i < bj_MAX_PLAYERS; i++) {
         if (GetPlayerSlotState(Player(i)) === PLAYER_SLOT_STATE_PLAYING) {
-            TriggerRegisterPlayerUnitEvent(trigger, Player(i), EVENT_PLAYER_UNIT_SPELL_EFFECT);
+            TriggerRegisterPlayerUnitEvent(trigger, Player(i), EVENT_PLAYER_UNIT_SPELL_CAST);
         }
     }
 
-    // Hero spells only — unit spell tracking can be enabled later after volume testing
+    // Hero spells only - unit spell tracking can be enabled later after volume testing.
     TriggerAddCondition(trigger, Condition(() => IsUnitType(GetTriggerUnit(), UNIT_TYPE_HERO)));
-    TriggerAddAction(trigger, onSpellEffect);
+    TriggerAddAction(trigger, onSpellCast);
 }
 
-function onSpellEffect() {
+function onSpellCast() {
     const caster = GetSpellAbilityUnit();
     const abilityId = GetSpellAbilityId();
     const casterTypeId = GetUnitTypeId(caster);

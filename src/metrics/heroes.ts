@@ -30,8 +30,9 @@ export function trackHeroes() {
 }
 
 function isHero() {
-    const unit = GetTriggerUnit();
-    return IsUnitType(unit, UNIT_TYPE_HERO)
+    const eventId = GetTriggerEventId();
+    const unit = getHeroInventoryUnit(eventId);
+    return unit != null && IsUnitType(unit, UNIT_TYPE_HERO);
 }
 
 function trackHeroLevel() {
@@ -83,12 +84,14 @@ function shopContext(shopUnit: unit | null) {
 }
 
 function trackHeroInventory() {
-    const hero = GetTriggerUnit();
-    const item = GetManipulatedItem();
+    const eventId = GetTriggerEventId();
+    const hero = getHeroInventoryUnit(eventId);
+    const item = getHeroInventoryItem(eventId);
+    if (hero == null || item == null) return;
+
     const heroTypeId = GetUnitTypeId(hero);
     const itemTypeId = GetItemTypeId(item);
     const id = GetPlayerId(GetOwningPlayer(hero));
-    const eventId = GetTriggerEventId();
 
     const base: W3CEvents.EventPayload = {
         player: id,
@@ -122,9 +125,28 @@ function trackHeroInventory() {
     }
 }
 
+function getHeroInventoryUnit(eventId: eventid): unit | null {
+    if (eventId === EVENT_PLAYER_UNIT_SELL_ITEM) {
+        return GetBuyingUnit();
+    }
+    if (eventId === EVENT_PLAYER_UNIT_PAWN_ITEM) {
+        return GetSellingUnit();
+    }
+    return GetManipulatingUnit();
+}
+
+function getHeroInventoryItem(eventId: eventid): item | null {
+    if (eventId === EVENT_PLAYER_UNIT_SELL_ITEM || eventId === EVENT_PLAYER_UNIT_PAWN_ITEM) {
+        return GetSoldItem();
+    }
+    return GetManipulatedItem();
+}
+
 function trackHeroItemUse() {
-    const hero = GetTriggerUnit();
+    const hero = GetManipulatingUnit();
     const item = GetManipulatedItem();
+    if (hero == null || item == null) return;
+
     const heroTypeId = GetUnitTypeId(hero);
     const itemTypeId = GetItemTypeId(item);
     const id = GetPlayerId(GetOwningPlayer(hero));
