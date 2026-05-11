@@ -21,6 +21,7 @@ const namedEventFields: W3CEvents.Field[] = [
 export const metricSchemas: W3CEvents.Schema[] = [
     schema("PlayerDetails", [
         f("player", "int"),
+        f("sequence", "int"),
         f("name", "string"),
     ], withoutDefaults),
     schema("PlayerState", [

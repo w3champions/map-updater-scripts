@@ -1,6 +1,6 @@
 import * as fs from "fs-extra";
 import * as path from "path";
-import { execSync } from "child_process";
+import { execFileSync } from "child_process";
 import { compileMap, getFilesInDirectory, loadJsonFile, logger, toArrayBuffer, IProjectConfig } from "./utils";
 
 function main() {
@@ -58,12 +58,21 @@ exit`;
   
   fs.writeFileSync(scriptPath, scriptContent);
   
+  const mpqCommand = process.platform === "win32" ? mpqEditorPath : "wine";
+  const mpqArgs = process.platform === "win32" ? ["script", scriptPath] : [mpqEditorPath, "script", scriptPath];
+
   try {
     logger.info(`Creating MPQ archive using MPQEditor...`);
-    execSync(`"${mpqEditorPath}" script "${scriptPath}"`, { stdio: 'inherit' });
+    execFileSync(mpqCommand, mpqArgs, { stdio: 'inherit' });
+
+    if (!fs.existsSync(output)) {
+      throw new Error(`Expected MPQEditor to create "${output}", but it was not found.`);
+    }
+
     logger.info("Finished creating MPQ archive!");
   } catch (error) {
     logger.error(`Failed to create MPQ archive: ${error}`);
+    throw error;
   } finally {
     // Clean up temporary script file
     if (fs.existsSync(scriptPath)) {

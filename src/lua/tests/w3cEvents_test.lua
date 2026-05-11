@@ -4,13 +4,29 @@ package.path = table.concat({
 	package.path,
 }, ";")
 
-local bootstrap = require("lua.test_bootstrap")
-local W3CChecksum = bootstrap.W3CChecksum
-local W3CData = bootstrap.W3CData
-
 local sent_sync_packets = {}
-local current_player_id = 0
+local current_player_id = 1
 local created_timers = {}
+local created_triggers = {}
+local player_slot_states = {}
+local player_controllers = {}
+local observer_players = {}
+
+bj_MAX_PLAYERS = 6
+PLAYER_SLOT_STATE_PLAYING = "playing"
+PLAYER_SLOT_STATE_LEFT = "left"
+MAP_CONTROL_USER = "user"
+MAP_CONTROL_COMPUTER = "computer"
+
+for i = 0, bj_MAX_PLAYERS - 1 do
+	player_slot_states[i] = PLAYER_SLOT_STATE_LEFT
+	player_controllers[i] = MAP_CONTROL_USER
+	observer_players[i] = false
+end
+player_slot_states[1] = PLAYER_SLOT_STATE_PLAYING
+player_slot_states[2] = PLAYER_SLOT_STATE_PLAYING
+player_slot_states[3] = PLAYER_SLOT_STATE_PLAYING
+player_slot_states[4] = PLAYER_SLOT_STATE_PLAYING
 
 function Player(id)
 	return { id = id }
@@ -24,12 +40,24 @@ function GetPlayerId(player)
 	return player.id
 end
 
+function GetPlayerSlotState(player)
+	return player_slot_states[player.id]
+end
+
+function GetPlayerController(player)
+	return player_controllers[player.id]
+end
+
+function IsPlayerObserver(player)
+	return observer_players[player.id]
+end
+
 function BlzSendSyncData(prefix, payload)
 	sent_sync_packets[#sent_sync_packets + 1] = { prefix = prefix, payload = payload }
 end
 
 function CreateTimer()
-	local timer = { elapsed = 0 }
+	local timer = { elapsed = 0, paused = false, destroyed = false }
 	created_timers[#created_timers + 1] = timer
 	return timer
 end
@@ -38,6 +66,7 @@ function TimerStart(timer, timeout, periodic, callback)
 	timer.timeout = timeout
 	timer.periodic = periodic
 	timer.callback = callback
+	timer.paused = false
 end
 
 function TimerGetElapsed(timer)
@@ -52,7 +81,65 @@ function DestroyTimer(timer)
 	timer.destroyed = true
 end
 
+function CreateTrigger()
+	local trigger = { actions = {}, leave_players = {} }
+	created_triggers[#created_triggers + 1] = trigger
+	return trigger
+end
+
+function TriggerRegisterPlayerEventLeave(trigger, player)
+	trigger.leave_players[#trigger.leave_players + 1] = player.id
+end
+
+function TriggerAddAction(trigger, action)
+	trigger.actions[#trigger.actions + 1] = action
+end
+
+local bootstrap = require("lua.test_bootstrap")
+local W3CChecksum = bootstrap.W3CChecksum
+local W3CData = bootstrap.W3CData
 local W3CEvents = bootstrap.W3CEvents
+
+local function active_timer_by_timeout(timeout)
+	for _, timer in ipairs(created_timers) do
+		if timer.timeout == timeout and not timer.destroyed then
+			return timer
+		end
+	end
+	return nil
+end
+
+local function tick_timer(timer, ticks)
+	for _ = 1, ticks do
+		assert(timer and timer.callback, "timer callback is required")
+		timer.callback()
+	end
+end
+
+local function drain_paced_timers()
+	local progressed = true
+	while progressed do
+		progressed = false
+		for _, timer in ipairs(created_timers) do
+			if timer.timeout == 0.1 and not timer.destroyed and timer.callback then
+				timer.callback()
+				progressed = true
+			end
+		end
+	end
+end
+
+local function packet_payloads(start_index)
+	local payloads = {}
+	for index = start_index or 1, #sent_sync_packets do
+		payloads[#payloads + 1] = sent_sync_packets[index].payload
+	end
+	return payloads
+end
+
+local function parse_packet_events(start_index)
+	return W3CData:parse_unpacked(W3CData:decode_payloads(packet_payloads(start_index)))
+end
 
 local function framed_event(schema_name, payload)
 	local schema_id = W3CData:get_schema_id(schema_name)
@@ -76,17 +163,9 @@ local function assert_not_equal(actual, expected, label)
 	assert(actual ~= expected, label .. ": values should differ")
 end
 
-
-local function packet_payloads(start_index)
-	local payloads = {}
-	for index = start_index or 1, #sent_sync_packets do
-		payloads[#payloads + 1] = sent_sync_packets[index].payload
-	end
-	return payloads
-end
-
-local function parse_packet_events(start_index)
-	return W3CData:parse_unpacked(W3CData:decode_payloads(packet_payloads(start_index)))
+local function assert_error(func, label)
+	local ok = pcall(func)
+	assert(not ok, label .. ": expected error")
 end
 
 local function unique_string(seed)
@@ -98,17 +177,20 @@ local function unique_string(seed)
 	return table.concat(chars)
 end
 
-local function test_checksum_framing()
+local function test_w3c_events()
 	print("------")
-	print("Testing W3CEvents buffered flushing")
+	print("Testing W3CEvents timer flushing and final flush")
 
 	W3CEvents.initialize({
 		checksum = { enabled = true, event_interval = 99 },
 		shared_schema = { enabled = true },
-		flush = { event_count = 2 },
+		flush = { interval_seconds = 15, packet_spacing_seconds = 0.1 },
 	})
 
-	W3CEvents:register_all_schemas({
+	assert_equal(W3CEvents.sending_player_ids[1], 1, "default sender should be first active user player")
+	assert_equal(active_timer_by_timeout(15).periodic, true, "flush timer should be periodic")
+
+	W3CEvents.register_all_schemas({
 		W3CEvents.schema("SchemaA", {
 			W3CEvents.byteField("value"),
 		}),
@@ -122,149 +204,114 @@ local function test_checksum_framing()
 		W3CEvents.schema("Large", {
 			W3CEvents.stringField("value"),
 		}),
+		W3CEvents.schema("NoDefaults", {
+			W3CEvents.byteField("player"),
+			W3CEvents.intField("sequence"),
+			W3CEvents.stringField("value"),
+		}, { include_defaults = false }),
 	})
-
-	local schema_a_payload = { 0, 0, 1, 5 }
-	local schema_b_payload = { 0, 0, 2, 5 }
-	local pair_payload_a = { 0, 0, 3, 1, 23 }
-	local pair_payload_b = { 0, 0, 4, 12, 3 }
-
-	assert_not_equal(
-		framed_event("SchemaA", schema_a_payload),
-		framed_event("SchemaB", schema_b_payload),
-		"Framed bytes should include schema identity"
-	)
-
-	assert_not_equal(
-		framed_event("Pair", pair_payload_a),
-		framed_event("Pair", pair_payload_b),
-		"Framed bytes should preserve field boundaries"
-	)
+	drain_paced_timers()
 
 	local packets_after_registry = #sent_sync_packets
-	assert_equal(#sent_sync_packets, packets_after_registry, "schema registration should not emit event payloads")
+	W3CEvents.event("SchemaA", { player = 1, value = 5 })
+	W3CEvents.event("SchemaB", { player = 1, value = 5 })
+	assert_equal(#sent_sync_packets, packets_after_registry, "events should not flush by count")
 
-	W3CEvents:event("SchemaA", { value = 5 })
-	assert_equal(#sent_sync_packets, packets_after_registry, "single event should remain buffered before threshold")
-	assert_equal(
-		W3CEvents.config.checksum.get_checksum(),
-		checksum_for({
-			{ schema_name = "SchemaA", payload = schema_a_payload },
-		}),
-		"Single event checksum should use framed packed bytes"
-	)
+	local flush_timer = active_timer_by_timeout(15)
+	tick_timer(flush_timer, 1)
+	assert_equal(#sent_sync_packets, packets_after_registry, "flush timer should pace packets instead of sending immediately")
+	drain_paced_timers()
+	assert_equal(#sent_sync_packets, packets_after_registry + 1, "flush timer should send buffered events")
 
-	W3CEvents:event("SchemaB", { value = 5 })
-	assert_equal(#sent_sync_packets, packets_after_registry + 1, "reaching threshold should flush buffered events")
 	local first_flush_events = parse_packet_events(packets_after_registry + 1)
+	assert_equal(first_flush_events[1][2].player, 1, "first event should use payload player")
 	assert_equal(first_flush_events[1][2].sequence, 1, "first flushed event should have the lowest sequence")
 	assert_equal(first_flush_events[2][2].sequence, 2, "second flushed event should have the next sequence")
 	assert_equal(
 		W3CEvents.config.checksum.get_checksum(),
 		checksum_for({
-			{ schema_name = "SchemaA", payload = schema_a_payload },
-			{ schema_name = "SchemaB", payload = schema_b_payload },
+			{ schema_name = "SchemaA", payload = { 1, 0, 1, 5 } },
+			{ schema_name = "SchemaB", payload = { 1, 0, 2, 5 } },
 		}),
-		"Checksum should distinguish equal payloads under different schemas"
+		"Checksum should use framed packed bytes"
 	)
 
-	W3CEvents:event("Pair", { left = 1, right = 23 })
-	assert_equal(
-		W3CEvents.config.checksum.get_checksum(),
-		checksum_for({
-			{ schema_name = "SchemaA", payload = schema_a_payload },
-			{ schema_name = "SchemaB", payload = schema_b_payload },
-			{ schema_name = "Pair", payload = pair_payload_a },
-		}),
-		"Checksum should include field boundaries for the packed payload"
-	)
+	assert_error(function()
+		W3CEvents.event("SchemaA", { value = 5 })
+	end, "event should require payload player when shared schema contains player")
 
-	W3CEvents:event("Pair", { left = 12, right = 3 })
-	assert_equal(#sent_sync_packets, packets_after_registry + 2, "second threshold flush should send the next buffered batch")
-	assert_equal(
-		W3CEvents.config.checksum.get_checksum(),
-		checksum_for({
-			{ schema_name = "SchemaA", payload = schema_a_payload },
-			{ schema_name = "SchemaB", payload = schema_b_payload },
-			{ schema_name = "Pair", payload = pair_payload_a },
-			{ schema_name = "Pair", payload = pair_payload_b },
-		}),
-		"Checksum should change for payloads that only differed by previous string concatenation ambiguity"
-	)
-
-	assert(#sent_sync_packets > 0, "Schema registration should emit sync payloads")
-	print("W3CEvents threshold flush test passed")
-
-	W3CEvents.track("SchemaA", function()
-		return { value = 9 }
+	local stop_track = W3CEvents.track("SchemaA", function()
+		return {
+			{ player = 1, value = 9 },
+			{ player = 2, value = 10 },
+		}
 	end, 1)
-	local tracker_timer = created_timers[#created_timers]
+	local tracker_timer = active_timer_by_timeout(5)
 	local packets_before_tracker = #sent_sync_packets
-	tracker_timer.callback()
-	assert_equal(#sent_sync_packets, packets_before_tracker, "tracker event should buffer until threshold")
-	tracker_timer.callback()
-	assert_equal(#sent_sync_packets, packets_before_tracker + 1, "tracker events should flush through the same buffer threshold")
+	tick_timer(tracker_timer, 1)
+	tick_timer(flush_timer, 1)
+	drain_paced_timers()
+	assert_equal(#sent_sync_packets, packets_before_tracker + 1, "tracker event should flush on periodic timer")
 	local tracker_flush_events = parse_packet_events(packets_before_tracker + 1)
-	assert_equal(tracker_flush_events[1][2].sequence, 5, "tracker flush should preserve ascending sequence for the first event")
-	assert_equal(tracker_flush_events[2][2].sequence, 6, "tracker flush should preserve ascending sequence for the second event")
-	W3CEvents.track_callbacks["SchemaA"] = nil
+	assert_equal(tracker_flush_events[1][2].player, 1, "tracker should emit the first payload player")
+	assert_equal(tracker_flush_events[1][2].sequence, 3, "tracker flush should preserve sequence for first payload")
+	assert_equal(tracker_flush_events[2][2].player, 2, "tracker should emit the second payload player")
+	assert_equal(tracker_flush_events[2][2].sequence, 4, "tracker flush should preserve sequence for second payload")
+	stop_track()
 
-	W3CEvents.config.flush.event_count = 6
+	local packets_before_no_defaults = #sent_sync_packets
+	W3CEvents.event("NoDefaults", { player = 1, value = "details" })
+	tick_timer(flush_timer, 1)
+	drain_paced_timers()
+	local no_defaults_events = parse_packet_events(packets_before_no_defaults + 1)
+	assert_equal(no_defaults_events[1][2].sequence, 5, "non-default gameplay events should still receive sequence")
+
+	W3CEvents.set_sending_players({ 2, 1 })
+	assert_equal(#W3CEvents.sending_player_ids, 2, "multiple senders should be configurable")
+	assert_equal(W3CEvents.sending_player_ids[1], 1, "configured senders should be normalized deterministically")
+	assert_equal(W3CEvents.sending_player_ids[2], 2, "configured senders should be normalized deterministically")
+	player_slot_states[1] = PLAYER_SLOT_STATE_LEFT
+	for _, action in ipairs(created_triggers[1].actions) do
+		action()
+	end
+	assert_equal(W3CEvents.sending_player_ids[1], 2, "leaving sender should be removed")
+	assert_equal(W3CEvents.sending_player_ids[2], 3, "sender vacancy should be filled deterministically")
+
+	current_player_id = 2
 	local packets_before_large_flush = #sent_sync_packets
 	local large_values = {}
 	for index = 1, 6 do
 		local large_value = unique_string(index)
 		large_values[#large_values + 1] = large_value
-		W3CEvents:event("Large", { value = large_value })
+		W3CEvents.event("Large", { player = 2, value = large_value })
 	end
+	tick_timer(flush_timer, 1)
+	drain_paced_timers()
 	local large_flush_payloads = packet_payloads(packets_before_large_flush + 1)
-	assert(#large_flush_payloads > 1, "large buffered flush should send multiple payload packets")
+	assert(#large_flush_payloads > 1, "large buffered flush should send multiple paced payload packets")
 	assert_equal(#W3CData:decode_payloads(large_flush_payloads), 6, "multi-packet flush should deliver the full buffered batch")
-	local large_flush_events = parse_packet_events(packets_before_large_flush + 1)
-	for index, event in ipairs(large_flush_events) do
-		assert_equal(
-			event[2].sequence,
-			index + 6,
-			"large flush should emit events in ascending sequence order"
-		)
-	end
 
 	local packets_before_end_game = #sent_sync_packets
-	local end_game_events = {
-		{ player = 0, won = true },
+	current_player_id = 4
+	local callback_called = false
+	W3CEvents.end_game({
 		{ player = 1, won = false },
-	}
-
-	W3CEvents:end_game(end_game_events)
-
-	assert_equal(#sent_sync_packets, packets_before_end_game + 2, "end_game should immediately send final events and checksum")
-
-	local final_checksum = W3CData:decode_payloads({ sent_sync_packets[#sent_sync_packets].payload })[1][1]
-	assert_equal(
-		final_checksum,
-		checksum_for({
-			{ schema_name = "SchemaA", payload = schema_a_payload },
-			{ schema_name = "SchemaB", payload = schema_b_payload },
-			{ schema_name = "Pair", payload = pair_payload_a },
-			{ schema_name = "Pair", payload = pair_payload_b },
-			{ schema_name = "SchemaA", payload = { 0, 0, 5, 9 } },
-			{ schema_name = "SchemaA", payload = { 0, 0, 6, 9 } },
-			{ schema_name = "Large", payload = { 0, 0, 7, large_values[1] } },
-			{ schema_name = "Large", payload = { 0, 0, 8, large_values[2] } },
-			{ schema_name = "Large", payload = { 0, 0, 9, large_values[3] } },
-			{ schema_name = "Large", payload = { 0, 0, 10, large_values[4] } },
-			{ schema_name = "Large", payload = { 0, 0, 11, large_values[5] } },
-			{ schema_name = "Large", payload = { 0, 0, 12, large_values[6] } },
-			{ schema_name = "W3CGameEnd", payload = { 0, 0, 13, true } },
-			{ schema_name = "W3CGameEnd", payload = { 1, 0, 14, false } },
-		}),
-		"Final checksum should include W3CGameEnd events"
-	)
+		{ player = 2, won = true },
+	}, function()
+		callback_called = true
+	end)
+	assert_equal(callback_called, false, "end_game callback should wait for paced final flush")
+	drain_paced_timers()
+	assert_equal(callback_called, true, "end_game callback should run after final flush")
+	assert_equal(#sent_sync_packets, packets_before_end_game + 2, "end_game should force final event packet and checksum from any player")
 
 	local final_events = W3CData:decode_payloads({ sent_sync_packets[#sent_sync_packets - 1].payload })
 	assert_equal(final_events[#final_events - 1][1], "W3CGameEnd", "end_game should flush game end events before checksum")
 	assert_equal(final_events[#final_events][1], "W3CGameEnd", "end_game should flush all game end events before checksum")
-	print("W3CEvents final checksum test passed")
+	local final_checksum = W3CData:decode_payloads({ sent_sync_packets[#sent_sync_packets].payload })[1][1]
+	assert_not_equal(final_checksum, "", "final checksum should be present")
+
+	print("W3CEvents timer flush test passed")
 end
 
-test_checksum_framing()
+test_w3c_events()

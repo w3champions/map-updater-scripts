@@ -1,4 +1,5 @@
 import { MapPlayer, getElapsedTime } from "w3ts/index";
+import { flushGameEndBefore } from "../metrics/gameEnd";
 
 let drawPlayers = [];
 let requiredDrawPlayers = 0;
@@ -42,9 +43,11 @@ export function enableDraw() {
         }
 
         if (drawPlayers.length == requiredDrawPlayers) {
-            for (let i = 0; i < bj_MAX_PLAYERS; i++) {
-                RemovePlayerPreserveUnitsBJ(Player(i), PLAYER_GAME_RESULT_NEUTRAL, false);
-            }
+            flushGameEndBefore(() => {
+                for (let i = 0; i < bj_MAX_PLAYERS; i++) {
+                    RemovePlayerPreserveUnitsBJ(Player(i), PLAYER_GAME_RESULT_NEUTRAL, false);
+                }
+            }, () => false);
         }
     });
 	
@@ -62,9 +65,11 @@ export function enableDraw() {
         }
 
         if (drawPlayers.length != 0 && drawPlayers.length == requiredDrawPlayers) {
-            for (let i = 0; i < bj_MAX_PLAYERS; i++) {
-                RemovePlayerPreserveUnitsBJ(Player(i), PLAYER_GAME_RESULT_NEUTRAL, false);
-            }
+            flushGameEndBefore(() => {
+                for (let i = 0; i < bj_MAX_PLAYERS; i++) {
+                    RemovePlayerPreserveUnitsBJ(Player(i), PLAYER_GAME_RESULT_NEUTRAL, false);
+                }
+            }, () => false);
         }
     });
 }

@@ -1,13 +1,9 @@
 --[[
 
-Utility for reading and writing compressed byte data. Used by W3CEvents internally to compress event data sent.
-
-Uses LibDeflate nad bit packing.
+Utility for reading and writing packed byte data. Used by W3CEvents internally to encode event data.
 
 ]]--
 
-
-require("lua.libDeflate")
 
 ---@class Writer
 ---@field buffer table
@@ -31,7 +27,6 @@ local INT_MASK = 0xFFFFFFFF
 -----------------------------
 
 function Writer.new()
-	LibDeflate.InitCompressor()
 	return setmetatable({ buffer = {}, current = 0, num_of_bits = 0 }, Writer)
 end
 
@@ -79,13 +74,11 @@ function Writer:string(value)
 		self.current, self.num_of_bits = 0, 0
 	end
 
-	local compressed = LibDeflate.CompressDeflate(value) or ""
-	local length = #compressed
+	local length = #value
 
 	self.buffer[#self.buffer + 1] = string.char((length >> 8) & 0xFF)
 	self.buffer[#self.buffer + 1] = string.char(length & 0xFF)
-
-	self.buffer[#self.buffer + 1] = compressed
+	self.buffer[#self.buffer + 1] = value
 end
 
 function Writer:flush()
@@ -162,11 +155,10 @@ function Reader:string()
 	local lo = self:_next_byte()
 	local length = (hi << 8) | lo
 
-	local compressed = self.data:sub(self.index, self.index + length - 1)
+	local value = self.data:sub(self.index, self.index + length - 1)
 	self.index = self.index + length
 
-	local ok, decoded = pcall(LibDeflate.DecompressDeflate, compressed)
-	return ok and decoded or ""
+	return value
 end
 
 return {

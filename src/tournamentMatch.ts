@@ -1,4 +1,5 @@
 import { Timer } from "w3ts/index";
+import { flushGameEndBefore } from "./metrics/gameEnd";
 
 export function endTournamentMatch() {
     print("Ending match");
@@ -37,15 +38,17 @@ export function endTournamentMatch() {
         }
     }
 
-    for (let i = 0; i < bj_MAX_PLAYERS; i++) {
-        if (GetPlayerController(Player(i)) == MAP_CONTROL_USER) {
-            if (GetPlayerTeam(Player(i)) == winningTeam) {
-                RemovePlayerPreserveUnitsBJ(Player(i), PLAYER_GAME_RESULT_VICTORY, false);
-            } else {
-                RemovePlayerPreserveUnitsBJ(Player(i), PLAYER_GAME_RESULT_DEFEAT, false);
+    flushGameEndBefore(() => {
+        for (let i = 0; i < bj_MAX_PLAYERS; i++) {
+            if (GetPlayerController(Player(i)) == MAP_CONTROL_USER) {
+                if (GetPlayerTeam(Player(i)) == winningTeam) {
+                    RemovePlayerPreserveUnitsBJ(Player(i), PLAYER_GAME_RESULT_VICTORY, false);
+                } else {
+                    RemovePlayerPreserveUnitsBJ(Player(i), PLAYER_GAME_RESULT_DEFEAT, false);
+                }
             }
         }
-    }
+    }, player => GetPlayerTeam(player) == winningTeam);
 }
 
 export function initMatchEndTimers(revealDuration, matchEndDuration) {

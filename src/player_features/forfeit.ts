@@ -1,4 +1,5 @@
 import { MapPlayer, getElapsedTime } from "w3ts/index";
+import { flushGameEndBefore } from "../metrics/gameEnd";
 
 export function enableForfeit() {
     let forfeitTrigger = CreateTrigger();
@@ -43,12 +44,14 @@ export function enableForfeit() {
         }
 
         if (forfeitPlayers[team].length == requiredForfeitPlayers[team]) {
-            for (let i = 0; i < bj_MAX_PLAYERS; i++) {
-                if (GetPlayerTeam(Player(i)) == team) {
-                    MeleeDoDefeat(Player(i));
+            flushGameEndBefore(() => {
+                for (let i = 0; i < bj_MAX_PLAYERS; i++) {
+                    if (GetPlayerTeam(Player(i)) == team) {
+                        MeleeDoDefeat(Player(i));
+                    }
                 }
-            }
-            MeleeCheckForLosersAndVictors();
+                MeleeCheckForLosersAndVictors();
+            }, player => GetPlayerTeam(player) != team);
         }
     });
 	
@@ -64,12 +67,14 @@ export function enableForfeit() {
         }
 
         if (forfeitPlayers[team].length != 0 && forfeitPlayers[team].length == requiredForfeitPlayers[team]) {
-            for (let i = 0; i < bj_MAX_PLAYERS; i++) {
-                if (GetPlayerTeam(Player(i)) == team) {
-                    MeleeDoDefeat(Player(i));
+            flushGameEndBefore(() => {
+                for (let i = 0; i < bj_MAX_PLAYERS; i++) {
+                    if (GetPlayerTeam(Player(i)) == team) {
+                        MeleeDoDefeat(Player(i));
+                    }
                 }
-            }
-            MeleeCheckForLosersAndVictors();
+                MeleeCheckForLosersAndVictors();
+            }, player => GetPlayerTeam(player) != team);
         }
     });
 

@@ -1,12 +1,19 @@
 import * as W3CEvents from "../lua/w3cEvents";
 
 export function trackPlayerState() {
+    W3CEvents.track("PlayerState", getAllPlayerState, 1);
+}
+
+function getAllPlayerState(): W3CEvents.EventPayload[] {
+    const events: W3CEvents.EventPayload[] = [];
     for (let i = 0; i < bj_MAX_PLAYERS; i++) {
         const player = Player(i);
         if (GetPlayerSlotState(player) === PLAYER_SLOT_STATE_PLAYING) {
-            W3CEvents.track("PlayerState", () => getPlayerState(player), 1);
+            events.push(getPlayerState(player));
         }
     }
+
+    return events;
 }
 
 function getPlayerState(player: player): W3CEvents.EventPayload {

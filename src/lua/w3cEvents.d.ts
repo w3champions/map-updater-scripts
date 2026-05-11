@@ -1,9 +1,10 @@
 export function initialize(config?: W3CEventsConfig): void;
 export function register_shared_schema(schema: Schema, setter: (event: EventPayload) => void): void;
 export function register_all_schemas(schemas: Schema[]): void;
+export function set_sending_players(playerIds: number | number[]): void;
 export function event(name: string, payload: EventPayload): void;
 export function track(name: string, getter: () => EventPayload | EventPayload[], interval: number): () => void;
-export function end_game(playerResults: W3CEventsGameEndPlayer[]): void;
+export function end_game(playerResults: W3CEventsGameEndPlayer[], onGameEnd?: () => void): void;
 export function boolField(name: string): Field;
 export function byteField(name: string, options?: IntegerFieldOptions): Field;
 export function shortField(name: string, options?: IntegerFieldOptions): Field;
@@ -64,7 +65,8 @@ export interface EventSharedSchemaConfig extends BooleanConfig {
 }
 
 export interface FlushConfig {
-    event_count?: number;
+    interval_seconds?: number;
+    packet_spacing_seconds?: number;
 }
 
 export interface BooleanConfig {

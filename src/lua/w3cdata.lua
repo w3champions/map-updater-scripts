@@ -74,9 +74,8 @@ Bit sizes are assigned automatically when registering a schema:
 
 String values are not bit-packed.
 
-Floats use 4 bytes and are not compressed. 64-bit floats are converted to 32-bit
-floats, losing precision. Strings have a 2-byte length prefix and their contents are
-compressed with raw Deflate to handle utf-8 safely.
+Floats use 4 bytes. 64-bit floats are converted to 32-bit floats, losing precision.
+Strings have a 2-byte length prefix and are stored as raw bytes.
 
 If `num_of_bits` is set on an `"int"` field, it overrides the default 32-bit width.
 
@@ -138,7 +137,6 @@ Below is a table showing bits and the numbers they allow up to 24 bits / 3 bytes
 
 --]]
 
-require("lua.libDeflate")
 local json = require("lua.json")
 
 local bitbuffer = require("lua.w3cbitbuffer")
@@ -259,7 +257,6 @@ local bit_writer = bitbuffer.Writer.new()
 
 ---@param config? W3CDataConfig
 function W3CData.init(config)
-	LibDeflate.InitCompressor()
 	W3CData.config = config or { shared_schema = { enabled = true } }
 	next_chunk_id = 1
 end
@@ -598,7 +595,7 @@ end
 --- Asserts that the payload length matches the schema field count and that values match
 --- the expected field types and bounds.
 ---
---- Strings are Deflate compressed and written with a 2-byte length prefix.
+--- Strings are written with a 2-byte length prefix.
 --- Floats are stored as 4 bytes (32-bit). Integers use zigzag encoding for signed values.
 --- COBS encoding (null byte removal for safe BlzSendSyncData transmission) is applied later
 --- by `encode_payload` and `generate_checksum_payload`, not here.

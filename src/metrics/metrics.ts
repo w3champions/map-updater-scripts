@@ -17,8 +17,9 @@ export function initMetrics() {
     for (let i = 0; i < bj_MAX_PLAYERS; i++) {
         const player = Player(i);
         if (GetPlayerSlotState(player) === PLAYER_SLOT_STATE_PLAYING) {
+            const playerId = GetPlayerId(player);
             W3CEvents.event("PlayerDetails", {
-                player: GetPlayerId(player),
+                player: playerId,
                 name: GetPlayerName(player),
             });
         }
