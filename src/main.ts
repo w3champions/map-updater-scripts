@@ -18,6 +18,7 @@ import { enableClock } from "./player_features/clock";
 import { enableCreepLootIndicator } from "./player_features/loot-indicator/loot-indicator";
 import { detectGameStatusAndCache } from "./detectGameStatus";
 import { initMetrics, setupTrackMetrics, setupEventMetrics } from "./metrics/metrics";
+import { installMeleeGameEndHooks } from "./metrics/meleeGameEnd";
 
 function init() {
   detectGameStatusAndCache();
@@ -57,4 +58,5 @@ function init() {
 }
 
 
+addScriptHook(W3TS_HOOK.MAIN_BEFORE, installMeleeGameEndHooks);
 addScriptHook(W3TS_HOOK.MAIN_AFTER, init);

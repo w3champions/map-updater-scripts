@@ -6,40 +6,8 @@ let ended = false;
 export type GameEndResultResolver = (player: player) => boolean;
 
 export function trackGameEnd() {
-    const playerTrigger = CreateTrigger();
-    const gameTrigger = CreateTrigger();
-
-    for (let i = 0; i < bj_MAX_PLAYERS; i++) {
-        const player = Player(i);
-        if (GetPlayerSlotState(player) !== PLAYER_SLOT_STATE_PLAYING || IsPlayerObserver(player)) {
-            continue;
-        }
-
-        TriggerRegisterPlayerEvent(playerTrigger, player, EVENT_PLAYER_VICTORY);
-        TriggerRegisterPlayerEvent(playerTrigger, player, EVENT_PLAYER_DEFEAT);
-        TriggerRegisterPlayerEventLeave(playerTrigger, player);
-    }
-
-    TriggerRegisterGameEvent(gameTrigger, EVENT_GAME_END_LEVEL);
-    TriggerRegisterGameEvent(gameTrigger, EVENT_GAME_VICTORY);
-
-    TriggerAddAction(playerTrigger, () => {
-        if (ended) {
-            return;
-        }
-
-        const playerId = GetPlayerId(GetTriggerPlayer());
-        resultsByPlayerId[playerId] = GetTriggerEventId() === EVENT_PLAYER_VICTORY;
-        endGameWithKnownResults();
-    });
-
-    TriggerAddAction(gameTrigger, () => {
-        if (ended) {
-            return;
-        }
-
-        endGameWithKnownResults();
-    });
+    // Game-end metrics must be emitted before WC3 victory/defeat is applied.
+    // Late EVENT_PLAYER_VICTORY/DEFEAT/LEAVE triggers cannot satisfy that ordering.
 }
 
 export function flushGameEndBefore(onComplete: () => void, wonResolver?: GameEndResultResolver) {
