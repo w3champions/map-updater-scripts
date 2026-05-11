@@ -1,4 +1,5 @@
 import * as W3CEvents from "../lua/w3cEvents";
+import { getUnitName, getItemName, getAbilityName } from "./objectNames";
 
 export function trackHeroes() {
     const heroLevel = CreateTrigger();
@@ -23,7 +24,7 @@ export function trackHeroes() {
 
     TriggerAddCondition(heroInventory, Condition(isHero));
     TriggerAddAction(heroInventory, trackHeroInventory);
-    
+
     TriggerAddCondition(heroItemUse, Condition(isHero));
     TriggerAddAction(heroItemUse, trackHeroItemUse);
 }
@@ -37,10 +38,12 @@ function trackHeroLevel() {
     const unit = GetTriggerUnit();
     const player = GetOwningPlayer(unit);
     const id = GetPlayerId(player);
+    const heroTypeId = GetUnitTypeId(unit);
 
     const payload: W3CEvents.EventPayload = {
         player: id,
-        hero: GetUnitName(unit),
+        hero: getUnitName(heroTypeId),
+        heroTypeId,
         level: GetHeroLevel(unit),
         x: GetUnitX(unit),
         y: GetUnitY(unit),
@@ -52,12 +55,16 @@ function trackHeroLevel() {
 function trackHeroSkill() {
     const hero = GetTriggerUnit();
     const id = GetPlayerId(GetOwningPlayer(hero));
+    const heroTypeId = GetUnitTypeId(hero);
+    const skillId = GetLearnedSkill();
 
     const payload: W3CEvents.EventPayload = {
         player: id,
-        hero: GetUnitName(hero),
+        hero: getUnitName(heroTypeId),
+        heroTypeId,
         heroLevel: GetHeroLevel(hero),
-        skill: GetObjectName(GetLearnedSkill()),
+        skill: getAbilityName(skillId),
+        skillId,
         skillLevel: GetLearnedSkillLevel(),
         x: GetUnitX(hero),
         y: GetUnitY(hero),
@@ -69,12 +76,16 @@ function trackHeroSkill() {
 function trackHeroInventory() {
     const hero = GetTriggerUnit();
     const item = GetManipulatedItem();
-    const itemName = GetItemName(item);
+    const heroTypeId = GetUnitTypeId(hero);
+    const itemTypeId = GetItemTypeId(item);
     const id = GetPlayerId(GetOwningPlayer(hero));
 
     const payload: W3CEvents.EventPayload = {
         player: id,
-        item: itemName,
+        hero: getUnitName(heroTypeId),
+        heroTypeId,
+        item: getItemName(itemTypeId),
+        itemTypeId,
         x: GetUnitX(hero),
         y: GetUnitY(hero),
     };
@@ -91,19 +102,10 @@ function trackHeroInventory() {
         }
     } else if (eventId === EVENT_PLAYER_UNIT_DROP_ITEM) {
         eventType = "HeroItemDrop";
-        payload.hero = GetUnitName(hero);
-        payload.heroTypeId = GetUnitTypeId(hero);
-        payload.itemTypeId = GetItemTypeId(item);
     } else if (eventId === EVENT_PLAYER_UNIT_SELL_ITEM) {
         eventType = "HeroItemBought";
-        payload.hero = GetUnitName(hero);
-        payload.heroTypeId = GetUnitTypeId(hero);
-        payload.itemTypeId = GetItemTypeId(item);
     } else if (eventId === EVENT_PLAYER_UNIT_PAWN_ITEM) {
         eventType = "HeroItemSold";
-        payload.hero = GetUnitName(hero);
-        payload.heroTypeId = GetUnitTypeId(hero);
-        payload.itemTypeId = GetItemTypeId(item);
     }
 
     W3CEvents.event(eventType, payload);
@@ -112,16 +114,17 @@ function trackHeroInventory() {
 function trackHeroItemUse() {
     const hero = GetTriggerUnit();
     const item = GetManipulatedItem();
-    const itemName = GetItemName(item);
+    const heroTypeId = GetUnitTypeId(hero);
+    const itemTypeId = GetItemTypeId(item);
     const id = GetPlayerId(GetOwningPlayer(hero));
     const target = getHeroItemUseTarget();
-    
+
     const payload: W3CEvents.EventPayload = {
         player: id,
-        hero: GetUnitName(hero),
-        heroTypeId: GetUnitTypeId(hero),
-        item: itemName,
-        itemTypeId: GetItemTypeId(item),
+        hero: getUnitName(heroTypeId),
+        heroTypeId,
+        item: getItemName(itemTypeId),
+        itemTypeId,
         heroX: GetUnitX(hero),
         heroY: GetUnitY(hero),
         targetX: target.x,
@@ -130,7 +133,7 @@ function trackHeroItemUse() {
         target: target.name,
         targetPlayer: target.player,
     };
-    
+
     W3CEvents.event("HeroItemUse", payload);
 }
 
@@ -145,18 +148,19 @@ interface HeroItemUseTarget {
 function getHeroItemUseTarget() : HeroItemUseTarget {
     const targetUnit = GetSpellTargetUnit();
     if (targetUnit != null) {
+        const typeId = GetUnitTypeId(targetUnit);
         return {
             x: GetUnitX(targetUnit),
             y: GetUnitY(targetUnit),
-            typeId: GetUnitTypeId(targetUnit),
-            name: GetUnitName(targetUnit),
+            typeId,
+            name: getUnitName(typeId),
             player: GetPlayerId(GetOwningPlayer(targetUnit)),
         };
     }
-    
+
     const targetX = GetSpellTargetX();
     const targetY = GetSpellTargetY();
-    
+
     return {
         x: targetX,
         y: targetY,

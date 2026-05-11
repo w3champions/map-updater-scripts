@@ -1,4 +1,5 @@
 import * as W3CEvents from "../lua/w3cEvents";
+import { getUnitName } from "./objectNames";
 
 export function trackPlayerUnitTrained() {
     const trigger = CreateTrigger();
@@ -19,19 +20,16 @@ function trackPlayerTraining() {
     const player = GetTriggerPlayer();
     const id = GetPlayerId(player);
 
-    let name = "";
     let typeId = 0;
     let unitType = "unit";
     let unit = GetTriggerUnit();
 
     if (eventId === EVENT_PLAYER_UNIT_TRAIN_START) {
         typeId = GetTrainedUnitType();
-        name = GetObjectName(typeId);
         unitType = IsHeroUnitId(typeId) ? "hero" : "unit";
     } else {
         unit = GetTrainedUnit();
         typeId = GetUnitTypeId(unit);
-        name = GetUnitName(unit);
         unitType = IsUnitType(unit, UNIT_TYPE_HERO) ? "hero" : "unit";
     }
 
@@ -44,7 +42,7 @@ function trackPlayerTraining() {
 
     W3CEvents.event(eventType, {
         player: id,
-        name,
+        name: getUnitName(typeId),
         typeId,
         unitType,
         x: GetUnitX(unit),

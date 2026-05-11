@@ -1,4 +1,5 @@
 import * as W3CEvents from "../lua/w3cEvents";
+import { getUnitName } from "./objectNames";
 
 export function trackBuildings() {
     const trigger = CreateTrigger();
@@ -26,6 +27,7 @@ function trackConstructEvents() {
     const playerId = GetPlayerId(GetTriggerPlayer());
     const structure = GetTriggerUnit();
     const eventId = GetTriggerEventId();
+    const typeId = GetUnitTypeId(structure);
 
     let eventType = "";
     if (eventId === EVENT_PLAYER_UNIT_CONSTRUCT_FINISH) {
@@ -44,8 +46,8 @@ function trackConstructEvents() {
 
     const payload: W3CEvents.EventPayload = {
         player: playerId,
-        name: GetUnitName(structure),
-        typeId: GetUnitTypeId(structure),
+        name: getUnitName(typeId),
+        typeId,
         unitType: "structure",
         x: GetUnitX(structure),
         y: GetUnitY(structure),

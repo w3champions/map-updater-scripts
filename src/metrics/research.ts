@@ -1,4 +1,5 @@
 import * as W3CEvents from "../lua/w3cEvents";
+import { getUnitName, getAbilityName } from "./objectNames";
 
 export function trackResearch() {
     const trigger = CreateTrigger();
@@ -18,13 +19,14 @@ function trackResearchEvent() {
     const building = GetTriggerUnit();
     const eventId = GetTriggerEventId();
     const playerId = GetPlayerId(GetTriggerPlayer());
+    const buildingTypeId = GetUnitTypeId(building);
 
     const payload: W3CEvents.EventPayload = {
         player: playerId,
-        name: GetObjectName(research),
+        name: getAbilityName(research),
         researchId: research,
-        building: GetUnitName(building),
-        buildingTypeId: GetUnitTypeId(building),
+        building: getUnitName(buildingTypeId),
+        buildingTypeId,
         buildingX: GetUnitX(building),
         buildingY: GetUnitY(building),
     };

@@ -1,5 +1,6 @@
 import * as W3CEvents from "../lua/w3cEvents";
 import { Players } from "w3ts/globals";
+import { getUnitName } from "./objectNames";
 
 const lastKnownHeroXpByHandle: Record<number, number> = {};
 
@@ -42,10 +43,11 @@ function emitChangedHeroXpAfterDelay(player: player, source: string, sourcePlaye
                 continue;
             }
 
+            const heroTypeId = GetUnitTypeId(hero);
             const xpPayload: W3CEvents.EventPayload = {
                 player: playerId,
-                name: GetUnitName(hero),
-                heroTypeId: GetUnitTypeId(hero),
+                name: getUnitName(heroTypeId),
+                heroTypeId,
                 xp,
                 source,
                 sourcePlayer,
@@ -65,10 +67,12 @@ function trackPlayerUnitDeath() {
     }
 
     const id = GetPlayerId(player);
+    const typeId = GetUnitTypeId(unit);
 
     const payload: W3CEvents.EventPayload = {
         player: id,
-        name: GetUnitName(unit),
+        name: getUnitName(typeId),
+        typeId,
         dyingUnitX: GetUnitX(unit),
         dyingUnitY: GetUnitY(unit),
     };
@@ -95,17 +99,20 @@ function trackCreepKill() {
     const killingUnit = GetKillingUnit();
     const killingPlayer = GetOwningPlayer(killingUnit);
     const killingPlayerId = GetPlayerId(killingPlayer);
-    const unitName = GetUnitName(unit);
+    const dyingTypeId = GetUnitTypeId(unit);
+    const killingTypeId = GetUnitTypeId(killingUnit);
 
     const payload: W3CEvents.EventPayload = {
         player: killingPlayerId,
-        name: unitName,
+        name: getUnitName(dyingTypeId),
+        typeId: dyingTypeId,
         dyingUnitX: GetUnitX(unit),
         dyingUnitY: GetUnitY(unit),
     };
 
     if (killingPlayer !== Players[PLAYER_NEUTRAL_AGGRESSIVE].handle) {
-        payload.killingUnit = GetUnitName(killingUnit);
+        payload.killingUnit = getUnitName(killingTypeId);
+        payload.killingTypeId = killingTypeId;
         W3CEvents.event("CreepKill", payload);
     } else {
         W3CEvents.event("CreepDeny", payload);
