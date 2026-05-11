@@ -10,6 +10,7 @@ import { trackResearch } from "./research";
 import { trackUnitLifecycle } from "./unitLifecycle";
 import { trackHeroRevive } from "./heroRevive";
 import { trackSpellEvents } from "./spellEvents";
+import { trackWorkerMineSnapshot } from "./workerMineSnapshot";
 import { metricSchemas } from "./schemas";
 import { trackGameEnd } from "./gameEnd";
 
@@ -47,6 +48,7 @@ export function initMetrics() {
 export function setupTrackMetrics() {
     trackPlayerState();
     trackCombatSummary();
+    trackWorkerMineSnapshot();
 }
 
 export function setupEventMetrics() {

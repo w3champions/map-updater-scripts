@@ -200,6 +200,15 @@ export const metricSchemas: W3CEvents.Schema[] = [
         f("targetX", "float"),
         f("targetY", "float"),
     ]),
+    // WorkerMineSnapshot: per-player worker count and resource amount at each gold mine
+    schema("WorkerMineSnapshot", [
+        f("mineTypeId", "int"),
+        f("mineName", "string"),
+        f("mineX", "float"),
+        f("mineY", "float"),
+        f("resourceAmount", "int"),
+        f("workerCount", "int"),
+    ]),
     schema("CombatStart", [
         f("targetPlayer", "int"),
         f("sourceCategory", "string"),
