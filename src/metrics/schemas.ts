@@ -19,8 +19,8 @@ const namedDeathFields: W3CEvents.Field[] = [
     f("level", "int"),
     f("isHero", "bool"),
     f("pointValue", "int"),
-    f("dyingUnitX", "float"),
-    f("dyingUnitY", "float"),
+    f("x", "float"),
+    f("y", "float"),
     f("killerPlayer", "int"),    // -1 if no player killer
     f("killerTypeId", "int"),    // 0 if no killer unit
     f("killerX", "float"),
@@ -146,8 +146,8 @@ export const metricSchemas: W3CEvents.Schema[] = [
         f("typeId", "int"),
         f("level", "int"),
         f("pointValue", "int"),
-        f("dyingUnitX", "float"),
-        f("dyingUnitY", "float"),
+        f("x", "float"),
+        f("y", "float"),
         f("killingUnit", "string"),
         f("killingTypeId", "int"),
         f("killerX", "float"),

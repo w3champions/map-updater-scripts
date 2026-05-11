@@ -82,8 +82,8 @@ function trackPlayerUnitDeath() {
         level: GetUnitLevel(unit),
         isHero: IsUnitType(unit, UNIT_TYPE_HERO),
         pointValue: GetUnitPointValue(unit),
-        dyingUnitX: GetUnitX(unit),
-        dyingUnitY: GetUnitY(unit),
+        x: GetUnitX(unit),
+        y: GetUnitY(unit),
         ...killerFields(killer),
     };
 
@@ -118,8 +118,8 @@ function trackCreepKill() {
         typeId: dyingTypeId,
         level: GetUnitLevel(unit),
         pointValue: GetUnitPointValue(unit),
-        dyingUnitX: GetUnitX(unit),
-        dyingUnitY: GetUnitY(unit),
+        x: GetUnitX(unit),
+        y: GetUnitY(unit),
     };
 
     if (killingPlayer !== Players[PLAYER_NEUTRAL_AGGRESSIVE].handle) {
