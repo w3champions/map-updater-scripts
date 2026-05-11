@@ -1,7 +1,7 @@
-﻿import * as W3CEvents from "../lua/w3cEvents";
+import * as W3CEvents from "../lua/w3cEvents";
 
 import { trackPlayerState } from "./playerState";
-import { trackPlayerHeroDamage } from "./playerHeroDamage";
+import { trackCombatSummary } from "./combatSummary";
 import { trackUnitDeaths } from "./unitDeaths";
 import { trackPlayerUnitTrained } from "./playerUnits";
 import { trackBuildings } from "./playerBuildings";
@@ -28,7 +28,7 @@ export function initMetrics() {
 
 export function setupTrackMetrics() {
     trackPlayerState();
-    trackPlayerHeroDamage();
+    trackCombatSummary();
 }
 
 export function setupEventMetrics() {

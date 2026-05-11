@@ -974,6 +974,13 @@ function W3CEvents.end_game(player_results, on_game_end)
     end, true)
 end
 
+--- Returns the number of whole seconds elapsed since the game started, using the
+--- same monotonic clock that populates the `time` field on all events.
+---@return integer
+function W3CEvents.now()
+    return now()
+end
+
 --- Registers all event schemas and sends the schema registry payloads over a short paced window.
 --- This can only be called once per game.
 ---@param schemas Schema[]

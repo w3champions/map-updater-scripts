@@ -1,3 +1,4 @@
+export function now(): number;
 export function initialize(config?: W3CEventsConfig): void;
 export function register_shared_schema(schema: Schema, setter: (event: EventPayload) => void): void;
 export function register_all_schemas(schemas: Schema[]): void;
