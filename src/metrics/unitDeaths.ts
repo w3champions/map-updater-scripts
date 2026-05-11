@@ -25,38 +25,43 @@ function emitChangedHeroXpAfterDelay(player: player, source: string, sourcePlaye
 
         while (true) {
             const hero = FirstOfGroup(group);
-            if (hero == null) {
-                break;
-            }
+            if (hero == null) break;
 
             GroupRemoveUnit(group, hero);
-            if (!IsUnitType(hero, UNIT_TYPE_HERO)) {
-                continue;
-            }
+            if (!IsUnitType(hero, UNIT_TYPE_HERO)) continue;
 
             const handleId = GetHandleId(hero);
             const xp = GetHeroXP(hero);
             const previousXp = lastKnownHeroXpByHandle[handleId];
             lastKnownHeroXpByHandle[handleId] = xp;
 
-            if (previousXp === xp || (previousXp == null && xp <= 0)) {
-                continue;
-            }
+            if (previousXp === xp || (previousXp == null && xp <= 0)) continue;
 
             const heroTypeId = GetUnitTypeId(hero);
-            const xpPayload: W3CEvents.EventPayload = {
+            W3CEvents.event("HeroXp", {
                 player: playerId,
                 name: getUnitName(heroTypeId),
                 heroTypeId,
                 xp,
                 source,
                 sourcePlayer,
-            };
-            W3CEvents.event("HeroXp", xpPayload);
+            });
         }
 
         DestroyGroup(group);
     });
+}
+
+function killerFields(unit: unit | null) {
+    if (unit == null) {
+        return { killerPlayer: -1, killerTypeId: 0, killerX: 0, killerY: 0 };
+    }
+    return {
+        killerPlayer: GetPlayerId(GetOwningPlayer(unit)),
+        killerTypeId: GetUnitTypeId(unit),
+        killerX: GetUnitX(unit),
+        killerY: GetUnitY(unit),
+    };
 }
 
 function trackPlayerUnitDeath() {
@@ -68,13 +73,18 @@ function trackPlayerUnitDeath() {
 
     const id = GetPlayerId(player);
     const typeId = GetUnitTypeId(unit);
+    const killer = GetKillingUnit();
 
     const payload: W3CEvents.EventPayload = {
         player: id,
         name: getUnitName(typeId),
         typeId,
+        level: GetUnitLevel(unit),
+        isHero: IsUnitType(unit, UNIT_TYPE_HERO),
+        pointValue: GetUnitPointValue(unit),
         dyingUnitX: GetUnitX(unit),
         dyingUnitY: GetUnitY(unit),
+        ...killerFields(killer),
     };
 
     if (IsUnitType(unit, UNIT_TYPE_STRUCTURE)) {
@@ -85,9 +95,9 @@ function trackPlayerUnitDeath() {
         W3CEvents.event("UnitDeath", payload);
     }
 
-    const killingUnit = GetKillingUnit();
-    const killingPlayer = GetOwningPlayer(killingUnit);
-    emitChangedHeroXpAfterDelay(killingPlayer, "opponent", id);
+    if (killer != null) {
+        emitChangedHeroXpAfterDelay(GetOwningPlayer(killer), "opponent", id);
+    }
 }
 
 function trackCreepKill() {
@@ -102,20 +112,34 @@ function trackCreepKill() {
     const dyingTypeId = GetUnitTypeId(unit);
     const killingTypeId = GetUnitTypeId(killingUnit);
 
-    const payload: W3CEvents.EventPayload = {
+    const base: W3CEvents.EventPayload = {
         player: killingPlayerId,
         name: getUnitName(dyingTypeId),
         typeId: dyingTypeId,
+        level: GetUnitLevel(unit),
+        pointValue: GetUnitPointValue(unit),
         dyingUnitX: GetUnitX(unit),
         dyingUnitY: GetUnitY(unit),
     };
 
     if (killingPlayer !== Players[PLAYER_NEUTRAL_AGGRESSIVE].handle) {
-        payload.killingUnit = getUnitName(killingTypeId);
-        payload.killingTypeId = killingTypeId;
-        W3CEvents.event("CreepKill", payload);
+        W3CEvents.event("CreepKill", {
+            ...base,
+            killingUnit: getUnitName(killingTypeId),
+            killingTypeId,
+            killerX: GetUnitX(killingUnit),
+            killerY: GetUnitY(killingUnit),
+        });
     } else {
-        W3CEvents.event("CreepDeny", payload);
+        // CreepDeny uses namedDeathFields, fill killer fields with the denying creep
+        W3CEvents.event("CreepDeny", {
+            ...base,
+            isHero: false,
+            killerPlayer: killingPlayerId,
+            killerTypeId: killingTypeId,
+            killerX: GetUnitX(killingUnit),
+            killerY: GetUnitY(killingUnit),
+        });
     }
 
     emitChangedHeroXpAfterDelay(killingPlayer, "creep");

@@ -12,11 +12,44 @@ const namedUnitFields: W3CEvents.Field[] = [
     f("y", "float"),
 ];
 
+// Shared by StructureDeath, WorkerDeath, UnitDeath, CreepDeny
 const namedDeathFields: W3CEvents.Field[] = [
     f("name", "string"),
     f("typeId", "int"),
+    f("level", "int"),
+    f("isHero", "bool"),
+    f("pointValue", "int"),
     f("dyingUnitX", "float"),
     f("dyingUnitY", "float"),
+    f("killerPlayer", "int"),    // -1 if no player killer
+    f("killerTypeId", "int"),    // 0 if no killer unit
+    f("killerX", "float"),
+    f("killerY", "float"),
+];
+
+// Fields shared by all item transaction events
+const heroItemFields: W3CEvents.Field[] = [
+    f("hero", "string"),
+    f("heroTypeId", "int"),
+    f("item", "string"),
+    f("itemTypeId", "int"),
+    f("x", "float"),
+    f("y", "float"),
+];
+
+// Additional shop context added to HeroItemBought and HeroItemSold
+const shopContextFields: W3CEvents.Field[] = [
+    f("shopName", "string"),
+    f("shopTypeId", "int"),
+    f("shopX", "float"),
+    f("shopY", "float"),
+];
+
+const heroReviveFields: W3CEvents.Field[] = [
+    f("hero", "string"),
+    f("heroTypeId", "int"),
+    f("x", "float"),
+    f("y", "float"),
 ];
 
 export const metricSchemas: W3CEvents.Schema[] = [
@@ -24,6 +57,11 @@ export const metricSchemas: W3CEvents.Schema[] = [
         f("player", "int"),
         f("sequence", "int"),
         f("name", "string"),
+        f("race", "string"),          // "human" | "orc" | "undead" | "nightelf" | "other"
+        f("team", "int"),
+        f("startLocationId", "int"),
+        f("startX", "float"),
+        f("startY", "float"),
     ], withoutDefaults),
     schema("PlayerState", [
         f("gold", "int"),
@@ -75,27 +113,11 @@ export const metricSchemas: W3CEvents.Schema[] = [
         f("x", "float"),
         f("y", "float"),
     ]),
-    ...["HeroItemDrop", "HeroItemBought", "HeroItemSold"].map((name) =>
-        schema(name, [
-            f("hero", "string"),
-            f("heroTypeId", "int"),
-            f("item", "string"),
-            f("itemTypeId", "int"),
-            f("x", "float"),
-            f("y", "float"),
-        ])
+    schema("HeroItemDrop", heroItemFields),
+    // HeroItemBought and HeroItemSold include shop context (needs validation per gap analysis)
+    ...["HeroItemBought", "HeroItemSold"].map((name) =>
+        schema(name, [...heroItemFields, ...shopContextFields])
     ),
-    ...["StructureDeath", "WorkerDeath", "UnitDeath", "CreepDeny"].map((name) =>
-        schema(name, namedDeathFields)
-    ),
-    schema("CreepKill", [
-        f("name", "string"),
-        f("typeId", "int"),
-        f("killingUnit", "string"),
-        f("killingTypeId", "int"),
-        f("dyingUnitX", "float"),
-        f("dyingUnitY", "float"),
-    ]),
     schema("HeroXp", [
         f("name", "string"),
         f("heroTypeId", "int"),
@@ -116,29 +138,88 @@ export const metricSchemas: W3CEvents.Schema[] = [
         f("target", "string"),
         f("targetPlayer", "int"),
     ]),
-    // CombatStart: fires on first player-vs-player damage after a gap
+    ...["StructureDeath", "WorkerDeath", "UnitDeath", "CreepDeny"].map((name) =>
+        schema(name, namedDeathFields)
+    ),
+    schema("CreepKill", [
+        f("name", "string"),
+        f("typeId", "int"),
+        f("level", "int"),
+        f("pointValue", "int"),
+        f("dyingUnitX", "float"),
+        f("dyingUnitY", "float"),
+        f("killingUnit", "string"),
+        f("killingTypeId", "int"),
+        f("killerX", "float"),
+        f("killerY", "float"),
+    ]),
+    schema("UnitSummoned", [
+        f("summoner", "string"),
+        f("summonerTypeId", "int"),
+        f("summonerX", "float"),
+        f("summonerY", "float"),
+        f("summoned", "string"),
+        f("summonedTypeId", "int"),
+        f("summonedX", "float"),
+        f("summonedY", "float"),
+    ]),
+    schema("UnitOwnerChanged", [
+        f("unit", "string"),
+        f("typeId", "int"),
+        f("x", "float"),
+        f("y", "float"),
+        f("previousOwner", "int"),
+        f("newOwner", "int"),
+    ]),
+    // UnitSold: a unit purchased from a shop (mercenary, neutral hero, lab unit)
+    schema("UnitSold", [
+        f("soldUnit", "string"),
+        f("soldTypeId", "int"),
+        f("soldX", "float"),
+        f("soldY", "float"),
+        f("shopName", "string"),
+        f("shopTypeId", "int"),
+        f("shopX", "float"),
+        f("shopY", "float"),
+        f("buyerPlayer", "int"),
+    ]),
+    ...["HeroReviveStart", "HeroReviveCancel", "HeroReviveFinish"].map((name) =>
+        schema(name, heroReviveFields)
+    ),
+    // SpellEvent: hero ability casts, EFFECT phase only (see gap analysis for phase expansion)
+    schema("SpellEvent", [
+        f("caster", "string"),
+        f("casterTypeId", "int"),
+        f("casterX", "float"),
+        f("casterY", "float"),
+        f("abilityId", "int"),
+        f("ability", "string"),
+        f("targetTypeId", "int"),    // 0 if no unit target
+        f("target", "string"),       // "" if no unit target
+        f("targetPlayer", "int"),    // -1 if no player unit target
+        f("targetX", "float"),
+        f("targetY", "float"),
+    ]),
     schema("CombatStart", [
         f("targetPlayer", "int"),
-        f("sourceCategory", "string"),   // "hero" | "unit" | "worker"
+        f("sourceCategory", "string"),
         f("sourceTypeId", "int"),
         f("sourceX", "float"),
         f("sourceY", "float"),
-        f("targetCategory", "string"),   // "hero" | "unit" | "worker" | "structure"
+        f("targetCategory", "string"),
         f("targetTypeId", "int"),
         f("targetX", "float"),
         f("targetY", "float"),
     ]),
-    // CombatEnd: fires ~1 second after last player-vs-player damage in a fight
     schema("CombatEnd", [
         f("targetPlayer", "int"),
     ]),
-    // CombatSummary: 5-second delta window per (sourcePlayer x targetPlayer x sourceCategory x targetCategory)
     schema("CombatSummary", [
-        f("targetPlayer", "int"),           // -1 for creep/neutral
-        f("sourceCategory", "string"),      // "hero" | "unit" | "worker"
-        f("targetCategory", "string"),      // "hero" | "unit" | "worker" | "structure" | "creep"
-        f("sourceHeroTypeId", "int"),       // hero type if sourceCategory = "hero", else 0
-        f("targetHeroTypeId", "int"),       // hero type if targetCategory = "hero", else 0
+        f("targetPlayer", "int"),
+        f("sourceCategory", "string"),
+        f("targetCategory", "string"),
+        f("sourceHeroTypeId", "int"),
+        f("targetHeroTypeId", "int"),
         f("damage", "float"),
         f("eventCount", "int"),
         f("sourceX", "float"),
