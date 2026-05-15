@@ -1,4 +1,5 @@
 import {Timer} from "w3ts";
+import {pauseClockW3C} from "./player_features/clock";
 
 const COUNTDOWN_START = 5;
 const COUNTDOWN_SOUND = CreateSound("Sound\\Interface\\BattleNetTick.wav", false, false, false, 10, 10, "",);
@@ -28,4 +29,5 @@ function onCountdown(count: number) {
 function pauseGameW3C(pause: boolean) {
     PauseAllUnitsBJ(pause);
     SuspendTimeOfDay(pause);
+    pauseClockW3C(pause);
 }
