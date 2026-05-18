@@ -60,11 +60,11 @@ export function enableWorkerCount() {
     });
 }
 
-// When wisp is ordered to get inside a mine by first selecting a mine and then
-// using "Load ability" or right-clicking a wisp game is going to fire "Board" order event.
-// But there is a special case when wisp is right next to gold mine - in this case an extra "Stop" order is fired after "Board" order.
-// Luckily, the unitLoad even fires after "Stop" order event, so we add wisp again.
-// Simply put: Board event -> add wisp -> Stop event -> remove wisp -> Load even -> Add wisp
+// For Night Elves, when first select a mine and use "Load unit" abiltity or right-click a wisp the game fires "Board" order event.
+// But there is a special case when wisp is right next to gold mine.
+// In this case an extra "Stop" order is fired after "Board" order and results in wisp being removed from the count.
+// Luckily, the unitLoaded event fires after "Stop" order event, so we add wisp back again.
+// Simply put: Board event = add wisp -> Stop event = remove wisp -> Load event = add wisp
 function action_unitLoaded() {
     const loadedUnit = GetLoadedUnit();
     const transportUnit = GetTransportUnit();
