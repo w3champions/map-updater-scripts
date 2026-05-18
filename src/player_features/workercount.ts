@@ -1,4 +1,11 @@
 import { File, MapPlayer, Trigger } from "w3ts/index";
+import {OrderId} from "w3ts/globals";
+import {Units} from "@objectdata/units";
+import {id2FourCC} from "./loot-indicator/modules/util";
+
+/**
+ * Order Ids info: https://www.hiveworkshop.com/threads/list-of-order-ids.350361/
+ */
 
 let isWorkerCountEnabled = true;
 
@@ -57,13 +64,22 @@ function action_lossOfUnit() {
     }
 }
 
+let lastWispOrder: number;
+
 function action_issuedOrder() {
     let triggerUnit = GetTriggerUnit();
     let orderId = GetIssuedOrderId();
 
     if (unitIsWorker(triggerUnit) && !isUnitReturningGold(orderId) && !unitOrderedToGather(orderId, GetUnitTypeId(GetOrderTargetUnit()))) {
+        //When wisp gets ordered to go into goldmine via "Load Wisp" goldmine ability or "smart" right-click on wisp when goalmine selected,
+        // the game first fires "BOARD" order. But if wisp is very close to goldmine then it follows with "STOP" order.
+        if(lastWispOrder == OrderId.Board && orderId == OrderId.Stop && GetUnitTypeId(triggerUnit) == FourCC(Units.Wisp)) {
+            return;
+        }
         removeWorkerFromMine(triggerUnit);
     }
+
+    lastWispOrder = GetUnitTypeId(triggerUnit) == FourCC(Units.Wisp) ? orderId : 0;
 }
 
 function unitIsWorker(whichUnit) {
@@ -155,9 +171,13 @@ function unitCanGatherAppropriateGoldMine(mine, workerTypeId) {
 }
 
 function unitOrderedToGather(orderId, unitTypeId) {
+    let orderedUnit = GetUnitTypeId(GetOrderedUnit());
     let target = GetUnitTypeId(GetOrderTargetUnit());
-    return ([852018, 851970].some(x => x == orderId) && target != 0) ||
-        (orderId == 851971 && (unitTypeId == FourCC('ugol') || unitTypeId == FourCC('egol') || unitTypeId == FourCC('ngol')));
+
+    return ([OrderId.Harvest, 851970].some(x => x == orderId) && target != 0)
+        || (orderId == OrderId.Smart && (unitTypeId == FourCC(Units.HauntedGoldMine/*ugol*/) || unitTypeId == FourCC('egol') || unitTypeId == FourCC('ngol')))
+        //GoldMine orders wisp to load with "Load Wisp" ability or "smart" right-click on wisp
+        || (orderId == OrderId.Board && orderedUnit == FourCC(Units.Wisp) && target == FourCC(Units.EntangledGoldMine))
 }
 
 function isUnitReturningGold(orderId) {
