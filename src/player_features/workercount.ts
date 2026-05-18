@@ -63,7 +63,6 @@ export function enableWorkerCount() {
 function action_unitLoaded() {
     const loadedUnit = GetLoadedUnit();
     const transportUnit = GetTransportUnit();
-    print(`Unit Loaded: ${id2FourCC(GetUnitTypeId(loadedUnit))} into ${id2FourCC(GetUnitTypeId(transportUnit))}`)
 
     if(GetUnitTypeId(loadedUnit) == FourCC(Units.Wisp) && GetUnitTypeId(transportUnit) == FourCC(Units.EntangledGoldMine)) {
         addWorkerToMine(loadedUnit, transportUnit);
