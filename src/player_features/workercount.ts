@@ -60,6 +60,11 @@ export function enableWorkerCount() {
     });
 }
 
+// When wisp is ordered to get inside a mine by first selecting a mine and then
+// using "Load ability" or right-clicking a wisp game is going to fire "Board" order event.
+// But there is a special case when wisp is right next to gold mine - in this case an extra "Stop" order is fired after "Board" order.
+// Luckily, the unitLoad even fires after "Stop" order event, so we add wisp again.
+// Simply put: Board event -> add wisp -> Stop event -> remove wisp -> Load even -> Add wisp
 function action_unitLoaded() {
     const loadedUnit = GetLoadedUnit();
     const transportUnit = GetTransportUnit();
