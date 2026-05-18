@@ -65,8 +65,8 @@ function action_unitLoaded() {
     const transportUnit = GetTransportUnit();
     print(`Unit Loaded: ${id2FourCC(GetUnitTypeId(loadedUnit))} into ${id2FourCC(GetUnitTypeId(transportUnit))}`)
 
-    if(GetUnitTypeId(GetLoadedUnit()) == FourCC(Units.Wisp) && GetUnitTypeId(GetTransportUnit()) == FourCC(Units.EntangledGoldMine)) {
-        addWorkerToMine(GetLoadedUnit(), GetTransportUnit());
+    if(GetUnitTypeId(loadedUnit) == FourCC(Units.Wisp) && GetUnitTypeId(transportUnit) == FourCC(Units.EntangledGoldMine)) {
+        addWorkerToMine(loadedUnit, transportUnit);
     }
 }
 
