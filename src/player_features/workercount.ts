@@ -15,6 +15,7 @@ export function enableWorkerCount() {
     let issuedOrder = CreateTrigger();
     let issuedPointOrder = CreateTrigger();
     let lossOfUnitTrigger = CreateTrigger();
+    let unitLoadedTrigger = CreateTrigger();
 
     for (let i = 0; i < bj_MAX_PLAYERS; i++) {
         let isLocalPlayer = MapPlayer.fromHandle(Player(i)).name == MapPlayer.fromLocal().name;
@@ -32,12 +33,14 @@ export function enableWorkerCount() {
         TriggerRegisterPlayerUnitEventSimple(issuedPointOrder, Player(i), EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER);
         TriggerRegisterPlayerUnitEventSimple(lossOfUnitTrigger, Player(i), EVENT_PLAYER_UNIT_DEATH);
         TriggerRegisterPlayerUnitEventSimple(lossOfUnitTrigger, Player(i), EVENT_PLAYER_UNIT_CHANGE_OWNER);
+        TriggerRegisterPlayerUnitEventSimple(unitLoadedTrigger, Player(i), EVENT_PLAYER_UNIT_LOADED);
     }
 
     TriggerAddAction(issuedTargetOrderTrigger, action_issuedTargetOrderTrigger);
     TriggerAddAction(issuedOrder, action_issuedOrder);
     TriggerAddAction(issuedPointOrder, action_issuedOrder);
     TriggerAddAction(lossOfUnitTrigger, action_lossOfUnit);
+    TriggerAddAction(unitLoadedTrigger, action_unitLoaded);
 
     workerCountTrigger.addAction(() => {
         let triggerPlayer = MapPlayer.fromEvent()
@@ -57,6 +60,16 @@ export function enableWorkerCount() {
     });
 }
 
+function action_unitLoaded() {
+    const loadedUnit = GetLoadedUnit();
+    const transportUnit = GetTransportUnit();
+    print(`Unit Loaded: ${id2FourCC(GetUnitTypeId(loadedUnit))} into ${id2FourCC(GetUnitTypeId(transportUnit))}`)
+
+    if(GetUnitTypeId(GetLoadedUnit()) == FourCC(Units.Wisp) && GetUnitTypeId(GetTransportUnit()) == FourCC(Units.EntangledGoldMine)) {
+        addWorkerToMine(GetLoadedUnit(), GetTransportUnit());
+    }
+}
+
 function action_lossOfUnit() {
     let triggerUnit = GetTriggerUnit();
     if (unitIsWorker(triggerUnit)) {
@@ -64,22 +77,13 @@ function action_lossOfUnit() {
     }
 }
 
-let lastWispOrder: number;
-
 function action_issuedOrder() {
     let triggerUnit = GetTriggerUnit();
     let orderId = GetIssuedOrderId();
 
     if (unitIsWorker(triggerUnit) && !isUnitReturningGold(orderId) && !unitOrderedToGather(orderId, GetUnitTypeId(GetOrderTargetUnit()))) {
-        //When wisp gets ordered to go into goldmine via "Load Wisp" goldmine ability or "smart" right-click on wisp when goalmine selected,
-        // the game first fires "BOARD" order. But if wisp is very close to goldmine then it follows with "STOP" order.
-        if(lastWispOrder == OrderId.Board && orderId == OrderId.Stop && GetUnitTypeId(triggerUnit) == FourCC(Units.Wisp)) {
-            return;
-        }
         removeWorkerFromMine(triggerUnit);
     }
-
-    lastWispOrder = GetUnitTypeId(triggerUnit) == FourCC(Units.Wisp) ? orderId : 0;
 }
 
 function unitIsWorker(whichUnit) {
