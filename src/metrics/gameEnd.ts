@@ -1,38 +1,38 @@
 import * as W3CEvents from "../lua/w3cEvents";
 
-const resultsByPlayerId: Record<number, boolean> = {};
-let ended = false;
+// So we can override blizzard functions
+declare const _G: Record<string, any>;
 
-export type GameEndResultResolver = (player: player) => boolean;
+let installed = false;
+let pendingGameEnd = false;
 
-export function trackGameEnd() {
-    // Game-end metrics must be emitted before WC3 victory/defeat is applied.
-    // Late EVENT_PLAYER_VICTORY/DEFEAT/LEAVE triggers cannot satisfy that ordering.
+let originalCheckForLosersAndVictors: () => void;
+
+function endGame(originalGameEnd: () => void) {
+  if (pendingGameEnd) {
+    return;
+  }
+
+  pendingGameEnd = true;
+
+  W3CEvents.end_game(originalGameEnd)
 }
 
-export function flushGameEndBefore(onComplete: () => void, wonResolver?: GameEndResultResolver) {
-    endGameWithKnownResults(onComplete, wonResolver);
-}
+/**
+ * Needs to be installed before main using 
+ * addScriptHook(W3TS_HOOK.MAIN_BEFORE, installGameEndHook);
+ *
+ * This overwrites the Blizzard `MeleeCheckForLosersAndVictors` with a
+ * custom function that clears the event buffer first.
+ */
+export function installGameEndHook() {
+  if (installed) {
+    return;
+  }
 
-function endGameWithKnownResults(onComplete?: () => void, wonResolver?: GameEndResultResolver) {
-    if (ended) {
-        if (onComplete) {
-            onComplete();
-        }
-        return;
-    }
+  originalCheckForLosersAndVictors = _G.MeleeCheckForLosersAndVictors as () => void;
+  _G.MeleeCheckForLosersAndVictors = endGame(originalCheckForLosersAndVictors);
 
-    const results: W3CEvents.W3CEventsGameEndPlayer[] = [];
-    for (let i = 0; i < bj_MAX_PLAYERS; i++) {
-        const player = Player(i);
-        if (GetPlayerSlotState(player) !== PLAYER_SLOT_STATE_PLAYING || IsPlayerObserver(player)) {
-            continue;
-        }
+  installed = true;
 
-        const id = GetPlayerId(player);
-        results.push({ player: id, won: wonResolver ? wonResolver(player) : resultsByPlayerId[id] === true });
-    }
-
-    ended = true;
-    W3CEvents.end_game(results, onComplete);
 }
