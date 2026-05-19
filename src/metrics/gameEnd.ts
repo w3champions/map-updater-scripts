@@ -4,18 +4,22 @@ import * as W3CEvents from "../lua/w3cEvents";
 declare const _G: Record<string, any>;
 
 let installed = false;
-let pendingGameEnd = false;
+let gameEnded = false;
 
 let originalCheckForLosersAndVictors: () => void;
 
-function endGame(originalGameEnd: () => void) {
-  if (pendingGameEnd) {
-    return;
-  }
+export function trackGameEnd() {
+  const gameTrigger = CreateTrigger();
 
-  pendingGameEnd = true;
-
-  W3CEvents.end_game(originalGameEnd)
+  TriggerRegisterGameEvent(gameTrigger, EVENT_GAME_END_LEVEL);
+  TriggerRegisterGameEvent(gameTrigger, EVENT_GAME_VICTORY);
+  TriggerAddAction(gameTrigger, () => {
+    if (gameEnded) {
+      return;
+    }
+    W3CEvents.shutdown();
+    gameEnded = true;
+  })
 }
 
 /**
@@ -31,8 +35,7 @@ export function installGameEndHook() {
   }
 
   originalCheckForLosersAndVictors = _G.MeleeCheckForLosersAndVictors as () => void;
-  _G.MeleeCheckForLosersAndVictors = endGame(originalCheckForLosersAndVictors);
+  _G.MeleeCheckForLosersAndVictors = () => W3CEvents.end_game(originalCheckForLosersAndVictors);
 
   installed = true;
-
 }

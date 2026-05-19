@@ -196,31 +196,31 @@ local function test_w3c_events()
 
 	local registered_schemas = {
 		W3CEvents.schema("SchemaA", {
-			W3CEvents.byteField("value"),
+			W3CEvents.field("value", "byte"),
 		}),
 		W3CEvents.schema("SchemaB", {
-			W3CEvents.byteField("value"),
+			W3CEvents.field("value", "byte"),
 		}),
 		W3CEvents.schema("Pair", {
-			W3CEvents.byteField("left"),
-			W3CEvents.byteField("right"),
+			W3CEvents.field("left", "byte"),
+			W3CEvents.field("right", "byte"),
 		}),
 		W3CEvents.schema("Large", {
-			W3CEvents.stringField("value"),
+			W3CEvents.field("value", "string"),
 		}),
 		W3CEvents.schema("NoDefaults", {
-			W3CEvents.byteField("player"),
-			W3CEvents.intField("sequence"),
-			W3CEvents.stringField("value"),
+			W3CEvents.field("player", "byte"),
+			W3CEvents.field("sequence", "int"),
+			W3CEvents.field("value", "string"),
 		}, { include_defaults = false }),
 	}
 
 	for index = 1, 160 do
 		registered_schemas[#registered_schemas + 1] = W3CEvents.schema("ExtraSchema" .. tostring(index), {
-			W3CEvents.stringField("repeatedFieldName"),
-			W3CEvents.intField("repeatedTypeId"),
-			W3CEvents.floatField("repeatedX"),
-			W3CEvents.floatField("repeatedY"),
+			W3CEvents.field("repeatedFieldName", "string"),
+			W3CEvents.field("repeatedTypeId", "int"),
+			W3CEvents.field("repeatedX", "float"),
+			W3CEvents.field("repeatedY", "float"),
 		})
 	end
 
@@ -231,7 +231,11 @@ local function test_w3c_events()
 	assert_equal(#sent_sync_packets, packets_after_register, "event flush should wait for schema registry packets")
 	tick_timer(active_timer_by_timeout(0.1), 1)
 	tick_timer(active_timer_by_timeout(15), 1)
-	assert_equal(payload_header(sent_sync_packets[#sent_sync_packets].payload), 0x80, "only schema registry chunk should send before registry completes")
+	assert_equal(
+		payload_header(sent_sync_packets[#sent_sync_packets].payload),
+		0x80,
+		"only schema registry chunk should send before registry completes"
+	)
 	drain_paced_timers()
 
 	local packets_after_registry = #sent_sync_packets
@@ -251,7 +255,11 @@ local function test_w3c_events()
 
 	local flush_timer = active_timer_by_timeout(15)
 	tick_timer(flush_timer, 1)
-	assert_equal(#sent_sync_packets, packets_after_registry, "flush timer should pace packets instead of sending immediately")
+	assert_equal(
+		#sent_sync_packets,
+		packets_after_registry,
+		"flush timer should pace packets instead of sending immediately"
+	)
 	drain_paced_timers()
 	assert_equal(#sent_sync_packets, packets_after_registry + 1, "flush timer should send buffered events")
 
@@ -338,10 +346,23 @@ local function test_w3c_events()
 	W3CEvents.event("SchemaA", { player = 1, value = 12 })
 	tick_timer(flush_timer, 1)
 	drain_paced_timers()
-	assert_equal(#sent_sync_packets, packets_before_periodic_checksum + 2, "flush should send periodic checksum after event payload")
-	assert_equal(payload_header(sent_sync_packets[packets_before_periodic_checksum + 1].payload), 0x01, "periodic checksum should follow the event packet")
-	assert_equal(payload_header(sent_sync_packets[packets_before_periodic_checksum + 2].payload), 0x02, "periodic checksum should use checksum payload header")
-	local periodic_checksum = W3CData:decode_payloads({ sent_sync_packets[packets_before_periodic_checksum + 2].payload })[1][1]
+	assert_equal(
+		#sent_sync_packets,
+		packets_before_periodic_checksum + 2,
+		"flush should send periodic checksum after event payload"
+	)
+	assert_equal(
+		payload_header(sent_sync_packets[packets_before_periodic_checksum + 1].payload),
+		0x01,
+		"periodic checksum should follow the event packet"
+	)
+	assert_equal(
+		payload_header(sent_sync_packets[packets_before_periodic_checksum + 2].payload),
+		0x02,
+		"periodic checksum should use checksum payload header"
+	)
+	local periodic_checksum =
+		W3CData:decode_payloads({ sent_sync_packets[packets_before_periodic_checksum + 2].payload })[1][1]
 	assert_not_equal(periodic_checksum, "", "periodic checksum should be present")
 	W3CEvents.config.checksum.event_interval = 99
 
@@ -368,25 +389,38 @@ local function test_w3c_events()
 	drain_paced_timers()
 	local large_flush_payloads = packet_payloads(packets_before_large_flush + 1)
 	assert(#large_flush_payloads > 1, "large buffered flush should send multiple paced payload packets")
-	assert_equal(#W3CData:decode_payloads(large_flush_payloads), 6, "multi-packet flush should deliver the full buffered batch")
+	assert_equal(
+		#W3CData:decode_payloads(large_flush_payloads),
+		6,
+		"multi-packet flush should deliver the full buffered batch"
+	)
 
 	local packets_before_end_game = #sent_sync_packets
 	current_player_id = 4
 	local callback_called = false
-	W3CEvents.end_game({
-		{ player = 1, won = false },
-		{ player = 2, won = true },
-	}, function()
+	W3CEvents.end_game(function()
 		callback_called = true
 	end)
 	assert_equal(callback_called, false, "end_game callback should wait for paced final flush")
 	drain_paced_timers()
 	assert_equal(callback_called, true, "end_game callback should run after final flush")
-	assert_equal(#sent_sync_packets, packets_before_end_game + 2, "end_game should force final event packet and checksum from any player")
+	assert_equal(
+		#sent_sync_packets,
+		packets_before_end_game + 2,
+		"end_game should force final event packet and checksum from any player"
+	)
 
 	local final_events = W3CData:decode_payloads({ sent_sync_packets[#sent_sync_packets - 1].payload })
-	assert_equal(final_events[#final_events - 1][1], "W3CGameEnd", "end_game should flush game end events before checksum")
-	assert_equal(final_events[#final_events][1], "W3CGameEnd", "end_game should flush all game end events before checksum")
+	assert_equal(
+		final_events[#final_events][1],
+		"W3CGameEndCheck",
+		"end_game should flush game end events before checksum"
+	)
+	assert_equal(
+		final_events[#final_events][1],
+		"W3CGameEndCheck",
+		"end_game should flush all game end events before checksum"
+	)
 	local final_checksum = W3CData:decode_payloads({ sent_sync_packets[#sent_sync_packets].payload })[1][1]
 	assert_not_equal(final_checksum, "", "final checksum should be present")
 

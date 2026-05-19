@@ -5,26 +5,38 @@ Utility for creating data schemas for use by W3CEvents.
 Data schemas are used to define the fields for an event created by W3CEvents. These data schemas are used to allow
 for efficient data compression of event data.
 
-]]--
+]]
+--
 
 ---@alias FieldType "bool" | "byte" | "short" | "int" | "number" | "float" | "string"
 
 local VALID_FIELD_TYPES = {
-	bool = true, byte = true, short = true,
-	int = true, number = true, float = true, string = true,
+	bool = true,
+	byte = true,
+	short = true,
+	int = true,
+	number = true,
+	float = true,
+	string = true,
 }
 
 local LIMITS = {
-	BYTE  = { SIGNED_LO = -2 << 7,  SIGNED_HI = (2 << 7) - 1,  UNSIGNED = (1 << 8) - 1  },
+	BYTE = { SIGNED_LO = -2 << 7, SIGNED_HI = (2 << 7) - 1, UNSIGNED = (1 << 8) - 1 },
 	SHORT = { SIGNED_LO = -2 << 15, SIGNED_HI = (2 << 15) - 1, UNSIGNED = (1 << 16) - 1 },
-	INT   = { SIGNED_LO = -2 << 31, SIGNED_HI = (2 << 31) - 1, UNSIGNED = (1 << 32) - 1 },
+	INT = { SIGNED_LO = -2 << 31, SIGNED_HI = (2 << 31) - 1, UNSIGNED = (1 << 32) - 1 },
 }
 
 ---@class W3CField
 ---@field name string
 ---@field field_type FieldType
----@field num_of_bits integer
----@field unsigned boolean
+---@field num_of_bits? integer
+---@field unsigned? boolean
+---@field minimum? number
+---@field maximum? number
+
+---@class FieldOptions
+---@field num_of_bits? integer
+---@field unsigned? boolean
 ---@field minimum? number
 ---@field maximum? number
 
@@ -35,11 +47,15 @@ local LIMITS = {
 ---@field fields W3CField[]
 
 ---@class Schema
----@field id integer
+---@field id? integer
 ---@field version integer
 ---@field name string
 ---@field include_defaults boolean
 ---@field fields W3CField[]
+
+---@class SchemaOptions
+---@field version integer
+---@field include_defaults boolean
 
 ---@class Registry
 ---@field next_id integer
@@ -57,18 +73,43 @@ end
 ---@return FieldType, boolean unsigned
 local function resolve_number_field(field)
 	if field.maximum and field.minimum and field.maximum <= field.minimum then
-		error(field.name .. ": maximum [" .. tostring(field.maximum) .. "] must be > minimum [" .. tostring(field.minimum) .. "]")
+		error(
+			field.name
+				.. ": maximum ["
+				.. tostring(field.maximum)
+				.. "] must be > minimum ["
+				.. tostring(field.minimum)
+				.. "]"
+		)
 	end
 
 	local unsigned = field.minimum ~= nil and field.minimum >= 0
 
 	if unsigned then
-		if field.maximum and field.maximum <= LIMITS.BYTE.UNSIGNED  then return "byte",  true end
-		if field.maximum and field.maximum <= LIMITS.SHORT.UNSIGNED then return "short", true end
+		if field.maximum and field.maximum <= LIMITS.BYTE.UNSIGNED then
+			return "byte", true
+		end
+		if field.maximum and field.maximum <= LIMITS.SHORT.UNSIGNED then
+			return "short", true
+		end
 		return "int", true
 	else
-		if field.minimum and field.minimum >= LIMITS.BYTE.SIGNED_LO  and field.maximum and field.maximum <= LIMITS.BYTE.SIGNED_HI  then return "byte",  false end
-		if field.minimum and field.minimum >= LIMITS.SHORT.SIGNED_LO and field.maximum and field.maximum <= LIMITS.SHORT.SIGNED_HI then return "short", false end
+		if
+			field.minimum
+			and field.minimum >= LIMITS.BYTE.SIGNED_LO
+			and field.maximum
+			and field.maximum <= LIMITS.BYTE.SIGNED_HI
+		then
+			return "byte", false
+		end
+		if
+			field.minimum
+			and field.minimum >= LIMITS.SHORT.SIGNED_LO
+			and field.maximum
+			and field.maximum <= LIMITS.SHORT.SIGNED_HI
+		then
+			return "short", false
+		end
 		return "int", false
 	end
 end
@@ -78,12 +119,22 @@ end
 ---@param existing_bits? integer Existing override for "int" fields.
 ---@return integer
 local function bits_for_type(field_type, existing_bits)
-	if field_type == "bool"   then return 1 end
-	if field_type == "byte"   then return 8 end
-	if field_type == "short"  then return 16 end
-	if field_type == "int"    then return existing_bits or 32 end
-	if field_type == "float"  then return 32 end
-	return 0  -- string
+	if field_type == "bool" then
+		return 1
+	end
+	if field_type == "byte" then
+		return 8
+	end
+	if field_type == "short" then
+		return 16
+	end
+	if field_type == "int" then
+		return existing_bits or 32
+	end
+	if field_type == "float" then
+		return 32
+	end
+	return 0 -- string
 end
 
 ---Validates and normalises a raw fields list into a fully-configured field table.
@@ -96,7 +147,13 @@ local function process_fields(schema_name, raw_fields)
 		assert(type(field.name) == "string", "Schema [" .. schema_name .. "] field [" .. index .. "] missing name")
 		assert(
 			VALID_FIELD_TYPES[field.field_type],
-			"Schema [" .. schema_name .. "] field [" .. field.name .. "] invalid type [" .. tostring(field.field_type) .. "]"
+			"Schema ["
+				.. schema_name
+				.. "] field ["
+				.. field.name
+				.. "] invalid type ["
+				.. tostring(field.field_type)
+				.. "]"
 		)
 
 		local ft = field.field_type
@@ -105,11 +162,19 @@ local function process_fields(schema_name, raw_fields)
 		if field.num_of_bits ~= nil then
 			assert(
 				ft == "int",
-				"Schema [" .. schema_name .. "] field [" .. field.name .. "] num_of_bits override is only allowed for type 'int'"
+				"Schema ["
+					.. schema_name
+					.. "] field ["
+					.. field.name
+					.. "] num_of_bits override is only allowed for type 'int'"
 			)
 			assert(
 				math.type(field.num_of_bits) == "integer" and field.num_of_bits >= 1 and field.num_of_bits <= 32,
-				"Schema [" .. schema_name .. "] field [" .. field.name .. "] num_of_bits must be an integer between 1 and 32"
+				"Schema ["
+					.. schema_name
+					.. "] field ["
+					.. field.name
+					.. "] num_of_bits must be an integer between 1 and 32"
 			)
 		end
 
@@ -122,17 +187,23 @@ local function process_fields(schema_name, raw_fields)
 		else
 			assert(
 				field.minimum == nil and field.maximum == nil,
-				"Schema [" .. schema_name .. "] field [" .. field.name .. "] type '" .. ft .. "' cannot have minimum or maximum"
+				"Schema ["
+					.. schema_name
+					.. "] field ["
+					.. field.name
+					.. "] type '"
+					.. ft
+					.. "' cannot have minimum or maximum"
 			)
 		end
 
 		fields[index] = {
-			name       = field.name,
+			name = field.name,
 			field_type = ft,
 			num_of_bits = bits_for_type(ft, field.num_of_bits),
-			unsigned   = unsigned,
-			minimum    = field.minimum,
-			maximum    = field.maximum,
+			unsigned = unsigned,
+			minimum = field.minimum,
+			maximum = field.maximum,
 		}
 	end
 	return fields
@@ -147,14 +218,14 @@ local function _register(registry, schema_definition)
 
 	---@type Schema
 	local schema = {
-		id       = id,
-		name     = schema_definition.name,
-		version  = schema_definition.version,
+		id = id,
+		name = schema_definition.name,
+		version = schema_definition.version,
 		include_defaults = schema_definition.include_defaults ~= false,
-		fields   = process_fields(schema_definition.name, schema_definition.fields),
+		fields = process_fields(schema_definition.name, schema_definition.fields),
 	}
 
-	registry.by_id[id]                      = schema
+	registry.by_id[id] = schema
 	registry.by_name[schema_definition.name] = schema
 
 	return id, schema
@@ -185,21 +256,27 @@ function Registry:update(schema_definition)
 
 	---@type Schema
 	local schema = {
-		id       = existing.id,
-		name     = schema_definition.name,
-		version  = schema_definition.version,
+		id = existing.id,
+		name = schema_definition.name,
+		version = schema_definition.version,
 		include_defaults = schema_definition.include_defaults ~= false,
-		fields   = process_fields(schema_definition.name, schema_definition.fields),
+		fields = process_fields(schema_definition.name, schema_definition.fields),
 	}
 
-	self.by_id[existing.id]                  = schema
-	self.by_name[schema_definition.name]      = schema
+	self.by_id[existing.id] = schema
+	self.by_name[schema_definition.name] = schema
 
 	return existing.id, schema
 end
 
-function Registry:get(id)         return self.by_id[id]       end
-function Registry:get_by_name(n)  return self.by_name[n]      end
-function Registry:has(key)        return self.by_id[key] ~= nil or self.by_name[key] ~= nil end
+function Registry:get(id)
+	return self.by_id[id]
+end
+function Registry:get_by_name(n)
+	return self.by_name[n]
+end
+function Registry:has(key)
+	return self.by_id[key] ~= nil or self.by_name[key] ~= nil
+end
 
 return { Registry = Registry }

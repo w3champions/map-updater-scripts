@@ -49,14 +49,14 @@ local schemas = {
 		name = "PlayerStateBitSize",
 		include_defaults = true,
 		fields = {
-			{ name = "gold",         field_type = "int", num_of_bits = 11 },
-			{ name = "wood",         field_type = "int", num_of_bits = 11 },
-			{ name = "upkeep",       field_type = "int", num_of_bits = 2, unsigned = true },
+			{ name = "gold", field_type = "int", num_of_bits = 11 },
+			{ name = "wood", field_type = "int", num_of_bits = 11 },
+			{ name = "upkeep", field_type = "int", num_of_bits = 2, unsigned = true },
 			{ name = "string_field", field_type = "string" },
-			{ name = "food_used",    field_type = "int", num_of_bits = 8, unsigned = true },
-			{ name = "food_cap",     field_type = "int", num_of_bits = 8, unsigned = true },
-			{ name = "bool_field",   field_type = "bool" },
-			{ name = "float_test",   field_type = "float" },
+			{ name = "food_used", field_type = "int", num_of_bits = 8, unsigned = true },
+			{ name = "food_cap", field_type = "int", num_of_bits = 8, unsigned = true },
+			{ name = "bool_field", field_type = "bool" },
+			{ name = "float_test", field_type = "float" },
 		},
 	},
 	{
@@ -64,9 +64,9 @@ local schemas = {
 		name = "PlayerStateMinMax",
 		include_defaults = true,
 		fields = {
-			{ name = "gold",     field_type = "number", minimum = 0,    maximum = 25000 },
-			{ name = "food_cap", field_type = "number", minimum = 0,    maximum = 100   },
-			{ name = "test_num", field_type = "number", minimum = -200                  },
+			{ name = "gold", field_type = "number", minimum = 0, maximum = 25000 },
+			{ name = "food_cap", field_type = "number", minimum = 0, maximum = 100 },
+			{ name = "test_num", field_type = "number", minimum = -200 },
 		},
 	},
 	{
@@ -75,7 +75,7 @@ local schemas = {
 		include_defaults = true,
 		fields = {
 			{ name = "player_name", field_type = "string" },
-			{ name = "bool_field",  field_type = "bool"   },
+			{ name = "bool_field", field_type = "bool" },
 		},
 	},
 	{
@@ -293,8 +293,10 @@ local function test_chunk_ids_are_deterministic()
 	local first_batch = {}
 	local second_batch = {}
 	for index = 1, 20 do
-		first_batch[#first_batch + 1] = { schema_name = "PlayerState", payload = player_state_events[((index - 1) % #player_state_events) + 1] }
-		second_batch[#second_batch + 1] = { schema_name = "PlayerState", payload = player_state_events[((index - 1) % #player_state_events) + 1] }
+		first_batch[#first_batch + 1] =
+			{ schema_name = "PlayerState", payload = player_state_events[((index - 1) % #player_state_events) + 1] }
+		second_batch[#second_batch + 1] =
+			{ schema_name = "PlayerState", payload = player_state_events[((index - 1) % #player_state_events) + 1] }
 	end
 
 	local first_payloads, first_chunked = W3CData:encode_payload(first_batch, 200)
@@ -319,8 +321,10 @@ local function test_chunk_group_order_is_deterministic()
 	local batch_a = {}
 	local batch_b = {}
 	for index = 1, 20 do
-		batch_a[#batch_a + 1] = { schema_name = "PlayerState", payload = player_state_events[((index - 1) % #player_state_events) + 1] }
-		batch_b[#batch_b + 1] = { schema_name = "PlayerConfig", payload = player_config_events[((index - 1) % #player_config_events) + 1] }
+		batch_a[#batch_a + 1] =
+			{ schema_name = "PlayerState", payload = player_state_events[((index - 1) % #player_state_events) + 1] }
+		batch_b[#batch_b + 1] =
+			{ schema_name = "PlayerConfig", payload = player_config_events[((index - 1) % #player_config_events) + 1] }
 	end
 
 	local payloads_a, chunked_a = W3CData:encode_payload(batch_a, 200)
@@ -431,7 +435,10 @@ local function test_schema_payloads()
 			.. tostring(stats.legacy_json_bytes)
 	)
 	assert(stats.packet_count < 22, "Compact schema registry should use fewer packets than legacy JSON")
-	assert(stats.compressed_blob_bytes < stats.legacy_json_bytes, "Compact schema registry should be smaller than legacy JSON")
+	assert(
+		stats.compressed_blob_bytes < stats.legacy_json_bytes,
+		"Compact schema registry should be smaller than legacy JSON"
+	)
 
 	print("Schema registry test passed")
 end
@@ -463,6 +470,7 @@ local function test_shared_schema_disabled()
 	print("------")
 	print("Testing shared_schema.enabled = false")
 	W3CData.init({ shared_schema = { enabled = false } })
+	W3CData:register_all_schemas(schemas)
 
 	local schema = W3CData:get_schema("PlayerState")
 	for _, field in ipairs(schema.fields) do
@@ -473,6 +481,8 @@ local function test_shared_schema_disabled()
 	end
 
 	W3CData.init({ shared_schema = { enabled = true } })
+
+	W3CData:register_all_schemas(schemas)
 	print("shared_schema.enabled=false test passed")
 end
 
@@ -549,7 +559,11 @@ local function test_error_paths()
 	end, "register reserved name 'checksum'")
 
 	expect_error(function()
-		W3CData:register_schema({ name = "schema_registry", version = 1, fields = { { name = "x", field_type = "byte" } } })
+		W3CData:register_schema({
+			name = "schema_registry",
+			version = 1,
+			fields = { { name = "x", field_type = "byte" } },
+		})
 	end, "register reserved name 'schema_registry'")
 
 	-- Duplicate registration is a silent no-op (must NOT error)
@@ -637,18 +651,18 @@ local function test_numeric_boundaries()
 		name = "BoundaryTest",
 		include_defaults = false,
 		fields = {
-			{ name = "signed_byte",   field_type = "byte"                    },
-			{ name = "unsigned_byte", field_type = "byte", unsigned = true   },
-			{ name = "signed_short",  field_type = "short"                   },
-			{ name = "int_11bit",     field_type = "int",  num_of_bits = 11  },
+			{ name = "signed_byte", field_type = "byte" },
+			{ name = "unsigned_byte", field_type = "byte", unsigned = true },
+			{ name = "signed_short", field_type = "short" },
+			{ name = "int_11bit", field_type = "int", num_of_bits = 11 },
 		},
 	})
 
 	local cases = {
-		{ -128, 0,     -32768, -1024 },
-		{  127, 255,    32767,  1023 },
-		{    0, 0,          0,     0 },
-		{   -1, 1,         -1,    -1 },
+		{ -128, 0, -32768, -1024 },
+		{ 127, 255, 32767, 1023 },
+		{ 0, 0, 0, 0 },
+		{ -1, 1, -1, -1 },
 	}
 
 	for _, case in ipairs(cases) do

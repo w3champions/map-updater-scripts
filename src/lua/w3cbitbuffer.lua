@@ -2,8 +2,8 @@
 
 Utility for reading and writing packed byte data. Used by W3CEvents internally to encode event data.
 
-]]--
-
+]]
+--
 
 ---@class Writer
 ---@field buffer table
@@ -28,6 +28,12 @@ local INT_MASK = 0xFFFFFFFF
 
 function Writer.new()
 	return setmetatable({ buffer = {}, current = 0, num_of_bits = 0 }, Writer)
+end
+
+function Writer:reset()
+	self.buffer = {}
+	self.current = 0
+	self.num_of_bits = 0
 end
 
 function Writer:unsigned(value, num_of_bits)

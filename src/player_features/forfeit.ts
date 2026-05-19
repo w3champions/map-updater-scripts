@@ -1,90 +1,85 @@
 import { MapPlayer, getElapsedTime } from "w3ts/index";
-import { flushGameEndBefore } from "../metrics/gameEnd";
 
 export function enableForfeit() {
-    let forfeitTrigger = CreateTrigger();
-    let leaveTrigger = CreateTrigger();
-    let expireForfeitTrigger = [CreateTrigger(), CreateTrigger()];
-    let expiryTimers = [CreateTimer(), CreateTimer()]
-    let requiredForfeitPlayers = [3,3];
-    let forfeitPlayers = [[],[]];
-    let expiryTime = 180;
-    for (let i = 0; i < bj_MAX_PLAYERS; i++) {
-        if (GetPlayerSlotState(Player(i)) == PLAYER_SLOT_STATE_PLAYING) {
-            TriggerRegisterPlayerChatEvent(forfeitTrigger, Player(i), "-gg", true);
-            TriggerRegisterPlayerEventLeave(leaveTrigger, Player(i));
-        }
+  let forfeitTrigger = CreateTrigger();
+  let leaveTrigger = CreateTrigger();
+  let expireForfeitTrigger = [CreateTrigger(), CreateTrigger()];
+  let expiryTimers = [CreateTimer(), CreateTimer()]
+  let requiredForfeitPlayers = [3, 3];
+  let forfeitPlayers = [[], []];
+  let expiryTime = 180;
+  for (let i = 0; i < bj_MAX_PLAYERS; i++) {
+    if (GetPlayerSlotState(Player(i)) == PLAYER_SLOT_STATE_PLAYING) {
+      TriggerRegisterPlayerChatEvent(forfeitTrigger, Player(i), "-gg", true);
+      TriggerRegisterPlayerEventLeave(leaveTrigger, Player(i));
     }
-    for (let i = 0; i < 2; i++) {
-        TriggerRegisterTimerExpireEvent(expireForfeitTrigger[i], expiryTimers[i]);
+  }
+  for (let i = 0; i < 2; i++) {
+    TriggerRegisterTimerExpireEvent(expireForfeitTrigger[i], expiryTimers[i]);
+  }
+
+  TriggerAddAction(forfeitTrigger, () => {
+    let triggerPlayer = MapPlayer.fromEvent();
+
+    let team = triggerPlayer.team;
+
+    if (getElapsedTime() < 180) {
+      DisplayTextToPlayer(triggerPlayer.handle, 0, 0, `|cff00ff00[W3C]:|r The|cffffff00 -gg|r command is disabled before three minutes of gameplay.`);
+      return;
     }
 
-    TriggerAddAction(forfeitTrigger, () => {
-        let triggerPlayer = MapPlayer.fromEvent();
+    if (forfeitPlayers[team].indexOf(triggerPlayer.name) == -1) {
+      forfeitPlayers[team].push(triggerPlayer.name);
+      let remainingPlayers = requiredForfeitPlayers[team] - forfeitPlayers[team].length;
 
-        let team = triggerPlayer.team;
-
-        if (getElapsedTime() < 180) {
-            DisplayTextToPlayer(triggerPlayer.handle, 0, 0, `|cff00ff00[W3C]:|r The|cffffff00 -gg|r command is disabled before three minutes of gameplay.`);
-            return;
+      if (forfeitPlayers[team].length == 1) {
+        if (GetPlayerTeam(GetLocalPlayer()) == team) {
+          print(`|cff00ff00[W3C]:|r|cffFF4500 ${triggerPlayer.name}|r is proposing to surrender this game. \nType|cffffff00 -gg|r to vote. ${remainingPlayers} player(s) remaining.`);
         }
+        TimerStart(expiryTimers[team], expiryTime, false, null);
+      } else if (GetPlayerTeam(GetLocalPlayer()) == team && forfeitPlayers[team].length < requiredForfeitPlayers[team]) {
+        print(`|cff00ff00[W3C]:|r|cffFF4500 ${triggerPlayer.name}|r voted to surrender this game. ${remainingPlayers} player(s) remaining.`);
+      }
+    }
 
-        if (forfeitPlayers[team].indexOf(triggerPlayer.name) == -1) {
-            forfeitPlayers[team].push(triggerPlayer.name);
-            let remainingPlayers = requiredForfeitPlayers[team] - forfeitPlayers[team].length;
-            
-            if (forfeitPlayers[team].length == 1) {
-                if (GetPlayerTeam(GetLocalPlayer()) == team) {
-                    print(`|cff00ff00[W3C]:|r|cffFF4500 ${triggerPlayer.name}|r is proposing to surrender this game. \nType|cffffff00 -gg|r to vote. ${remainingPlayers} player(s) remaining.`);
-                }
-                TimerStart(expiryTimers[team], expiryTime, false, null);
-            } else if (GetPlayerTeam(GetLocalPlayer()) == team && forfeitPlayers[team].length < requiredForfeitPlayers[team]) {
-                print(`|cff00ff00[W3C]:|r|cffFF4500 ${triggerPlayer.name}|r voted to surrender this game. ${remainingPlayers} player(s) remaining.`);
-            }
+    if (forfeitPlayers[team].length == requiredForfeitPlayers[team]) {
+      for (let i = 0; i < bj_MAX_PLAYERS; i++) {
+        if (GetPlayerTeam(Player(i)) == team) {
+          MeleeDoDefeat(Player(i));
         }
+      }
+      MeleeCheckForLosersAndVictors();
+    }
+  });
 
-        if (forfeitPlayers[team].length == requiredForfeitPlayers[team]) {
-            flushGameEndBefore(() => {
-                for (let i = 0; i < bj_MAX_PLAYERS; i++) {
-                    if (GetPlayerTeam(Player(i)) == team) {
-                        MeleeDoDefeat(Player(i));
-                    }
-                }
-                MeleeCheckForLosersAndVictors();
-            }, player => GetPlayerTeam(player) != team);
+  TriggerAddAction(leaveTrigger, () => {
+    let triggerPlayer = MapPlayer.fromEvent();
+
+    let team = triggerPlayer.team;
+
+    requiredForfeitPlayers[team] = requiredForfeitPlayers[team] - 1;
+
+    if (forfeitPlayers[team].indexOf(triggerPlayer.name) != -1) {
+      forfeitPlayers[team].splice(forfeitPlayers[team].indexOf(triggerPlayer.name), 1);
+    }
+
+    if (forfeitPlayers[team].length != 0 && forfeitPlayers[team].length == requiredForfeitPlayers[team]) {
+      for (let i = 0; i < bj_MAX_PLAYERS; i++) {
+        if (GetPlayerTeam(Player(i)) == team) {
+          MeleeDoDefeat(Player(i));
         }
-    });
-	
-    TriggerAddAction(leaveTrigger, () => {
-        let triggerPlayer = MapPlayer.fromEvent();
+      }
+      MeleeCheckForLosersAndVictors();
+    }
+  });
 
-        let team = triggerPlayer.team;
-
-        requiredForfeitPlayers[team] = requiredForfeitPlayers[team] - 1;
-		
-        if (forfeitPlayers[team].indexOf(triggerPlayer.name) != -1) {
-            forfeitPlayers[team].splice(forfeitPlayers[team].indexOf(triggerPlayer.name), 1);
-        }
-
-        if (forfeitPlayers[team].length != 0 && forfeitPlayers[team].length == requiredForfeitPlayers[team]) {
-            flushGameEndBefore(() => {
-                for (let i = 0; i < bj_MAX_PLAYERS; i++) {
-                    if (GetPlayerTeam(Player(i)) == team) {
-                        MeleeDoDefeat(Player(i));
-                    }
-                }
-                MeleeCheckForLosersAndVictors();
-            }, player => GetPlayerTeam(player) != team);
-        }
-    });
-
-    for (let i = 0; i < 2; i++) 
+  for (let i = 0; i < 2; i++)
     (index => {
-    TriggerAddAction(expireForfeitTrigger[index], () => {
+      TriggerAddAction(expireForfeitTrigger[index], () => {
         forfeitPlayers[index].splice(0, forfeitPlayers[index].length);
         if (GetPlayerTeam(GetLocalPlayer()) == index) {
-            print(`|cff00ff00[W3C]|r: Surrender expired.`)
+          print(`|cff00ff00[W3C]|r: Surrender expired.`)
         }
-    });
+      });
     })(i);
 }

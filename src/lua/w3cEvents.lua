@@ -10,8 +10,8 @@ W3CEvents.initialize()
 
 W3CEvents.register_all_schemas({
   W3CEvents.schema("PlayerState", {
-    W3CEvents.intField("gold"),
-    W3CEvents.intField("wood"),
+    W3CEvents.field("gold", "int"),
+    W3CEvents.field("wood", "int"),
   }),
 })
 
@@ -25,10 +25,29 @@ W3CEvents.event("PlayerState", {
 
 `player` and `time` are added automatically to all events.
 
+---------- SECTIONS -----------
+
+Search the string in [] to go to each section easily.
+
+  - [W3CE-CON] Constants
+  - [W3CE-LOC] Local Variables
+  - [W3CE-DEF] Type Definitions
+  - [W3CE-UTIL] Utility Functions
+  - [W3CE-INT] Internal Functions
+  - [W3CE-LIB] Library Functions
+
 --]]
 
 local W3CData = require("lua.w3cdata")
 local W3CChecksum = require("lua.w3cChecksum")
+
+--[[
+-------------------------------------
+
+    [W3CE-CON] Constants
+
+-------------------------------------
+--]]
 
 -- 255 is the maximum total size for the BlzSendSyncData data, but there are reports of performance impact if going above ~180-200.
 local MAX_PAYLOAD_SIZE_BYTES = 180
@@ -44,15 +63,23 @@ local SYNC_DATA_PREFIX = "WC"
 
 local EVENTS = {
 	SHARED = "shared",
-	GAME_END = "W3CGameEnd",
+	GAME_END = "W3CGameEndCheck",
 }
 
 local ERRORS = {
 	NOT_INIT_ERROR = "W3CEvents has not been setup before use. Use W3CEvents.start()",
-	GAME_ENDED_ERROR = "W3CEvents.end_game has been used, cannot create any more events",
+	GAME_ENDED_ERROR = "W3CEvents.shutdown has been used, cannot create any more events",
 	SCHEMA_REGISTERED_ERROR = "W3CEvents.register_all_schemas has not been used. Registering schemas is required before creating any events",
 	TRACK_EVENT_EXISTS = "W3CEvents.track already contains the event: ",
 }
+
+--[[
+-------------------------------------
+
+    [W3CE-DEF] Type Definitions
+
+-------------------------------------
+--]]
 
 ---@alias Event table<string, string | number | boolean>
 
@@ -109,6 +136,80 @@ local W3CEvents = {
 	},
 }
 
+--[[
+-------------------------------------
+
+    [W3CE-LOC] Local Variables
+
+-------------------------------------
+--]]
+
+local event_buffer_size = 0
+
+local game_ended = false
+local initialized = false
+local schemas_registered = false
+local schema_registry_sending = false
+local event_sequence = 0
+local events_since_checksum = 0
+local flush_in_progress = false
+
+---@type W3CChecksum
+local checksum = nil
+
+---@type Schema
+local shared_schema = {
+	version = 1,
+	name = EVENTS.SHARED,
+	include_defaults = false,
+	fields = {
+		{ name = "player", field_type = "int", num_of_bits = 5 }, -- Up to 32 player ids
+		{ name = "time", field_type = "int", num_of_bits = 13 }, -- Up to ~2 hours 16 minutes
+		{ name = "sequence", field_type = "int" },
+	},
+}
+
+---@type Schema
+local game_end_schema = {
+	version = 1,
+	name = EVENTS.GAME_END,
+	-- Not using shared as the shared schema has a function used to populate values that we don't want
+	-- to use for game end.
+	include_defaults = false,
+	fields = {
+		{ name = "time", field_type = "int", num_of_bits = 13 },
+		{ name = "sequence", field_type = "int" },
+	},
+}
+
+-- Monotonic clock to get time since game started
+---@type timer | nil
+local clock = nil
+
+---@type timer | nil
+local track_timer = nil
+local track_timer_ticks = 0
+
+---@type timer | nil
+local flush_timer = nil
+
+---@type timer | nil
+local shutdown_timer = nil
+
+---@type trigger | nil
+local sender_leave_trigger = nil
+
+--[[
+-------------------------------------
+
+    [W3CE-UTIL] Utility Functions
+
+-------------------------------------
+--]]
+
+--- Merges provided configs with overrides. Allows providing partial config table
+--- and using defaults for fields not provided
+---@return table merged The merged configs
 local function merge_config(defaults, overrides)
 	local merged = {}
 
@@ -140,32 +241,13 @@ local function merge_config(defaults, overrides)
 	return merged
 end
 
-local function create_integer_field(name, field_type, options)
-	local field = {
-		name = name,
-		field_type = field_type,
-	}
-	options = options or {}
-
-	field.num_of_bits = options.num_of_bits
-	field.unsigned = options.unsigned
-	field.minimum = options.minimum
-	field.maximum = options.maximum
-
-	return field
-end
-
 --- Creates a field definition for use in `W3CEvents.schema`.
 --- This is the generic helper used by the typed field builders below.
 ---@param name string Field name
 ---@param field_type FieldType Field type understood by `W3CData`
 ---@param options? FieldOptions Optional field configuration
----@return Field field
+---@return W3CField field
 function W3CEvents.field(name, field_type, options)
-	if field_type == "byte" or field_type == "short" or field_type == "int" or field_type == "number" then
-		return create_integer_field(name, field_type, options)
-	end
-
 	local field = {
 		name = name,
 		field_type = field_type,
@@ -182,7 +264,7 @@ end
 
 --- Creates a schema definition to be registered later with `register_all_schemas`.
 ---@param name string Schema name
----@param fields Field[] Schema fields
+---@param fields W3CField[] Schema fields
 ---@param options? SchemaOptions Schema options such as `version` and `include_defaults`
 ---@return Schema schema
 function W3CEvents.schema(name, fields, options)
@@ -195,96 +277,14 @@ function W3CEvents.schema(name, fields, options)
 	}
 end
 
---- Convenience helper for a `bool` field.
----@param name string
----@return Field
-function W3CEvents.boolField(name)
-	return { name = name, field_type = "bool" }
-end
-
---- Convenience helper for a `byte` field.
----@param name string
----@param options? IntegerFieldOptions
----@return Field
-function W3CEvents.byteField(name, options)
-	return create_integer_field(name, "byte", options)
-end
-
---- Convenience helper for a `short` field.
----@param name string
----@param options? IntegerFieldOptions
----@return Field
-function W3CEvents.shortField(name, options)
-	return create_integer_field(name, "short", options)
-end
-
---- Convenience helper for an `int` field.
----@param name string
----@param options? IntegerFieldOptions
----@return Field
-function W3CEvents.intField(name, options)
-	return create_integer_field(name, "int", options)
-end
-
---- Convenience helper for a `float` field.
----@param name string
----@return Field
-function W3CEvents.floatField(name)
-	return { name = name, field_type = "float" }
-end
-
---- Convenience helper for a `string` field.
----@param name string
----@return Field
-function W3CEvents.stringField(name)
-	return { name = name, field_type = "string" }
-end
-
-local event_buffer_size = 0
-
-local game_ended = false
-local ending_game = false
-local initialized = false
-local schemas_registered = false
-local schema_registry_sending = false
-local event_sequence = 0
-local events_since_checksum = 0
-
----@type W3CChecksum
-local checksum = nil
-
----@type Schema
-local shared_schema = {
-	version = 1,
-	name = EVENTS.SHARED,
-	include_defaults = false,
-	fields = {
-		{ name = "player", field_type = "int", num_of_bits = 5 }, -- Up to 32 player ids
-		{ name = "time", field_type = "int", num_of_bits = 13 }, -- Up to ~2 hours 16 minutes
-		{ name = "sequence", field_type = "int" },
-	},
-}
-
----@type Schema
-local game_end_schema = {
-	version = 1,
-	name = EVENTS.GAME_END,
-	-- Not using shared as the shared schema has a function used to populate values that we don't want
-	-- to use for game end.
-	include_defaults = false,
-	fields = {
-		{ name = "player", field_type = "int", num_of_bits = 5 },
-		{ name = "time", field_type = "int", num_of_bits = 13 },
-		{ name = "sequence", field_type = "int" },
-	},
-}
-
+--- Prints a debug log if logging is enabled
 local function debug_log(message)
 	if W3CEvents.config.logging and W3CEvents.config.logging.enabled then
 		print("[W3CEvents] " .. message)
 	end
 end
 
+--- Prints payload header containing the header, number of raw bytes and number of decoded bytes if logging is enabled
 local function debug_payload_headers(payloads)
 	if not W3CEvents.config.logging or not W3CEvents.config.logging.enabled then
 		return
@@ -369,6 +369,18 @@ local function get_max_players()
 	return bj_MAX_PLAYERS or GetBJMaxPlayers()
 end
 
+--[[
+-------------------------------------
+
+    [W3CE-INT] Internal Library Functions
+
+-------------------------------------
+--]]
+
+--- Checks whether a player_id is eligible to send events.
+--- Players are required to be players, not observers, to be eligible to send events
+---@param player_id number Player ID to check
+---@return boolean is_sender_candidate Whether the player is eligible to send events or not
 local function player_is_sender_candidate(player_id)
 	local player = Player(player_id)
 
@@ -387,6 +399,9 @@ local function player_is_sender_candidate(player_id)
 	return true
 end
 
+--- Checks whether a player id is currently configured to send events
+---@param player_id number The player id to check
+---@return boolean is_sending_player Whether the player id is configured to send events
 local function is_sending_player(player_id)
 	for index = 1, #W3CEvents.sending_player_ids do
 		local sender_id = W3CEvents.sending_player_ids[index]
@@ -398,6 +413,13 @@ local function is_sending_player(player_id)
 	return false
 end
 
+--- Normalizes the players in a game to be used to determine which player ids are used to send events
+--- This checks whether a player is eligible to send events, then returns a sorted table.
+---
+--- Sorting is required to be deterministic to avoid desyncs
+---
+---@param player_ids table<number>|number Player ID or Player IDs to normalize
+---@return table<number> Table of player ids that are eligible to send events, sorted by player id
 local function normalize_sender_ids(player_ids)
 	local normalized = {}
 	local seen = {}
@@ -419,6 +441,9 @@ local function normalize_sender_ids(player_ids)
 	return normalized
 end
 
+--- Check how many of the provided player ids are currently configured to send events
+---@param player_ids table<number>|number Player ID or Player IDs to check
+---@return number count Number of player ids from those provided that are currently configured to send events
 local function requested_sender_count(player_ids)
 	if type(player_ids) == "number" then
 		return 1
@@ -438,6 +463,7 @@ local function requested_sender_count(player_ids)
 	return count
 end
 
+--- Updates the player ids used to send events.
 local function fill_sender_vacancies()
 	local senders = normalize_sender_ids(W3CEvents.sending_player_ids)
 	local seen = {}
@@ -460,6 +486,29 @@ local function fill_sender_vacancies()
 	W3CEvents.sending_player_ids = senders
 end
 
+--- Sends a checksum payload using the configured checksum getter.
+---@param force? boolean When true, emit the checksum even if the event interval has not been reached.
+local function send_checksum(force)
+	if not W3CEvents.config.checksum.enabled then
+		return
+	end
+
+	local interval = W3CEvents.config.checksum.event_interval or CHECKSUM_EVENT_INTERVAL
+	if force or (interval > 0 and events_since_checksum >= interval) then
+		local checksum_value = W3CEvents.config.checksum.get_checksum()
+		local payload = W3CData:generate_checksum_payload(checksum_value)
+		BlzSendSyncData(SYNC_DATA_PREFIX, payload)
+		events_since_checksum = 0
+	end
+end
+
+--- Sends payloads on a timer using BlzSendSyncData
+--- The timer uses W3CEvents.config.packet_spacing_seconds as the interval to send payloads
+--- Payloads are sent until `wait_packet_count` payloads, or all payloads, then the timer is destroyed
+--- The `on_complete` is called after the timer is destroyed
+---@param payloads table Payloads to send
+---@param on_complete function Function to call after payloads are sent
+---@param wait_packet_count? integer Max number of payloads to send. Uses #payloads if nil
 local function send_payloads_paced(payloads, on_complete, wait_packet_count)
 	local packet_spacing = W3CEvents.config.flush.packet_spacing_seconds or DEFAULT_FLUSH_PACKET_SPACING_SECONDS
 	local expected_count = wait_packet_count or #payloads
@@ -491,94 +540,75 @@ local function send_payloads_paced(payloads, on_complete, wait_packet_count)
 	TimerStart(timer, packet_spacing, true, send_next_packet)
 end
 
-local send_checksum
+--- Encodes the W3CEvents.event_buffer to prepare it for being sent
+---@return boolean ok whether the encoding succeeded or not
+---@return table<string> encoded_payloads The encoded payloads
+local function encode_buffer()
+	local ok, encoded_payloads =
+		pcall(W3CData.encode_payload, W3CData, sorted_event_buffer(W3CEvents.event_buffer), MAX_PAYLOAD_SIZE_BYTES)
+	if not ok then
+		return false, {}
+	end
+
+	debug_log("Encoded " .. tostring(#encoded_payloads) .. " payload packet(s)")
+	debug_payload_headers(encoded_payloads)
+
+	return true, encoded_payloads
+end
 
 --- Flushes the current event buffer by encoding it with `W3CData` and sending the
 --- resulting payload packets through `BlzSendSyncData` over a paced timer.
+---
+--- This function is called by the Flush timer, or on game end.
+---
 ---@param on_game_end? function Called once the paced game-end flush window completes.
----@param force_send? boolean When true, bypasses configured sender players.
+---@param force_send? boolean When true, bypasses configured sender players. Forces all players to send
 local function flush(on_game_end, force_send)
 	force_send = force_send or false
-	local on_game_end_called = false
 
-	local function run_game_end_callback_if_needed()
-		if not (ending_game or game_ended) or not on_game_end or on_game_end_called then
-			return
-		end
-
-		on_game_end_called = true
-		on_game_end()
-	end
+	flush_in_progress = true
 
 	-- Don't flush if we've disabled events. Disabled in `W3CEvents.end_game()`
 	if game_ended or #W3CEvents.event_buffer == 0 then
 		if not game_ended then
 			debug_log("flush skipped: empty buffer")
 		end
-		run_game_end_callback_if_needed()
+		flush_in_progress = false
 		return
 	end
 
+	-- We need to wait for schemas to be sent before flushing, as the events require the
+	-- schemas to be sent for decoding to function
 	if schema_registry_sending then
 		debug_log("flush skipped: schema registry is still sending")
+		flush_in_progress = false
 		return
 	end
 
+	-- Update senders if needed
 	fill_sender_vacancies()
+
 	local local_player_id = GetPlayerId(GetLocalPlayer())
 	local should_send = force_send or is_sending_player(local_player_id)
+	debug_log("flush send decision: " .. tostring(should_send))
 
-	debug_log("flush send decision=" .. tostring(should_send))
-	local payload_count = 0
-	local payloads = {}
-
-	if should_send then
-		debug_log("encoding event buffer")
-		local ok, encoded_payloads =
-			pcall(W3CData.encode_payload, W3CData, sorted_event_buffer(W3CEvents.event_buffer), MAX_PAYLOAD_SIZE_BYTES)
-		if not ok then
-			debug_log("encode failed: " .. tostring(encoded_payloads))
-			run_game_end_callback_if_needed()
-			return
-		end
-
-		payloads = encoded_payloads
-		payload_count = #payloads
-		debug_log("encoded " .. tostring(#payloads) .. " payload packet(s)")
-		debug_payload_headers(payloads)
-	else
-		debug_log("flush skipped on local player " .. tostring(local_player_id))
-		local ok, encoded_payloads =
-			pcall(W3CData.encode_payload, W3CData, sorted_event_buffer(W3CEvents.event_buffer), MAX_PAYLOAD_SIZE_BYTES)
-		payload_count = ok and #encoded_payloads or 0
+	local ok, encoded_payloads = encode_buffer()
+	if not ok then
+		debug_log("Encode failed: " .. tostring(encoded_payloads))
+		flush_in_progress = false
+		return
 	end
 
 	W3CEvents.event_buffer = {}
 	event_buffer_size = 0
-	send_payloads_paced(payloads, function()
-		if should_send and not ending_game and not game_ended then
+	send_payloads_paced(encoded_payloads, function()
+		if should_send and not on_game_end and not game_ended then
 			send_checksum(false)
+		elseif should_send and on_game_end and not game_ended then
+			on_game_end()
 		end
-		run_game_end_callback_if_needed()
-	end, payload_count)
-end
-
--- Monotonic clock to get time since game started
----@type timer
-local clock = nil
-
----@type timer
-local track_timer = nil
-local track_timer_ticks = 0
-
----@type timer
-local flush_timer = nil
-
----@type trigger
-local sender_leave_trigger = nil
-
-local function now()
-	return math.floor(TimerGetElapsed(clock))
+		flush_in_progress = false
+	end, #encoded_payloads)
 end
 
 ---Utility function that attempts to estimate the byte size of an event based on it's schema and values
@@ -613,7 +643,7 @@ local function add_shared_schema_data(event)
 	-- as the shared schema can be changed
 	for _, field in ipairs(schema.fields) do
 		if field.name == "time" and event["time"] == nil then
-			event["time"] = now()
+			event["time"] = math.floor(TimerGetElapsed(clock))
 		end
 	end
 end
@@ -664,27 +694,13 @@ local function update_checksum_for_event(schema_name, payload)
 	checksum:update(framed)
 end
 
---- Sends a checksum payload using the configured checksum getter.
----@param force? boolean When true, emit the checksum even if the event interval has not been reached.
-function send_checksum(force)
-	if not W3CEvents.config.checksum.enabled then
-		return
-	end
-
-	local interval = W3CEvents.config.checksum.event_interval or CHECKSUM_EVENT_INTERVAL
-	if force or (interval > 0 and events_since_checksum >= interval) then
-		local checksum_value = W3CEvents.config.checksum.get_checksum()
-		local payload = W3CData:generate_checksum_payload(checksum_value)
-		BlzSendSyncData(SYNC_DATA_PREFIX, payload)
-		events_since_checksum = 0
-	end
-end
-
 --- Default checksum getter used when no custom checksum getter is configured.
 local function get_checksum()
 	return checksum:finalize()
 end
 
+--- Iterates all registered tracking events and creates event payloads for them.
+--- This should only be called by the track timer.
 local function emit_tracks()
 	track_timer_ticks = track_timer_ticks + 1
 	for _, track_callback in pairs(W3CEvents.track_callbacks) do
@@ -710,6 +726,7 @@ local function emit_tracks()
 	end
 end
 
+--- Sets up trigger so that when a player leaves, the player that sends events is updated
 local function setup_sender_leave_trigger()
 	if sender_leave_trigger then
 		return
@@ -744,30 +761,13 @@ local function setup_timers()
 	end
 end
 
---- Stops and destroys all timers managed by this module and prevents further events
---- from being accepted.
-local function shutdown()
-	if clock then
-		PauseTimer(clock)
-		DestroyTimer(clock)
-	end
+--[[
+-------------------------------------
 
-	if track_timer then
-		PauseTimer(track_timer)
-		DestroyTimer(track_timer)
-	end
+    [W3CE-LIB] Library Functions
 
-	if flush_timer then
-		PauseTimer(flush_timer)
-		DestroyTimer(flush_timer)
-	end
-
-	for func in pairs(W3CEvents.track_callbacks) do
-		W3CEvents.track_callbacks[func] = nil
-	end
-
-	game_ended = true
-end
+-------------------------------------
+--]]
 
 --- Registers the shared/default schema used to populate common event fields.
 --- This schema must be named `shared`.
@@ -785,7 +785,9 @@ function W3CEvents.register_shared_schema(schema, setter)
 		error("Setter needs to be a function")
 	end
 
-	W3CData:register_schema(schema)
+	if not W3CData:register_schema(schema) then
+		error("Schema " .. schema.name .. " failed to register, likely due to a duplicate schema")
+	end
 	W3CEvents.set_shared_event_data = setter
 end
 
@@ -803,7 +805,6 @@ end
 --- Initializes `W3CEvents` and its underlying `W3CData` instance.
 ---
 --- This must be called before registering schemas, emitting events, or starting
---- trackers. Initialization is idempotent until `end_game()` is called.
 ---@param config? W3CEventsConfig
 function W3CEvents.initialize(config)
 	if initialized then
@@ -833,7 +834,9 @@ function W3CEvents.initialize(config)
 		W3CEvents.config.checksum.event_interval = W3CEvents.config.checksum.event_interval or CHECKSUM_EVENT_INTERVAL
 	end
 
-	W3CData:register_schema(game_end_schema)
+	if not W3CData:register_schema(game_end_schema) then
+		error("Schema " .. game_end_schema.name .. " failed to register, likely due to a duplicate schema")
+	end
 
 	fill_sender_vacancies()
 	setup_sender_leave_trigger()
@@ -862,7 +865,7 @@ function W3CEvents.track(name, getter, tick_interval)
 		error(ERRORS.SCHEMA_REGISTERED_ERROR)
 	end
 
-	if game_ended or ending_game then
+	if game_ended then
 		error(ERRORS.GAME_ENDED_ERROR)
 	end
 
@@ -895,7 +898,7 @@ function W3CEvents.event(name, event)
 		error(ERRORS.SCHEMA_REGISTERED_ERROR)
 	end
 
-	if game_ended or ending_game then
+	if game_ended then
 		error(ERRORS.GAME_ENDED_ERROR)
 	end
 
@@ -928,10 +931,9 @@ function W3CEvents.event(name, event)
 	)
 end
 
---- Emits one `W3CGameEnd` event per player result, flushes the final buffered
+--- Emits a `W3CGameEndCheck` event and flushes the final buffered
 --- payloads over the normal paced sender path, sends a trailing checksum, shuts
 --- the library down, and then invokes the optional callback.
----@param player_results W3CEventsGameEnd
 ---@param on_game_end? function
 function W3CEvents.end_game(on_game_end)
 	debug_log("Ending game")
@@ -943,22 +945,18 @@ function W3CEvents.end_game(on_game_end)
 		error(ERRORS.SCHEMA_REGISTERED_ERROR)
 	end
 
-	if game_ended or ending_game then
+	if game_ended then
 		return
 	end
 
 	W3CEvents.event(EVENTS.GAME_END, {
-		time = now(),
+		time = math.floor(TimerGetElapsed(clock)),
 		sequence = event_sequence + 1,
 	})
 
-	ending_game = true
 	debug_log("Flushing events")
 	flush(function()
-		debug_log("Sending checksum")
 		send_checksum(true)
-		debug_log("Shutting down")
-		shutdown()
 		if type(on_game_end) == "function" then
 			on_game_end()
 		end
@@ -969,7 +967,7 @@ end
 --- same monotonic clock that populates the `time` field on all events.
 ---@return integer
 function W3CEvents.now()
-	return now()
+	return math.floor(TimerGetElapsed(clock))
 end
 
 --- Registers all event schemas and sends the schema registry payloads over a short paced window.
@@ -984,7 +982,7 @@ function W3CEvents.register_all_schemas(schemas)
 		error("Schemas have already been registered. Schemas can only be registered once.")
 	end
 
-	if game_ended or ending_game then
+	if game_ended then
 		error(ERRORS.GAME_ENDED_ERROR)
 	end
 
@@ -999,6 +997,48 @@ function W3CEvents.register_all_schemas(schemas)
 		flush()
 	end)
 	debug_log("registered schemas; sent " .. tostring(#payloads) .. " schema payload(s)")
+end
+
+--- Stops and destroys all timers managed by this module and prevents further events
+--- from being accepted.
+function W3CEvents.shutdown()
+	local function cleanup()
+		if flush_in_progress or #W3CEvents.event_buffer > 0 then
+			return
+		end
+
+		if clock then
+			PauseTimer(clock)
+			DestroyTimer(clock)
+		end
+
+		if track_timer then
+			PauseTimer(track_timer)
+			DestroyTimer(track_timer)
+		end
+
+		if flush_timer then
+			PauseTimer(flush_timer)
+			DestroyTimer(flush_timer)
+		end
+
+		for func in pairs(W3CEvents.track_callbacks) do
+			W3CEvents.track_callbacks[func] = nil
+		end
+
+		if shutdown_timer then
+			PauseTimer(shutdown_timer)
+			DestroyTimer(shutdown_timer)
+			shutdown_timer = nil
+		end
+
+		game_ended = true
+	end
+
+	if not shutdown_timer then
+		shutdown_timer = CreateTimer()
+		TimerStart(shutdown_timer, 0.25, true, cleanup)
+	end
 end
 
 return W3CEvents

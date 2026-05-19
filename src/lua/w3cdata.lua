@@ -143,27 +143,11 @@ require("lua.libDeflate")
 local bitbuffer = require("lua.w3cbitbuffer")
 local schema_module = require("lua.w3cschema")
 
----@alias FieldType "bool" | "byte" | "short" | "int" | "number" | "float" | "string"
 ---@alias FieldName string
 ---@alias SchemaId integer
 
 ---@alias PayloadFieldValue string | number | boolean
 ---@alias PayloadValue table<FieldName, PayloadFieldValue>
-
----@class Field Field description for a schema.
----@field name string Name of the field.
----@field field_type FieldType Type of the field. Decimal numbers use `float`. `number` is resolved to an integer type from `minimum`/`maximum`.
----@field num_of_bits? integer Optional bit width override for `int` fields only.
----@field unsigned? boolean Whether the field is unsigned. Applies to integer field types after schema processing.
----@field minimum? number Minimum value for a `number` field.
----@field maximum? number Maximum value for a `number` field.
-
----@class SchemaW Schema used for an event
----@field version integer Version of the schema
----@field name string Name of the schema
----@field id? integer Id for the schema
----@field include_defaults? boolean Whether this schema should include the default fields or not. Defaults to `true`
----@field fields Field[] All fields for this schema
 
 ---@class Payload Payload entry to be packed into an event packet.
 ---@field schema_name string Name of the schema that the payload is for
@@ -236,32 +220,44 @@ local next_chunk_id = 1
 -- SCHEMA(1) and CHECKSUM(2) are registered normally; SHARED(3) starts with no fields
 -- and is populated when the user calls register_schema({name="shared", ...}).
 local registry = schema_module.Registry.new()
-registry:register({
-	name = INTERNAL_SCHEMA_NAMES.SCHEMA_REGISTRY,
-	version = 1,
-	include_defaults = false,
-	fields = { { name = "schemas_blob", field_type = "string" } },
-})
-registry:register({
-	name = INTERNAL_SCHEMA_NAMES.CHECKSUM,
-	version = 1,
-	include_defaults = false,
-	fields = { { name = "checksum", field_type = "string" } },
-})
-local _shared_placeholder = { id = INTERNAL_SCHEMA_ID.SHARED, name = INTERNAL_SCHEMA_NAMES.SHARED, version = 0, include_defaults = false, fields = {} }
-registry.by_id[INTERNAL_SCHEMA_ID.SHARED]             = _shared_placeholder
-registry.by_name[INTERNAL_SCHEMA_NAMES.SHARED]        = _shared_placeholder
-registry.next_id = 4
+
+local function init_registry()
+	registry = schema_module.Registry.new()
+
+	registry:register({
+		name = INTERNAL_SCHEMA_NAMES.SCHEMA_REGISTRY,
+		version = 1,
+		include_defaults = false,
+		fields = { { name = "schemas_blob", field_type = "string" } },
+	})
+	registry:register({
+		name = INTERNAL_SCHEMA_NAMES.CHECKSUM,
+		version = 1,
+		include_defaults = false,
+		fields = { { name = "checksum", field_type = "string" } },
+	})
+
+	local _shared_placeholder = {
+		id = INTERNAL_SCHEMA_ID.SHARED,
+		name = INTERNAL_SCHEMA_NAMES.SHARED,
+		version = 0,
+		include_defaults = false,
+		fields = {},
+	}
+	registry.by_id[INTERNAL_SCHEMA_ID.SHARED] = _shared_placeholder
+	registry.by_name[INTERNAL_SCHEMA_NAMES.SHARED] = _shared_placeholder
+	registry.next_id = 4
+end
 
 local bit_writer = bitbuffer.Writer.new()
 
 LibDeflate.InitCompressor()
 
-
 ---@param config? W3CDataConfig
 function W3CData.init(config)
 	W3CData.config = config or { shared_schema = { enabled = true } }
 	next_chunk_id = 1
+	init_registry()
 end
 
 ---@return integer
@@ -279,6 +275,7 @@ end
 --- the `schema.include_defaults = true`
 --- Including default fields is enabled by default for registered schemas.
 ---@param schema Schema Schema to be registered
+---@return boolean success True if the schema could be registered, false if it failed
 function W3CData:register_schema(schema)
 	assert(schema.name, "Schemas require a name to be set")
 	assert(schema.version, "Schemas require a version to be set")
@@ -287,22 +284,31 @@ function W3CData:register_schema(schema)
 
 	if schema.name:lower() == INTERNAL_SCHEMA_NAMES.SHARED then
 		registry:update(schema)
-		return
+		return true
 	end
 
 	if registry:get_by_name(schema.name) then
-		return
+		return false
 	end
 
 	registry:register(schema)
+	return true
 end
 
 --- Registers multiple schemas to be used for compression and decompression.
 ---@param schemas Schema[]
+---@return table<string,boolean> result Table that contains the name of each schema and whether they were successfully registered or not
 function W3CData:register_all_schemas(schemas)
+	local result = {}
 	for _, schema in ipairs(schemas) do
-		self:register_schema(schema)
+		if self:register_schema(schema) then
+			result[schema.name] = true
+		else
+			result[schema.name] = false
+		end
 	end
+
+	return result
 end
 
 --- Gets a schema id given a schema name.
@@ -421,11 +427,11 @@ function W3CData:get_schema_by_id(schema_id)
 	local shared = registry:get(INTERNAL_SCHEMA_ID.SHARED)
 
 	local schema = {
-		version  = specific.version,
-		name     = specific.name,
+		version = specific.version,
+		name = specific.name,
 		include_defaults = specific.include_defaults,
-		id       = specific.id,
-		fields   = {},
+		id = specific.id,
+		fields = {},
 	}
 
 	for _, field in ipairs(shared.fields) do
@@ -482,7 +488,7 @@ local function validate_value_min_max(value, field)
 	end
 end
 
----@param field Field
+---@param field W3CField
 ---@return integer, integer
 local function get_integer_limits(field)
 	local bits = field.num_of_bits
@@ -516,7 +522,7 @@ local function get_integer_limits(field)
 	error("Unsupported integer field type: " .. tostring(field.field_type))
 end
 
----@param field Field
+---@param field W3CField
 local function validate_number_limits(value, field)
 	local min_value, max_value = get_integer_limits(field)
 
@@ -576,7 +582,7 @@ end
 
 ---Validates that the value is within the correct size for the given type. Only validates if the field.type is set
 ---@param value string | number
----@param field Field
+---@param field W3CField
 local function validate_value(value, field)
 	if field.field_type == "string" then
 		assert(type(value) == "string", "Expected string for field " .. field.name)
@@ -606,6 +612,7 @@ end
 ---@param data table Payload values in schema field order
 ---@return string packed Byte string with packed data
 function W3CData:pack_bits(schema_id, data)
+	bit_writer:reset()
 	local schema = self:get_schema_by_id(schema_id)
 	assert(
 		#data == #schema.fields,

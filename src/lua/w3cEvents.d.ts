@@ -6,12 +6,7 @@ export function set_sending_players(playerIds: number | number[]): void;
 export function event(name: string, payload: EventPayload): void;
 export function track(name: string, getter: () => EventPayload | EventPayload[], interval: number): () => void;
 export function end_game(onGameEnd?: () => void): void;
-export function boolField(name: string): Field;
-export function byteField(name: string, options?: IntegerFieldOptions): Field;
-export function shortField(name: string, options?: IntegerFieldOptions): Field;
-export function intField(name: string, options?: IntegerFieldOptions): Field;
-export function floatField(name: string): Field;
-export function stringField(name: string): Field;
+export function shutdown(): void;
 export function field(name: string, field_type: FieldType, options?: FieldOptions): Field;
 export function schema(name: string, fields: Field[], options?: SchemaOptions): Schema;
 
@@ -28,14 +23,12 @@ export interface Field {
   maximum?: number;
 }
 
-export interface IntegerFieldOptions {
+export interface FieldOptions {
   num_of_bits?: number;
   unsigned?: boolean;
   minimum?: number;
   maximum?: number;
 }
-
-export type FieldOptions = IntegerFieldOptions;
 
 export interface SchemaOptions {
   version?: number;

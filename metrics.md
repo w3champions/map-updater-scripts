@@ -454,29 +454,6 @@ Emitted when a **hero** casts an ability. Only fires for heroes of playing playe
 
 ---
 
-## Economy and Mining
-
-### WorkerMineSnapshot
-
-Emitted every 5 seconds for each (player, mine) pair where the player has at least one worker within 500 game units of the mine. Gold mine positions are extracted from the map file at compile time.
-
-Worker count uses `GroupEnumUnitsInRange` with a filter callback (no `FirstOfGroup`) — the count is deterministic because synchronized unit positions guarantee every client finds the same set of workers. The undead haunted mine transformation (`ngol` → `ugol`) is handled by re-discovering the mine unit handle when the previously cached handle becomes invalid.
-
-**`player`** = worker owner
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `mineTypeId` | int | Mine unit type id at emission time (e.g. `ugol` if haunted) |
-| `mineName` | string | English mine name (`"Gold Mine"` or `"Haunted Gold Mine"`) |
-| `mineX` | float | Mine map position (compile-time constant) |
-| `mineY` | float | Mine map position (compile-time constant) |
-| `resourceAmount` | int | Current gold remaining in the mine |
-| `workerCount` | int | Number of this player's workers within 500 units of the mine |
-
-**Source:** `workerMineSnapshot.ts` — `W3CEvents.track` every 5 seconds
-
----
-
 ## Combat
 
 ### CombatStart
@@ -545,19 +522,16 @@ Replaces `HeroDamage`. The analytics service can reconstruct lifetime unit or he
 
 ## Game End
 
-### W3CGameEnd
+### W3CGameEndCheck
 
-Emitted once per playing player when the game ends, via `W3CEvents.end_game`. This event is handled internally by W3CEvents and uses its own schema (not included in `metricSchemas`).
+Emitted when the game checks whether it should end, via `W3CEvents.end_game`. This event is handled internally by W3CEvents and uses its own schema (not included in `metricSchemas`).
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `player` | int | Player id |
 | `time` | int | Game time at end |
 | `sequence` | int | Event sequence number |
-| `player_won` | bool | Whether this player won |
 
-**Source:** `gameEnd.ts` — `EVENT_PLAYER_VICTORY`, `EVENT_PLAYER_DEFEAT`, `EVENT_GAME_END_LEVEL`, `EVENT_GAME_VICTORY`
-
+**Source:** `gameEnd.ts`
 ---
 
 ## Implementation Notes
@@ -574,8 +548,6 @@ Emitted once per playing player when the game ends, via `W3CEvents.end_game`. Th
 
 All payload values are derived from synchronized game state only. Local-only data (`GetLocalPlayer()`, local camera, local selection, local visibility) is never emitted. Name fields are resolved at compile time from a static English dictionary — `GetUnitName`, `GetItemName`, and `GetObjectName` are not called at runtime.
 
-`WorkerMineSnapshot` uses `GroupEnumUnitsInRange` with a filter callback to count workers. The count is deterministic because synchronized unit positions guarantee every client finds the same set of units, even if the internal enumeration order differs between clients.
-
 ### Source Files
 
 | File | Responsibility |
@@ -591,7 +563,6 @@ All payload values are derived from synchronized game state only. Local-only dat
 | `unitDeaths.ts` | `StructureDeath`, `WorkerDeath`, `UnitDeath`, `CreepKill`, `CreepDeny`, `HeroXp` |
 | `unitLifecycle.ts` | `UnitSummoned`, `UnitOwnerChanged`, `UnitSold` |
 | `spellEvents.ts` | `SpellEvent` |
-| `workerMineSnapshot.ts` | `WorkerMineSnapshot` |
 | `combatSummary.ts` | `CombatStart`, `CombatEnd`, `CombatSummary` |
-| `gameEnd.ts` | `W3CGameEnd` |
+| `gameEnd.ts` | `W3CGameEndCheck` |
 | `objectNames.ts` | Compile-time English name lookup tables |

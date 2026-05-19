@@ -11,6 +11,7 @@ import { trackUnitLifecycle } from "./unitLifecycle";
 import { trackHeroRevive } from "./heroRevive";
 import { trackSpellEvents } from "./spellEvents";
 import { metricSchemas } from "./schemas";
+import { trackGameEnd } from "./gameEnd";
 
 function playerRaceStr(player: player): string {
   const r = GetPlayerRace(player);
@@ -57,4 +58,6 @@ export function setupEventMetrics() {
   trackUnitLifecycle();
   trackHeroRevive();
   trackSpellEvents();
+  trackGameEnd();
+
 }
