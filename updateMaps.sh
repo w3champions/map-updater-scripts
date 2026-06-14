@@ -39,10 +39,15 @@ while IFS= read -r -d '' fullPath; do
     matchedModes=()
     strippedName="$fileName"
 
+    # If filename contains @, e.g. {name}@{mapId}.w3x
+    # then transform it to {mapId}_{name}.w3x
     mapIdPrefix=
     if [[ "$fileName" == *@* ]]; then
-        mapIdPrefix="${fileName%@*}_"
-        strippedName="${fileName#*@}"
+        fileExtension="${fileName##*.}"
+        noExtensionFileName="${fileName%.*}"
+
+        mapIdPrefix="${noExtensionFileName#*@}_"
+        strippedName="${fileName%@*}.${fileExtension}"
     fi
 
     while :; do
