@@ -27,6 +27,19 @@ mpqPath="./MPQEditor.exe"
 currentDateTime=$(date '+%y%m%d_%H%M')
 buildMapPath="./maps/w3c_maps/tmp.w3x"
 
+case "$(uname -s)" in
+    Darwin|Linux)
+        if ! command -v wine >/dev/null 2>&1; then
+            echo "Error: wine is required to run $mpqPath on macOS or Linux."
+            exit 1
+        fi
+        mpqCommand=(wine "$mpqPath")
+        ;;
+    *)
+        mpqCommand=("$mpqPath")
+        ;;
+esac
+
 rm -rf "$outputMapPath" && mkdir "$outputMapPath"
 
 prefixList=("1v1_" "2v2_" "3v3_" "4v4_" "FFA_")
@@ -75,10 +88,16 @@ while IFS= read -r -d '' fullPath; do
 
     rm -rf "$mapExtractionPath" && mkdir "$mapExtractionPath"
 
-    printf "Running: \"$mpqPath\" extract \"$fullPath\" \"*\" \"$mapExtractionPath\" \"/fp\" \n"
-    "$mpqPath" extract "$fullPath" "*" "$mapExtractionPath" "/fp"
+    printf "Running: "
+    printf "%q " "${mpqCommand[@]}" extract "$fullPath" "*" "$mapExtractionPath" "/fp"
+    printf "\n"
+    "${mpqCommand[@]}" extract "$fullPath" "*" "$mapExtractionPath" "/fp"
 
     rm -rf dist/ && npm run build "$dirName"
+    if [[ ! -f ./maps/w3c_maps/map.w3x ]]; then
+        echo "Error: build did not create ./maps/w3c_maps/map.w3x."
+        exit 1
+    fi
     mv ./maps/w3c_maps/map.w3x "$buildMapPath"
 
     newFileName="${mapIdPrefix}w3c_${currentDateTime}_$strippedName"

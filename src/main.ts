@@ -17,6 +17,8 @@ import { hideGameButtons } from "./player_features/hideGameButtons";
 import { enableClock } from "./player_features/clock";
 import { enableCreepLootIndicator } from "./player_features/loot-indicator/loot-indicator";
 import { detectGameStatusAndCache } from "./detectGameStatus";
+import { initMetrics, setupTrackMetrics, setupEventMetrics } from "./metrics/metrics";
+import { installGameEndHook } from "./metrics/gameEnd";
 
 function init() {
   detectGameStatusAndCache();
@@ -28,6 +30,10 @@ function init() {
   enableCustomMinimapIcons();
   enableClock();
   enableCreepLootIndicator();
+
+  initMetrics();
+  setupTrackMetrics();
+  setupEventMetrics();
 
   // Observer-Only Features
   enableItemSoldBoughtTrigger();
@@ -52,4 +58,5 @@ function init() {
 }
 
 
+addScriptHook(W3TS_HOOK.MAIN_BEFORE, installGameEndHook);
 addScriptHook(W3TS_HOOK.MAIN_AFTER, init);
