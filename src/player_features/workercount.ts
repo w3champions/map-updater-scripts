@@ -1,4 +1,11 @@
 import { File, MapPlayer, Trigger } from "w3ts/index";
+import {OrderId} from "w3ts/globals";
+import {Units} from "@objectdata/units";
+import {id2FourCC} from "./loot-indicator/modules/util";
+
+/**
+ * Order Ids info: https://www.hiveworkshop.com/threads/list-of-order-ids.350361/
+ */
 
 let isWorkerCountEnabled = true;
 
@@ -8,6 +15,7 @@ export function enableWorkerCount() {
     let issuedOrder = CreateTrigger();
     let issuedPointOrder = CreateTrigger();
     let lossOfUnitTrigger = CreateTrigger();
+    let unitLoadedTrigger = CreateTrigger();
 
     for (let i = 0; i < bj_MAX_PLAYERS; i++) {
         let isLocalPlayer = MapPlayer.fromHandle(Player(i)).name == MapPlayer.fromLocal().name;
@@ -25,12 +33,14 @@ export function enableWorkerCount() {
         TriggerRegisterPlayerUnitEventSimple(issuedPointOrder, Player(i), EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER);
         TriggerRegisterPlayerUnitEventSimple(lossOfUnitTrigger, Player(i), EVENT_PLAYER_UNIT_DEATH);
         TriggerRegisterPlayerUnitEventSimple(lossOfUnitTrigger, Player(i), EVENT_PLAYER_UNIT_CHANGE_OWNER);
+        TriggerRegisterPlayerUnitEventSimple(unitLoadedTrigger, Player(i), EVENT_PLAYER_UNIT_LOADED);
     }
 
     TriggerAddAction(issuedTargetOrderTrigger, action_issuedTargetOrderTrigger);
     TriggerAddAction(issuedOrder, action_issuedOrder);
     TriggerAddAction(issuedPointOrder, action_issuedOrder);
     TriggerAddAction(lossOfUnitTrigger, action_lossOfUnit);
+    TriggerAddAction(unitLoadedTrigger, action_unitLoaded);
 
     workerCountTrigger.addAction(() => {
         let triggerPlayer = MapPlayer.fromEvent()
@@ -48,6 +58,20 @@ export function enableWorkerCount() {
         });
         File.write("w3cWorkerCount.txt", isWorkerCountEnabled.toString());
     });
+}
+
+// For Night Elves, when first select a mine and use "Load unit" abiltity or right-click a wisp the game fires "Board" order event.
+// But there is a special case when wisp is right next to gold mine.
+// In this case an extra "Stop" order is fired after "Board" order and results in wisp being removed from the count.
+// Luckily, the unitLoaded event fires after "Stop" order event, so we add wisp back again.
+// Simply put: Board event = add wisp -> Stop event = remove wisp -> Load event = add wisp
+function action_unitLoaded() {
+    const loadedUnit = GetLoadedUnit();
+    const transportUnit = GetTransportUnit();
+
+    if(GetUnitTypeId(loadedUnit) == FourCC(Units.Wisp) && GetUnitTypeId(transportUnit) == FourCC(Units.EntangledGoldMine)) {
+        addWorkerToMine(loadedUnit, transportUnit);
+    }
 }
 
 function action_lossOfUnit() {
@@ -155,9 +179,13 @@ function unitCanGatherAppropriateGoldMine(mine, workerTypeId) {
 }
 
 function unitOrderedToGather(orderId, unitTypeId) {
+    let orderedUnit = GetUnitTypeId(GetOrderedUnit());
     let target = GetUnitTypeId(GetOrderTargetUnit());
-    return ([852018, 851970].some(x => x == orderId) && target != 0) ||
-        (orderId == 851971 && (unitTypeId == FourCC('ugol') || unitTypeId == FourCC('egol') || unitTypeId == FourCC('ngol')));
+
+    return ([OrderId.Harvest, 851970].some(x => x == orderId) && target != 0)
+        || (orderId == OrderId.Smart && (unitTypeId == FourCC(Units.HauntedGoldMine/*ugol*/) || unitTypeId == FourCC('egol') || unitTypeId == FourCC('ngol')))
+        //GoldMine orders wisp to load with "Load Wisp" ability or "smart" right-click on wisp
+        || (orderId == OrderId.Board && orderedUnit == FourCC(Units.Wisp) && target == FourCC(Units.EntangledGoldMine))
 }
 
 function isUnitReturningGold(orderId) {
