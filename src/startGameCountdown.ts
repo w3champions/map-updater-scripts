@@ -1,8 +1,8 @@
-import {Timer} from "w3ts";
+import {color, Timer} from "w3ts";
 import {pauseClockW3C} from "./player_features/clock";
 import {Units} from "@objectdata/units";
 
-const COUNTDOWN_START = 5;
+const COUNTDOWN_START = 10;
 const COUNTDOWN_SOUND = CreateSound("Sound\\Interface\\BattleNetTick.wav", false, false, false, 10, 10, "",);
 
 export function enableStartGameCountdown() {
@@ -41,6 +41,7 @@ function recreateNeutralStockBuildings() {
         x: number;
         y: number;
         facing: number;
+        color: number;
     }
 
     function isNeutralStockBuilding(unitTypeId: number): boolean {
@@ -64,6 +65,8 @@ function recreateNeutralStockBuildings() {
             || unitTypeId === FourCC(Units.MercenaryCampSunkenRuins)
             || unitTypeId === FourCC(Units.MercenaryCampUnderground)
             || unitTypeId === FourCC(Units.MercenaryCampVillage);
+        //FIXME: add missing building (dragon roosts, etc)
+        //Check for "Tech tree - Units Sold or Items Sold" Fields
     }
 
     const buildings: NeutralBuildingData[] = [];
@@ -79,11 +82,18 @@ function recreateNeutralStockBuildings() {
             return;
         }
 
+        //"Art - Team Color" property of an object.
+        // if -1 then inherit from the owner.
+        // >=0 player number to inherit color from. For example, 0 for Player 1 (Red)
+        //FIXME: this does not work, make a static table
+        const teamColorPlayer = BlzGetUnitIntegerField(unit, ConvertUnitIntegerField(FourCC('utco')))
+        print(teamColorPlayer)
         buildings.push({
             unitTypeId,
             x: GetUnitX(unit),
             y: GetUnitY(unit),
             facing: GetUnitFacing(unit),
+            color: teamColorPlayer,
         });
 
         RemoveUnit(unit);
@@ -92,6 +102,43 @@ function recreateNeutralStockBuildings() {
     DestroyGroup(group);
 
     for (const building of buildings) {
-        CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), building.unitTypeId, building.x, building.y, building.facing);
+        const unit = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), building.unitTypeId, building.x, building.y, building.facing);
+        if(building.color >= 0 && building.color < bj_MAX_PLAYERS) {
+            // SetUnitColor(unit, GetPlayerColor(Player(building.color)));
+        }
     }
 }
+
+/** All Neutral Passive Buildings:
+ * ngol (Gold Mine)
+ * ngme (Goblin Merchant)
+ * nfoh (Fountain of Health)
+ * nmoo (Fountain of Mana)
+ * ngad (Goblin Laboratory)
+ * nwgt (Way Gate)
+ * ndrk (Black Dragon Roost)
+ * ndru (Blue Dragon Roost)
+ * ndrz (Bronze Dragon Roost)
+ * ndrg (Green Dragon Roost)
+ * ndro (Nether Dragon Roost)
+ * ndrr (Red Dragon Roost)
+ * nmer (Mercenary Camp (Lordaeron Summer))
+ * nmr2 (Mercenary Camp (Lordaeron Fall))
+ * nmr3 (Mercenary Camp (Lordaeron Winter))
+ * nmr4 (Mercenary Camp (Barrens))
+ * nmr5 (Mercenary Camp (Ashenvale))
+ * nmr6 (Mercenary Camp (Felwood))
+ * nmr7 (Mercenary Camp (Northrend))
+ * nmr8 (Mercenary Camp (Cityscape))
+ * nmr9 (Mercenary Camp (Dalaran))
+ * nmr0 (Mercenary Camp (Village))
+ * nmra (Mercenary Camp (Dungeon))
+ * nmrb (Mercenary Camp (Underground))
+ * ntav (Tavern)
+ * nmrk (Marketplace)
+ * nmrc (Mercenary Camp (Sunken Ruins))
+ * nmrd (Mercenary Camp (Icecrown Glacier))
+ * nshp (Goblin Shipyard)
+ * nmre (Mercenary Camp (Outland))
+ * nmrf (Mercenary Camp (Black Citadel))
+ */
