@@ -1,8 +1,7 @@
-import {color, Timer} from "w3ts";
+import {Timer} from "w3ts";
 import {pauseClockW3C} from "./player_features/clock";
-import {Units} from "@objectdata/units";
 
-const COUNTDOWN_START = 10;
+const COUNTDOWN_START = 5;
 const COUNTDOWN_SOUND = CreateSound("Sound\\Interface\\BattleNetTick.wav", false, false, false, 10, 10, "",);
 
 export function enableStartGameCountdown() {
@@ -36,40 +35,6 @@ function pauseGameW3C(pause: boolean) {
 
 // Recreating tavern/shop/merc resets initial stock cooldown delay for heroes/items/units in them
 function recreateNeutralStockBuildings() {
-    interface NeutralBuildingData {
-        unitTypeId: number;
-        x: number;
-        y: number;
-        facing: number;
-        color: number;
-    }
-
-    function isNeutralStockBuilding(unitTypeId: number): boolean {
-        return unitTypeId === FourCC(Units.Tavern)
-            || unitTypeId === FourCC(Units.GoblinMerchant)
-            || unitTypeId === FourCC(Units.Marketplace)
-            || unitTypeId === FourCC(Units.GoblinLaboratory)
-            || unitTypeId === FourCC(Units.MercenaryCampAshenvale)
-            || unitTypeId === FourCC(Units.MercenaryCampBarrens)
-            || unitTypeId === FourCC(Units.MercenaryCampBlackCitadel)
-            || unitTypeId === FourCC(Units.MercenaryCampCityscape)
-            || unitTypeId === FourCC(Units.MercenaryCampDalaran)
-            || unitTypeId === FourCC(Units.MercenaryCampDungeon)
-            || unitTypeId === FourCC(Units.MercenaryCampFelwood)
-            || unitTypeId === FourCC(Units.MercenaryCampIcecrownGlacier)
-            || unitTypeId === FourCC(Units.MercenaryCampLordaeronFall)
-            || unitTypeId === FourCC(Units.MercenaryCampLordaeronSummer)
-            || unitTypeId === FourCC(Units.MercenaryCampLordaeronWinter)
-            || unitTypeId === FourCC(Units.MercenaryCampNorthrend)
-            || unitTypeId === FourCC(Units.MercenaryCampOutland)
-            || unitTypeId === FourCC(Units.MercenaryCampSunkenRuins)
-            || unitTypeId === FourCC(Units.MercenaryCampUnderground)
-            || unitTypeId === FourCC(Units.MercenaryCampVillage);
-        //FIXME: add missing building (dragon roosts, etc)
-        //Check for "Tech tree - Units Sold or Items Sold" Fields
-    }
-
-    const buildings: NeutralBuildingData[] = [];
     const group = CreateGroup();
 
     GroupEnumUnitsOfPlayer(group, Player(PLAYER_NEUTRAL_PASSIVE), null);
@@ -78,67 +43,62 @@ function recreateNeutralStockBuildings() {
         const unit = GetEnumUnit();
         const unitTypeId = GetUnitTypeId(unit);
 
-        if (!isNeutralStockBuilding(unitTypeId)) {
+        if (!NEUTRAL_STOCK_BUILDINGS.has(unitTypeId)) {
             return;
         }
 
-        //"Art - Team Color" property of an object.
-        // if -1 then inherit from the owner.
-        // >=0 player number to inherit color from. For example, 0 for Player 1 (Red)
-        //FIXME: this does not work, make a static table
-        const teamColorPlayer = BlzGetUnitIntegerField(unit, ConvertUnitIntegerField(FourCC('utco')))
-        print(teamColorPlayer)
-        buildings.push({
-            unitTypeId,
-            x: GetUnitX(unit),
-            y: GetUnitY(unit),
-            facing: GetUnitFacing(unit),
-            color: teamColorPlayer,
-        });
+        const unitX = GetUnitX(unit);
+        const unitY = GetUnitY(unit);
+        const unitFacing = GetUnitFacing(unit);
 
         RemoveUnit(unit);
+
+        const newUnit = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), unitTypeId, unitX, unitY, unitFacing);
+        const teamColorPlayer = NEUTRAL_STOCK_BUILDINGS.get(unitTypeId).teamColorPlayer;
+        if (teamColorPlayer >= 0) {
+            SetUnitColor(newUnit, GetPlayerColor(Player(teamColorPlayer)));
+        }
     });
 
     DestroyGroup(group);
-
-    for (const building of buildings) {
-        const unit = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), building.unitTypeId, building.x, building.y, building.facing);
-        if(building.color >= 0 && building.color < bj_MAX_PLAYERS) {
-            // SetUnitColor(unit, GetPlayerColor(Player(building.color)));
-        }
-    }
 }
 
-/** All Neutral Passive Buildings:
- * ngol (Gold Mine)
- * ngme (Goblin Merchant)
- * nfoh (Fountain of Health)
- * nmoo (Fountain of Mana)
- * ngad (Goblin Laboratory)
- * nwgt (Way Gate)
- * ndrk (Black Dragon Roost)
- * ndru (Blue Dragon Roost)
- * ndrz (Bronze Dragon Roost)
- * ndrg (Green Dragon Roost)
- * ndro (Nether Dragon Roost)
- * ndrr (Red Dragon Roost)
- * nmer (Mercenary Camp (Lordaeron Summer))
- * nmr2 (Mercenary Camp (Lordaeron Fall))
- * nmr3 (Mercenary Camp (Lordaeron Winter))
- * nmr4 (Mercenary Camp (Barrens))
- * nmr5 (Mercenary Camp (Ashenvale))
- * nmr6 (Mercenary Camp (Felwood))
- * nmr7 (Mercenary Camp (Northrend))
- * nmr8 (Mercenary Camp (Cityscape))
- * nmr9 (Mercenary Camp (Dalaran))
- * nmr0 (Mercenary Camp (Village))
- * nmra (Mercenary Camp (Dungeon))
- * nmrb (Mercenary Camp (Underground))
- * ntav (Tavern)
- * nmrk (Marketplace)
- * nmrc (Mercenary Camp (Sunken Ruins))
- * nmrd (Mercenary Camp (Icecrown Glacier))
- * nshp (Goblin Shipyard)
- * nmre (Mercenary Camp (Outland))
- * nmrf (Mercenary Camp (Black Citadel))
- */
+// By default, team color of a building is inherited from the owner, but some buildings override that (e.g. Tavern is Red, not Grey).
+// This is only true when creating a building from the map editor, but if creating via a script it always uses Owner color.
+// The color information of a unit is not available at runtime (there is no GetUnitColor()), that is why we store it here.
+// teamColorPlayer corresponds to "Art - Team Color" (utco) property of an object.
+// -1 means inherit color from the owner. >=0 is a player number, e.g., Player 1 (Red) is 0.
+const NEUTRAL_STOCK_BUILDINGS = new Map<number, { teamColorPlayer: number }>([
+    // [FourCC("ngol"), { teamColorPlayer: -1 }], // Gold Mine
+    [FourCC("ngme"), {teamColorPlayer: -1}], // Goblin Merchant
+    // [FourCC("nfoh"), { teamColorPlayer: -1 }], // Fountain of Health
+    // [FourCC("nmoo"), { teamColorPlayer: -1 }], // Fountain of Mana
+    [FourCC("ngad"), {teamColorPlayer: -1}], // Goblin Laboratory
+    // [FourCC("nwgt"), { teamColorPlayer: -1 }], // Way Gate
+    [FourCC("ndrk"), {teamColorPlayer: -1}], // Black Dragon Roost
+    [FourCC("ndru"), {teamColorPlayer: -1}], // Blue Dragon Roost
+    [FourCC("ndrz"), {teamColorPlayer: -1}], // Bronze Dragon Roost
+    [FourCC("ndrg"), {teamColorPlayer: -1}], // Green Dragon Roost
+    [FourCC("ndro"), {teamColorPlayer: -1}], // Nether Dragon Roost
+    [FourCC("ndrr"), {teamColorPlayer: -1}], // Red Dragon Roost
+    [FourCC("nmer"), {teamColorPlayer: 0}], // Mercenary Camp (Lordaeron Summer)
+    [FourCC("nmr2"), {teamColorPlayer: 12}], // Mercenary Camp (Lordaeron Fall)
+    [FourCC("nmr3"), {teamColorPlayer: 1}], // Mercenary Camp (Lordaeron Winter)
+    [FourCC("nmr4"), {teamColorPlayer: 11}], // Mercenary Camp (Barrens)
+    [FourCC("nmr5"), {teamColorPlayer: 10}], // Mercenary Camp (Ashenvale)
+    [FourCC("nmr6"), {teamColorPlayer: 6}], // Mercenary Camp (Felwood)
+    [FourCC("nmr7"), {teamColorPlayer: 3}], // Mercenary Camp (Northrend)
+    [FourCC("nmr8"), {teamColorPlayer: 9}], // Mercenary Camp (Cityscape)
+    [FourCC("nmr9"), {teamColorPlayer: 8}], // Mercenary Camp (Dalaran)
+    [FourCC("nmr0"), {teamColorPlayer: 5}], // Mercenary Camp (Village)
+    [FourCC("nmra"), {teamColorPlayer: 0}], // Mercenary Camp (Dungeon)
+    [FourCC("nmrb"), {teamColorPlayer: 0}], // Mercenary Camp (Underground)
+    [FourCC("ntav"), {teamColorPlayer: 0}], // Tavern
+    // TODO: Scared to recreate marketplace (there is some initialization code in the maps with them?)
+    // [FourCC("nmrk"), { teamColorPlayer: 0 }], // Marketplace
+    [FourCC("nmrc"), {teamColorPlayer: 1}], // Mercenary Camp (Sunken Ruins)
+    [FourCC("nmrd"), {teamColorPlayer: 9}], // Mercenary Camp (Icecrown Glacier)
+    [FourCC("nshp"), {teamColorPlayer: -1}], // Goblin Shipyard
+    [FourCC("nmre"), {teamColorPlayer: 12}], // Mercenary Camp (Outland)
+    [FourCC("nmrf"), {teamColorPlayer: 3}], // Mercenary Camp (Black Citadel)
+]);
