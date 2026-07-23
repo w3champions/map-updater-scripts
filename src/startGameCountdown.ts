@@ -54,7 +54,7 @@ function recreateNeutralStockBuildings() {
         RemoveUnit(unit);
 
         const newUnit = CreateUnit(Player(PLAYER_NEUTRAL_PASSIVE), unitTypeId, unitX, unitY, unitFacing);
-        const teamColorPlayer = NEUTRAL_STOCK_BUILDINGS.get(unitTypeId).teamColorPlayer;
+        const teamColorPlayer = NEUTRAL_STOCK_BUILDINGS.get(unitTypeId);
         if (teamColorPlayer >= 0) {
             SetUnitColor(newUnit, GetPlayerColor(Player(teamColorPlayer)));
         }
@@ -63,42 +63,43 @@ function recreateNeutralStockBuildings() {
     DestroyGroup(group);
 }
 
-// By default, team color of a building is inherited from the owner, but some buildings override that (e.g. Tavern is Red, not Grey).
-// This is only true when creating a building from the map editor, but if creating via a script it always uses Owner color.
-// The color information of a unit is not available at runtime (there is no GetUnitColor()), that is why we store it here.
+// Key: unitTypeId, Value: teamColorPlayer (-1 means inherit color from the owner. >=0 is a player number, e.g., Player 1 (Red) is 0)
 // teamColorPlayer corresponds to "Art - Team Color" (utco) property of an object.
-// -1 means inherit color from the owner. >=0 is a player number, e.g., Player 1 (Red) is 0.
-const NEUTRAL_STOCK_BUILDINGS = new Map<number, { teamColorPlayer: number }>([
-    // [FourCC("ngol"), { teamColorPlayer: -1 }], // Gold Mine
-    [FourCC("ngme"), {teamColorPlayer: -1}], // Goblin Merchant
-    // [FourCC("nfoh"), { teamColorPlayer: -1 }], // Fountain of Health
-    // [FourCC("nmoo"), { teamColorPlayer: -1 }], // Fountain of Mana
-    [FourCC("ngad"), {teamColorPlayer: -1}], // Goblin Laboratory
-    // [FourCC("nwgt"), { teamColorPlayer: -1 }], // Way Gate
-    [FourCC("ndrk"), {teamColorPlayer: -1}], // Black Dragon Roost
-    [FourCC("ndru"), {teamColorPlayer: -1}], // Blue Dragon Roost
-    [FourCC("ndrz"), {teamColorPlayer: -1}], // Bronze Dragon Roost
-    [FourCC("ndrg"), {teamColorPlayer: -1}], // Green Dragon Roost
-    [FourCC("ndro"), {teamColorPlayer: -1}], // Nether Dragon Roost
-    [FourCC("ndrr"), {teamColorPlayer: -1}], // Red Dragon Roost
-    [FourCC("nmer"), {teamColorPlayer: 0}], // Mercenary Camp (Lordaeron Summer)
-    [FourCC("nmr2"), {teamColorPlayer: 12}], // Mercenary Camp (Lordaeron Fall)
-    [FourCC("nmr3"), {teamColorPlayer: 1}], // Mercenary Camp (Lordaeron Winter)
-    [FourCC("nmr4"), {teamColorPlayer: 11}], // Mercenary Camp (Barrens)
-    [FourCC("nmr5"), {teamColorPlayer: 10}], // Mercenary Camp (Ashenvale)
-    [FourCC("nmr6"), {teamColorPlayer: 6}], // Mercenary Camp (Felwood)
-    [FourCC("nmr7"), {teamColorPlayer: 3}], // Mercenary Camp (Northrend)
-    [FourCC("nmr8"), {teamColorPlayer: 9}], // Mercenary Camp (Cityscape)
-    [FourCC("nmr9"), {teamColorPlayer: 8}], // Mercenary Camp (Dalaran)
-    [FourCC("nmr0"), {teamColorPlayer: 5}], // Mercenary Camp (Village)
-    [FourCC("nmra"), {teamColorPlayer: 0}], // Mercenary Camp (Dungeon)
-    [FourCC("nmrb"), {teamColorPlayer: 0}], // Mercenary Camp (Underground)
-    [FourCC("ntav"), {teamColorPlayer: 0}], // Tavern
+//
+// By default, team color of a building is inherited from the owner, but some buildings override that (e.g. Tavern is Red, not Grey).
+// TeamColor property is not respected when creating a unit from a script (it only works when placing a unit from an editor).
+// Also, there is no `GetUnitColor()` like API, that is why we have to store it here.
+const NEUTRAL_STOCK_BUILDINGS = new Map<number, number>([
+    // [FourCC("ngol"), -1 ], // Gold Mine
+    [FourCC("ngme"), -1], // Goblin Merchant
+    // [FourCC("nfoh"), -1 ], // Fountain of Health
+    // [FourCC("nmoo"), -1 ], // Fountain of Mana
+    [FourCC("ngad"), -1], // Goblin Laboratory
+    // [FourCC("nwgt"), -1 ], // Way Gate
+    [FourCC("ndrk"), -1], // Black Dragon Roost
+    [FourCC("ndru"), -1], // Blue Dragon Roost
+    [FourCC("ndrz"), -1], // Bronze Dragon Roost
+    [FourCC("ndrg"), -1], // Green Dragon Roost
+    [FourCC("ndro"), -1], // Nether Dragon Roost
+    [FourCC("ndrr"), -1], // Red Dragon Roost
+    [FourCC("nmer"), 0], // Mercenary Camp (Lordaeron Summer)
+    [FourCC("nmr2"), 12], // Mercenary Camp (Lordaeron Fall)
+    [FourCC("nmr3"), 1], // Mercenary Camp (Lordaeron Winter)
+    [FourCC("nmr4"), 11], // Mercenary Camp (Barrens)
+    [FourCC("nmr5"), 10], // Mercenary Camp (Ashenvale)
+    [FourCC("nmr6"), 6], // Mercenary Camp (Felwood)
+    [FourCC("nmr7"), 3], // Mercenary Camp (Northrend)
+    [FourCC("nmr8"), 9], // Mercenary Camp (Cityscape)
+    [FourCC("nmr9"), 8], // Mercenary Camp (Dalaran)
+    [FourCC("nmr0"), 5], // Mercenary Camp (Village)
+    [FourCC("nmra"), 0], // Mercenary Camp (Dungeon)
+    [FourCC("nmrb"), 0], // Mercenary Camp (Underground)
+    [FourCC("ntav"), 0], // Tavern
     // TODO: Scared to recreate marketplace (there is some initialization code in the maps with them?)
-    // [FourCC("nmrk"), { teamColorPlayer: 0 }], // Marketplace
-    [FourCC("nmrc"), {teamColorPlayer: 1}], // Mercenary Camp (Sunken Ruins)
-    [FourCC("nmrd"), {teamColorPlayer: 9}], // Mercenary Camp (Icecrown Glacier)
-    [FourCC("nshp"), {teamColorPlayer: -1}], // Goblin Shipyard
-    [FourCC("nmre"), {teamColorPlayer: 12}], // Mercenary Camp (Outland)
-    [FourCC("nmrf"), {teamColorPlayer: 3}], // Mercenary Camp (Black Citadel)
+    // [FourCC("nmrk"), 0 ], // Marketplace
+    [FourCC("nmrc"), 1], // Mercenary Camp (Sunken Ruins)
+    [FourCC("nmrd"), 9], // Mercenary Camp (Icecrown Glacier)
+    [FourCC("nshp"), -1], // Goblin Shipyard
+    [FourCC("nmre"), 12], // Mercenary Camp (Outland)
+    [FourCC("nmrf"), 3], // Mercenary Camp (Black Citadel)
 ]);
