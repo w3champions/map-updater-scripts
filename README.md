@@ -34,3 +34,8 @@ You can pass arguments to control the source map folder and filtering:
    ./updateMaps.sh clean_maps/tournament 1v1
    ```
    Processes only maps starting with `1v1_` from `./maps/w3c_maps/clean_maps/tournament`.
+
+## Minimap icons
+The assets in `./assets/main/UI/MiniMap` and `./assets/roc/UI/MiniMap` add the W3Champions-only neutral-building icons (Shop, Tavern, Mercenary Camp, Laboratory), which players can toggle with `-minimap`.  
+Neither tree overrides the icon textures the game already ships (`MiniMap-Gold`, `MiniMap-NeutralBuilding`, `MiniMapIconCreepLoc`, `MiniMapIconCreepLoc2`); the game uses its own copies of those.  
+Warcraft III 3.0 can close the map archive while its asynchronous loader is still reading such an override during an HD map load in a LAN game, which crashes the game; that is why neither asset tree ships them.
