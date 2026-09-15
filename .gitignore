@@ -1,6 +1,5 @@
 .idea/
 target
-package-lock.json
 dist
 maps/w3c_maps/clean_maps/Work
 maps/w3c_maps/output
