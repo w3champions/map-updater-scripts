@@ -72,8 +72,12 @@ const RAW_UNIT_ITEM_DROPS = compiletime(() => {
 
     const fs = require("fs-extra");
     const mapFolder = JSON.parse(fs.readFileSync("./config.json", "utf8")).mapFolder;
+    // updateMaps.sh extracts each parallel job's map under its own job folder,
+    // so concurrent builds read their own map here instead of each other's.
+    const jobId = require("process").env.W3C_JOB_ID;
+    const jobDir = jobId ? `${jobId}/` : "";
 
-    return getMapItemDrops(`./maps/${mapFolder}`);
+    return getMapItemDrops(`./maps/${jobDir}${mapFolder}`);
 }) as RawUnitItemDrop[]
 
 function findUnitAtPoint(p: Point): Unit | undefined {

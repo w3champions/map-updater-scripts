@@ -6,7 +6,10 @@ maps/w3c_maps/output
 maps/w3c_maps/.upload-folder.*
 maps/w3c_maps/map.w3x
 maps/map.w3x/*
+maps/.jobs
+maps/w3c_maps/.jobs
 temp_mpq_script.txt
+temp_mpq_script_*.txt
 
 # Logs
 logs

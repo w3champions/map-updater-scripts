@@ -14,6 +14,34 @@ export interface IProjectConfig {
 }
 
 /**
+ * Identifies the build job when updateMaps.sh builds maps in parallel. Every
+ * mutable artifact (extracted map, dist staging folder, tstl bundle, MPQ
+ * script and output archive) is nested under it, so concurrent builds of
+ * different maps cannot read or overwrite each other's files. Empty for a
+ * serial build, which keeps the original flat paths.
+ */
+export function getJobId(): string {
+  return process.env.W3C_JOB_ID || "";
+}
+
+/**
+ * Path segment that nests a job's artifacts, e.g. ".jobs/job-007/", or ""
+ * when building serially.
+ */
+export function getJobDir(): string {
+  const jobId = getJobId();
+  return jobId ? `${jobId}/` : "";
+}
+
+/**
+ * The map folder for this job, used relative to ./maps, ./dist and the
+ * configured output folder.
+ */
+export function getMapFolder(config: IProjectConfig): string {
+  return `${getJobDir()}${config.mapFolder}`;
+}
+
+/**
  * Load an object from a JSON file.
  * @param fname The JSON file
  */
@@ -96,25 +124,33 @@ export function compileMap(config: IProjectConfig) {
     return false;
   }
 
-  const tsLua = "./dist/tstl_output.lua";
+  const mapFolder = getMapFolder(config);
+  const tsLua = `./dist/${getJobDir()}tstl_output.lua`;
 
   if (fs.existsSync(tsLua)) {
     fs.unlinkSync(tsLua);
   }
 
+  fs.mkdirpSync(path.dirname(tsLua));
+
   logger.info("Transpiling TypeScript to Lua...");
-  execSync('tstl -p tsconfig.json', { stdio: 'inherit' });
+  // tsconfig.json bundles to ./dist/tstl_output.lua. A parallel job needs its
+  // own bundle, so point tstl at this job's folder instead.
+  execSync(
+    getJobId() ? `tstl -p tsconfig.json --luaBundle "${tsLua}"` : 'tstl -p tsconfig.json',
+    { stdio: 'inherit' }
+  );
 
   if (!fs.existsSync(tsLua)) {
     logger.error(`Could not find "${tsLua}"`);
     return false;
   }
 
-  logger.info(`Building "${config.mapFolder}"...`);
-  fs.copySync(`./maps/${config.mapFolder}`, `./dist/${config.mapFolder}`);
+  logger.info(`Building "${mapFolder}"...`);
+  fs.copySync(`./maps/${mapFolder}`, `./dist/${mapFolder}`);
 
-  const mapLua = `./dist/${config.mapFolder}/war3map.lua`;
-  const mapJass = `./dist/${config.mapFolder}/war3map.j`;
+  const mapLua = `./dist/${mapFolder}/war3map.lua`;
+  const mapJass = `./dist/${mapFolder}/war3map.j`;
 
   if (fs.existsSync(mapJass) && !fs.existsSync(mapLua)) {
     logger.error(`Found "${mapJass}" instead of "${mapLua}". Please check that the map script language is set to Lua.`);
@@ -164,12 +200,17 @@ export const logger = createLogger({
         loggerFormatFunc
       ),
     }),
-    new transports.File({
-      filename: "project.log",
-      format: combine(
-        timestamp(),
-        loggerFormatFunc
-      ),
-    }),
+    // Parallel jobs would interleave their writes into one project.log, so a
+    // job logs to the console only and updateMaps.sh appends the captured
+    // output to project.log one finished map at a time.
+    ...(getJobId() ? [] : [
+      new transports.File({
+        filename: "project.log",
+        format: combine(
+          timestamp(),
+          loggerFormatFunc
+        ),
+      }),
+    ]),
   ]
 });

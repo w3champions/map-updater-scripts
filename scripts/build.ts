@@ -1,7 +1,7 @@
 import * as fs from "fs-extra";
 import * as path from "path";
 import { execSync } from "child_process";
-import { compileMap, getFilesInDirectory, loadJsonFile, logger, toArrayBuffer, IProjectConfig } from "./utils";
+import { compileMap, getFilesInDirectory, getJobId, getMapFolder, loadJsonFile, logger, toArrayBuffer, IProjectConfig } from "./utils";
 
 function main() {
   const config: IProjectConfig = loadJsonFile("config.json");
@@ -13,9 +13,10 @@ function main() {
   }
   
   const assetsPath = dirName.includes("reign-of-chaos") ? `./assets/roc` : `./assets/main`;
+  const mapFolder = getMapFolder(config);
 
   // Gets overwritten if the map has it
-  fs.copySync(`./defaults`, `./dist/${config.mapFolder}`)
+  fs.copySync(`./defaults`, `./dist/${mapFolder}`)
   const result = compileMap(config);
 
   if (!result) {
@@ -24,16 +25,17 @@ function main() {
   }
 
   // Overwrites map files with our assets
-  fs.copySync(assetsPath, `./dist/${config.mapFolder}`);
+  fs.copySync(assetsPath, `./dist/${mapFolder}`);
 
   logger.info(`Creating w3x archive...`);
-  if (!fs.existsSync(config.outputFolder)) {
-    fs.mkdirSync(config.outputFolder);
-  }
-  console.log(`Output: ${config.outputFolder}/${config.mapFolder}`);
-  console.log(`Directory to create archive from: ./dist/${config.mapFolder}`);
+  // mapFolder is nested in a job folder when building in parallel, so the
+  // parent of the archive may be more than one level below the output folder.
+  const outputPath = `${config.outputFolder}/${mapFolder}`;
+  fs.mkdirpSync(path.dirname(outputPath));
+  console.log(`Output: ${outputPath}`);
+  console.log(`Directory to create archive from: ./dist/${mapFolder}`);
 
-  createMapFromDir(`${config.outputFolder}/${config.mapFolder}`, `./dist/${config.mapFolder}`);
+  createMapFromDir(outputPath, `./dist/${mapFolder}`);
 }
 
 /**
@@ -54,7 +56,9 @@ export function createMapFromDir(output: string, dir: string) {
 add "${output}" "${dir}\\*.*" /r /auto /c
 close
 exit`;
-  const scriptPath = "./temp_mpq_script.txt";
+  // One script file per job: concurrent builds must not share this path.
+  const jobSuffix = getJobId().replace(/[^A-Za-z0-9_-]/g, "_");
+  const scriptPath = `./temp_mpq_script${jobSuffix ? `_${jobSuffix}` : ""}.txt`;
   
   fs.writeFileSync(scriptPath, scriptContent);
   
