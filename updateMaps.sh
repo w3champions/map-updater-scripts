@@ -15,15 +15,20 @@ else
     cleanMapPath="./maps/w3c_maps/clean_maps"
 fi
 
-# A source subfolder without a mode prefix is mirrored by name into output/
-# (that's how e.g. clean_maps/tournament ends up in output/tournament). If
-# one were named "upload" (any letter case - Windows folder names are
-# case-insensitive), its built maps would land in output/upload, the exact
-# folder build-upload-folder.sh (re)creates and deletes on every run -
-# silently losing those maps instead of collecting them. Catch it early,
-# before any expensive map building starts.
-if [[ -n "$(find "$cleanMapPath" -type d -iname upload -print -quit 2>/dev/null)" ]]; then
-    echo "Error: '$cleanMapPath' contains a subfolder named 'upload'. That name is reserved for the generated output/upload folder; rename the source subfolder and re-run."
+# An un-prefixed map is mirrored into output/ under its subfolder's name
+# RELATIVE TO $cleanMapPath (that's how e.g. clean_maps/tournament ends up
+# in output/tournament). Only a DIRECT child of $cleanMapPath named
+# "upload" (any letter case - Windows folder names are case-insensitive)
+# collides with output/upload, the folder build-upload-folder.sh
+# (re)creates and deletes on every run: a deeper one like clean_maps/foo/
+# upload lands in output/foo/upload instead, and $cleanMapPath itself
+# being named "upload" (a custom base folder argument) doesn't matter
+# either, since the base folder's own name never appears in relFolder.
+# There's no other route onto output/upload - mode subfolders only ever
+# come from the fixed prefixList below, which doesn't include "upload".
+# Catch the real case early, before any expensive map building starts.
+if [[ -n "$(find "$cleanMapPath" -mindepth 1 -maxdepth 1 -type d -iname upload -print -quit 2>/dev/null)" ]]; then
+    echo "Error: '$cleanMapPath' has a subfolder named 'upload'. That name is reserved for the generated output/upload folder; rename the source subfolder and re-run."
     exit 1
 fi
 

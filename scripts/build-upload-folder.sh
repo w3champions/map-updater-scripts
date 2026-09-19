@@ -39,6 +39,18 @@ findListPath="$outputMapPath/.upload-folder.filelist.$$"
 # dir and file list on any exit path (success clears the trap itself after
 # the swap).
 rm -rf "$uploadPath"
+
+# A previous invocation of this script can have been killed before its own
+# EXIT trap ran (SIGKILL, power loss), leaving an orphaned
+# upload.tmp.<old-pid>/ or .upload-folder.filelist.<old-pid> of its own
+# behind. In the full pipeline this never actually lingers, since
+# updateMaps.sh wipes output/ clean before every run - it only matters for
+# a standalone invocation of this script. Sweep every leftover with our
+# reserved names BEFORE creating our own (so we never sweep up our own
+# scratch dir below), confined to direct children of $outputMapPath so
+# this can never reach outside it.
+find "$outputMapPath" -mindepth 1 -maxdepth 1 \( -iname 'upload.tmp.*' -o -iname '.upload-folder.filelist.*' \) -exec rm -rf {} +
+
 trap 'rm -rf "$tmpUploadPath" "$findListPath"' EXIT
 rm -rf "$tmpUploadPath" && mkdir -p "$tmpUploadPath"
 
@@ -50,7 +62,16 @@ rm -rf "$tmpUploadPath" && mkdir -p "$tmpUploadPath"
 # complete. `-H` makes find follow $outputMapPath itself if it is a
 # symlink (find's default never follows a command-line symlink, which
 # would otherwise silently look like an empty, but "successful", output).
-if ! find -H "$outputMapPath" -type f \( -iname '*.w3m' -o -iname '*.w3x' \) -not -path "$uploadPath/*" -not -path "$tmpUploadPath/*" -print0 > "$findListPath"; then
+# The sweep above already removes every upload.tmp.*/.upload-folder.filelist.*
+# leftover, but these -not -path exclusions cover the same ground as a
+# second line of defence, same as $uploadPath/$tmpUploadPath below.
+if ! find -H "$outputMapPath" -type f \( -iname '*.w3m' -o -iname '*.w3x' \) \
+        -not -path "$uploadPath/*" \
+        -not -path "$tmpUploadPath/*" \
+        -not -path "$outputMapPath/upload.tmp.*" \
+        -not -path "$outputMapPath/upload.tmp.*/*" \
+        -not -path "$outputMapPath/.upload-folder.filelist.*" \
+        -print0 > "$findListPath"; then
     echo "Error: failed to fully list the maps under '$outputMapPath' (see the find error above). Refusing to publish a possibly-incomplete upload folder." >&2
     exit 1
 fi
