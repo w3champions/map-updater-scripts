@@ -9,7 +9,8 @@ This repo contains the scripts we use to inject the triggers into our ladder map
 * Run `npm install`
 * Put the maps you want to add the triggers to into `./maps/w3c_maps/clean_maps`
 * Run `./updateMaps.sh` with bash (Git Bash on Windows for example) to add triggers to all the maps
-* The newly created maps will be saved into `./maps/w3c_maps/output`
+* The newly created maps will be saved into `./maps/w3c_maps/output`, sorted into a subfolder per game mode
+* Upload from `./maps/w3c_maps/output/upload` instead of the per-mode subfolders, since it holds one copy of each map (multi-mode maps repeat across subfolders and break a same-name bulk upload)
 
 ## Optional arguments
 You can pass arguments to control the source map folder and filtering:
@@ -38,4 +39,4 @@ You can pass arguments to control the source map folder and filtering:
 ## Minimap icons
 The assets in `./assets/main/UI/MiniMap` and `./assets/roc/UI/MiniMap` add the W3Champions-only neutral-building icons (Shop, Tavern, Mercenary Camp, Laboratory), which players can toggle with `-minimap`.  
 Neither tree overrides the icon textures the game already ships (`MiniMap-Gold`, `MiniMap-NeutralBuilding`, `MiniMapIconCreepLoc`, `MiniMapIconCreepLoc2`); the game uses its own copies of those.  
-Warcraft III 3.0 can close the map archive while its asynchronous loader is still reading such an override during an HD map load in a LAN game, which crashes the game; that is why neither asset tree ships them.
+Warcraft III 3.0's HD texture streaming can still be reading such an override when the map archive closes, at any point in a game with Reforged or Definitive Edition graphics, which crashes the game; that is why neither asset tree ships them.

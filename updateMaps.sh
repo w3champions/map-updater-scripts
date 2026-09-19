@@ -1,6 +1,14 @@
 #!/bin/bash
 set -e
 
+outputMapPath="./maps/w3c_maps/output"
+
+# Whatever happens below, a previous batch must not stay at the path operators
+# upload from. Only the collected folder goes here: the rest of output/ is
+# emptied once the arguments are accepted, so a rejected run keeps the last
+# build, and the guard below still protects an output/ given as the source.
+rm -rf "$outputMapPath/upload"
+
 customBaseFolder="$1"
 filterArg="$2"
 
@@ -15,6 +23,16 @@ else
     cleanMapPath="./maps/w3c_maps/clean_maps"
 fi
 
+# An unprefixed map keeps its subfolder relative to the base folder, which is
+# how clean_maps/tournament reaches output/tournament. A direct child named
+# "upload" (in any letter case on Windows) would therefore be written to
+# output/upload, which build-upload-folder.sh replaces on every run. Deeper
+# folders and the base folder's own name do not map onto it.
+if [[ -n "$(find "$cleanMapPath" -mindepth 1 -maxdepth 1 -type d -iname upload -print -quit 2>/dev/null)" ]]; then
+    echo "Error: '$cleanMapPath' has a subfolder named 'upload'. That name is reserved for the generated output/upload folder; rename the source subfolder and re-run."
+    exit 1
+fi
+
 IFS=',' read -r -a filterPrefixes <<< "$filterArg"
 filterEnabled=false
 if [[ -n "$filterArg" ]]; then
@@ -22,7 +40,6 @@ if [[ -n "$filterArg" ]]; then
 fi
 
 mapExtractionPath="./maps/map.w3x"
-outputMapPath="./maps/w3c_maps/output"
 mpqPath="./MPQEditor.exe"
 currentDateTime=$(date '+%y%m%d_%H%M')
 buildMapPath="./maps/w3c_maps/tmp.w3x"
@@ -110,5 +127,11 @@ rm -f "$buildMapPath"
 cleanMapsCount=$(find "$cleanMapPath" -type f \( -iname '*.w3m' -o -iname '*.w3x' \) | wc -l)
 completedMapsCount=$(find "$outputMapPath" -type f \( -iname '*.w3m' -o -iname '*.w3x' \) -printf "%f\n" | sort -u | wc -l)
 echo "Processed $cleanMapsCount maps and output $completedMapsCount maps."
+
+# A map that belongs to several game-mode pools ends up under the same file
+# name in several mode subfolders above. Collect one copy of each distinct
+# file into output/upload/ so the admin bulk-upload page never sees the
+# same file name twice in one selection.
+bash ./scripts/build-upload-folder.sh "$outputMapPath"
 
 echo "Map updates completed successfully."
