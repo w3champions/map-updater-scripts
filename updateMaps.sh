@@ -111,4 +111,10 @@ cleanMapsCount=$(find "$cleanMapPath" -type f \( -iname '*.w3m' -o -iname '*.w3x
 completedMapsCount=$(find "$outputMapPath" -type f \( -iname '*.w3m' -o -iname '*.w3x' \) -printf "%f\n" | sort -u | wc -l)
 echo "Processed $cleanMapsCount maps and output $completedMapsCount maps."
 
+# A map that belongs to several game-mode pools ends up under the same file
+# name in several mode subfolders above. Collect one copy of each distinct
+# file into output/upload/ so the admin bulk-upload page never sees the
+# same file name twice in one selection.
+bash ./scripts/build-upload-folder.sh "$outputMapPath"
+
 echo "Map updates completed successfully."

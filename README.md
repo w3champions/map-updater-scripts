@@ -9,7 +9,8 @@ This repo contains the scripts we use to inject the triggers into our ladder map
 * Run `npm install`
 * Put the maps you want to add the triggers to into `./maps/w3c_maps/clean_maps`
 * Run `./updateMaps.sh` with bash (Git Bash on Windows for example) to add triggers to all the maps
-* The newly created maps will be saved into `./maps/w3c_maps/output`
+* The newly created maps will be saved into `./maps/w3c_maps/output`, sorted into a subfolder per game mode
+* Upload from `./maps/w3c_maps/output/upload` instead of the per-mode subfolders, since it holds one copy of each map (multi-mode maps repeat across subfolders and break a same-name bulk upload)
 
 ## Optional arguments
 You can pass arguments to control the source map folder and filtering:
