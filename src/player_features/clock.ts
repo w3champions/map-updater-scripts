@@ -1,4 +1,4 @@
-import { File, MapPlayer, Trigger } from "w3ts/index";
+import {File, MapPlayer, Trigger} from "w3ts/index";
 
 function Sec2Timer(i: number): string {
     let timeString = "Time: "
@@ -20,6 +20,19 @@ function Sec2Timer(i: number): string {
 
 let GameTimeSec: number = 0
 let isClockEnabled: boolean = true
+let clockTimer: timer = CreateTimer()
+
+function startClockTimer() {
+    TimerStart(clockTimer, 1, true, () => {
+        let timerTextFrame = BlzGetFrameByName("GameTime", 0)
+        GameTimeSec = GameTimeSec + 1
+        // Prevents the timer from going beyond 99:59
+        if (GameTimeSec >= 60000) // 1000 minutes in seconds
+            GameTimeSec = 59999 // Cap at 999:59
+
+        BlzFrameSetText(timerTextFrame, Sec2Timer(GameTimeSec))
+    });
+}
 
 export function enableClock() {
     let FH = BlzCreateFrameByType("TEXT", "GameTime", 
@@ -45,17 +58,7 @@ export function enableClock() {
         TriggerRegisterPlayerChatEvent(toggleClock, Player(i), "-clock", true);
     }
 
-
-
-    TimerStart(CreateTimer(), 1, true, function() {
-        let timerTextFrame = BlzGetFrameByName("GameTime", 0)
-        GameTimeSec = GameTimeSec + 1
-        // Prevents the timer from going beyond 99:59
-        if (GameTimeSec >= 60000) // 1000 minutes in seconds
-            GameTimeSec = 59999 // Cap at 999:59
-
-        BlzFrameSetText(timerTextFrame, Sec2Timer(GameTimeSec))
-    })
+    startClockTimer();
 
     TriggerAddAction(toggleClock, () => {
         let triggerPlayer = MapPlayer.fromEvent()
@@ -72,4 +75,15 @@ export function enableClock() {
 
         File.write("w3cClock.txt", isClockEnabled.toString());
     });
+}
+
+export function pauseClockW3C(pause: boolean) {
+    if (pause) {
+        PauseTimer(clockTimer);
+    } else {
+        //Can't use native `ResumeTimer()` because it has a bug and stops the timer after 2 seconds
+        //See https://lep.nrw/jassbot/doc/ResumeTimer
+        //Instead we're restarting the clock. Might affect TimerGetRemaining() function, but it is not used
+        startClockTimer();
+    }
 }
