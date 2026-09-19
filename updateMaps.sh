@@ -64,6 +64,20 @@ currentDateTime=$(date '+%y%m%d_%H%M')
 jobRoot=".jobs"
 jobStateDir="./dist/$jobRoot/state"
 
+# The job folders are emptied on every run, so a base folder that resolves
+# into one of them, for example ".jobs" or "../.jobs", would lose its maps
+# before the batch even starts. "output" is rejected further up for the same
+# reason. Both directions are checked, because a base folder that contains a
+# job folder would have that part of its tree removed too.
+sourceRealPath="$(realpath -m "$cleanMapPath")"
+for scratchPath in "./maps/$jobRoot" "./dist/$jobRoot" "./maps/w3c_maps/$jobRoot"; do
+    scratchRealPath="$(realpath -m "$scratchPath")"
+    if [[ "$sourceRealPath" == "$scratchRealPath" || "$sourceRealPath" == "$scratchRealPath"/* || "$scratchRealPath" == "$sourceRealPath"/* ]]; then
+        echo "Error: '$cleanMapPath' overlaps '$scratchPath', which this script deletes on every run. Move the maps out of that folder and re-run."
+        exit 1
+    fi
+done
+
 rm -rf "$outputMapPath" && mkdir -p "$outputMapPath"
 rm -rf "./maps/$jobRoot" "./dist/$jobRoot" "./maps/w3c_maps/$jobRoot"
 mkdir -p "$jobStateDir"
@@ -133,15 +147,16 @@ while IFS= read -r -d '' fullPath; do
     mapPaths+=("$fullPath")
 done < <(find "$cleanMapPath" -type f \( -iname '*.w3m' -o -iname '*.w3x' \) -print0)
 
-totalMaps=${#mapPaths[@]}
-echo "Building $totalMaps maps with up to $maxJobs parallel jobs..."
-echo
+# Every map is planned before any of them is built, so a collision between
+# two output names is reported before work starts instead of after some of
+# it has already been published.
+planPaths=()
+planDirs=()
+planNames=()
+planTargets=()
+planRelFolders=()
 
-index=0
-running=0
-launchedIndices=()
 for fullPath in "${mapPaths[@]}"; do
-    index=$((index + 1))
     fileName="$(basename "$fullPath")"
     dirName="$(dirname "$fullPath")"
     relFolder="${dirName#${cleanMapPath}}"
@@ -177,7 +192,7 @@ for fullPath in "${mapPaths[@]}"; do
     done
 
     if [[ "$filterEnabled" = true && ${#matchedModes[@]} -eq 0 ]]; then
-        printf "[%*s/%s] skip  %s from folder '%s'\n" "${#totalMaps}" "$index" "$totalMaps" "$fileName" "$relFolder"
+        printf "skip  %s from folder '%s'\n" "$fileName" "$relFolder"
         continue
     fi
 
@@ -196,12 +211,55 @@ for fullPath in "${mapPaths[@]}"; do
         targetDirs="$outputMapPath/$relFolder"$'\n'
     fi
 
+    planPaths+=("$fullPath")
+    planDirs+=("$dirName")
+    planNames+=("$newFileName")
+    planTargets+=("$targetDirs")
+    planRelFolders+=("$relFolder")
+done
+
+totalMaps=${#planPaths[@]}
+
+# Two source maps can reduce to the same output name in the same folder, for
+# example 1v1_Foo@1.w3x and 1v1_2v2_Foo@1.w3x both becoming 1_w3c_<time>_Foo
+# under output/1v1. Built one after another the second would quietly replace
+# the first; built at the same time both jobs copy onto that one path and can
+# leave a torn archive that still reports success. Refuse the batch instead.
+declare -A claimedBy
+collisions=0
+for (( i = 0; i < totalMaps; i++ )); do
+    while IFS= read -r targetDir; do
+        [[ -z "$targetDir" ]] && continue
+        targetPath="$targetDir/${planNames[$i]}"
+        if [[ -n "${claimedBy[$targetPath]:-}" ]]; then
+            echo "Error: '${planPaths[$i]}' and '${claimedBy[$targetPath]}' both produce '$targetPath'."
+            collisions=$((collisions + 1))
+        else
+            claimedBy[$targetPath]="${planPaths[$i]}"
+        fi
+    done <<< "${planTargets[$i]}"
+done
+
+if (( collisions > 0 )); then
+    echo "Rename the source maps so that each one produces its own output file, then re-run."
+    exit 1
+fi
+
+echo "Building $totalMaps maps with up to $maxJobs parallel jobs..."
+echo
+
+running=0
+launchedIndices=()
+for (( i = 0; i < totalMaps; i++ )); do
+    index=$((i + 1))
+    newFileName="${planNames[$i]}"
+
     # Written before launching so a map that never reports back can still be
     # named in the failure summary.
     echo "$newFileName" > "$jobStateDir/$index.name"
     launchedIndices+=("$index")
 
-    buildMap "$index" "$fullPath" "$dirName" "$newFileName" "$targetDirs" "$relFolder" &
+    buildMap "$index" "${planPaths[$i]}" "${planDirs[$i]}" "$newFileName" "${planTargets[$i]}" "${planRelFolders[$i]}" &
 
     running=$((running + 1))
     if (( running >= maxJobs )); then
