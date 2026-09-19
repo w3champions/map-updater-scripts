@@ -84,9 +84,18 @@ buildMap() {
     local started=$SECONDS
     local status=0
 
-    # The steps run in a subshell so a failing one aborts only this map. The
-    # exit code is recorded for the dispatcher instead of killing the batch.
-    if (
+    # This job must always record a status for the dispatcher, so errexit is
+    # off out here; the build steps below run in their own subshell that turns
+    # it back on, which keeps a failing step from aborting the whole batch.
+    #
+    # That subshell is deliberately not the condition of an if, && or ||: bash
+    # disables errexit inside a subshell used as a condition and an inner
+    # "set -e" does not restore it, so a failing step would be masked by any
+    # later successful one. A copy that fails for the first of several game
+    # mode folders and then succeeds for the second is the case that matters
+    # here, because it would publish an incomplete batch as a success.
+    set +e
+    (
         set -e
         printf "Processing %s from folder '%s'...\n\n" "$(basename "$fullPath")" "$relFolder"
         rm -rf "./maps/$jobId" "./dist/$jobId" "./maps/w3c_maps/$jobId"
@@ -104,15 +113,13 @@ buildMap() {
             printf '\nMoving map to %s/%s\n\n' "$targetDir" "$newFileName"
             cp "$builtMap" "$targetDir/$newFileName"
         done <<< "$targetDirs"
-    ) > "$log" 2>&1; then
-        status=0
-    else
-        status=$?
-    fi
+    ) > "$log" 2>&1
+    status=$?
 
-    rm -rf "./maps/$jobId" "./dist/$jobId" "./maps/w3c_maps/$jobId"
+    # Recorded before cleaning up, so a failing cleanup cannot leave the
+    # dispatcher without a result for this map.
     echo "$status" > "$jobStateDir/$index.status"
-    echo "$newFileName" > "$jobStateDir/$index.name"
+    rm -rf "./maps/$jobId" "./dist/$jobId" "./maps/w3c_maps/$jobId"
 
     if (( status == 0 )); then
         printf '[%*s/%s] ok    %s (%ss)\n' "${#totalMaps}" "$index" "$totalMaps" "$newFileName" "$((SECONDS - started))"
@@ -132,6 +139,7 @@ echo
 
 index=0
 running=0
+launchedIndices=()
 for fullPath in "${mapPaths[@]}"; do
     index=$((index + 1))
     fileName="$(basename "$fullPath")"
@@ -188,6 +196,11 @@ for fullPath in "${mapPaths[@]}"; do
         targetDirs="$outputMapPath/$relFolder"$'\n'
     fi
 
+    # Written before launching so a map that never reports back can still be
+    # named in the failure summary.
+    echo "$newFileName" > "$jobStateDir/$index.name"
+    launchedIndices+=("$index")
+
     buildMap "$index" "$fullPath" "$dirName" "$newFileName" "$targetDirs" "$relFolder" &
 
     running=$((running + 1))
@@ -214,11 +227,15 @@ for (( i = 1; i <= totalMaps; i++ )); do
     fi
 done
 
+# A launched job that never wrote a status was killed or crashed before it
+# could report. "wait" cannot tell us that, because it reports success once
+# all children have been reaped, so a missing status counts as a failure and
+# an incomplete batch is never collected for upload. Only launched maps are
+# checked: a map skipped by the mode filter never writes a status either.
 failedMaps=()
-for (( i = 1; i <= totalMaps; i++ )); do
+for i in "${launchedIndices[@]}"; do
     statusFile="$jobStateDir/$i.status"
-    [[ -f "$statusFile" ]] || continue
-    if [[ "$(cat "$statusFile")" != "0" ]]; then
+    if [[ ! -f "$statusFile" || "$(cat "$statusFile")" != "0" ]]; then
         failedMaps+=("$i")
     fi
 done
@@ -228,8 +245,15 @@ if [[ ${#failedMaps[@]} -gt 0 ]]; then
     echo "${#failedMaps[@]} map(s) failed to build:"
     for i in "${failedMaps[@]}"; do
         echo
-        echo "--- $(cat "$jobStateDir/$i.name") ---"
-        tail -n 20 "$jobStateDir/$i.log"
+        echo "--- $(cat "$jobStateDir/$i.name" 2>/dev/null || echo "map $i") ---"
+        if [[ ! -f "$jobStateDir/$i.status" ]]; then
+            echo "The job did not report an exit status; it was killed or crashed."
+        fi
+        if [[ -f "$jobStateDir/$i.log" ]]; then
+            tail -n 20 "$jobStateDir/$i.log"
+        else
+            echo "No log was captured for this map."
+        fi
     done
     echo
     echo "No maps were collected for upload because the batch is incomplete."
