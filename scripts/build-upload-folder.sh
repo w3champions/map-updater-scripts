@@ -21,38 +21,62 @@ if [[ -z "$outputMapPath" ]]; then
     exit 1
 fi
 
+# dirname("$outputMapPath") needs a real parent to hold this script's own
+# scratch folder in (see below) - "." and "/" are their own parent, so a
+# scratch folder "next to" them would actually land INSIDE the very tree
+# being scanned, and ".." makes the whole rm -rf/mv dance below too risky
+# to reason about. Reject these outright instead of silently doing
+# something surprising.
+if [[ "$outputMapPath" == ".." || "$(dirname "$outputMapPath")" == "$outputMapPath" ]]; then
+    echo "Error: '$outputMapPath' has no usable parent directory for this script's own scratch folder. Pass a real output subdirectory (e.g. ./maps/w3c_maps/output), not '.', '/', or '..'." >&2
+    exit 1
+fi
+
 if [[ ! -d "$outputMapPath" ]]; then
     echo "Error: '$outputMapPath' is not a directory." >&2
     exit 1
 fi
 
 uploadPath="$outputMapPath/upload"
-tmpUploadPath="$outputMapPath/upload.tmp.$$"
-findListPath="$outputMapPath/.upload-folder.filelist.$$"
+
+# An unprefixed source map is mirrored into output/ under its own
+# subfolder's name (see updateMaps.sh), so a folder like
+# output/upload.tmp.archive can be a perfectly legitimate, generated
+# result - not just this script's own scratch naming. Keeping scratch
+# artifacts inside $outputMapPath at all meant any reserved name we picked
+# could collide with a real one. Instead, build them as a hidden sibling
+# of $outputMapPath (same parent => same filesystem, so the final `mv`
+# below is still a plain rename): $outputMapPath's own contents are never
+# touched by scratch bookkeeping, an orphan from a killed run can never be
+# mistaken for a source map, and the scan needs no scratch exclusions.
+scratchParent="$(dirname "$outputMapPath")"
+scratchPath="$scratchParent/.upload-folder.$$"
+tmpUploadPath="$scratchPath/upload"
+findListPath="$scratchPath/filelist"
 
 # Remove any previous upload/ up front, same as before, so a run that fails
 # never leaves the previous batch's folder around to be mistaken for a
-# current one. Build the new contents into a scratch sibling directory
+# current one. Build the new contents into the scratch sibling above
 # instead of into upload/ directly, and only swap it into place once every
 # file has been copied and verified - that way a failed run leaves NO
-# upload/ at all (never a half-populated one). The trap cleans the scratch
-# dir and file list on any exit path (success clears the trap itself after
-# the swap).
+# upload/ at all (never a half-populated one). The trap cleans the whole
+# scratch folder on any exit path (including success - it still holds the
+# file list after the swap below).
 rm -rf "$uploadPath"
 
 # A previous invocation of this script can have been killed before its own
 # EXIT trap ran (SIGKILL, power loss), leaving an orphaned
-# upload.tmp.<old-pid>/ or .upload-folder.filelist.<old-pid> of its own
-# behind. In the full pipeline this never actually lingers, since
-# updateMaps.sh wipes output/ clean before every run - it only matters for
-# a standalone invocation of this script. Sweep every leftover with our
-# reserved names BEFORE creating our own (so we never sweep up our own
-# scratch dir below), confined to direct children of $outputMapPath so
-# this can never reach outside it.
-find "$outputMapPath" -mindepth 1 -maxdepth 1 \( -iname 'upload.tmp.*' -o -iname '.upload-folder.filelist.*' \) -exec rm -rf {} +
+# .upload-folder.<old-pid> of its own behind next to $outputMapPath. In the
+# full pipeline this never actually lingers, since updateMaps.sh wipes
+# output/ clean before every run - it only matters for a standalone
+# invocation of this script. Sweep every leftover with our reserved name
+# BEFORE creating our own (so we never sweep up our own scratch folder),
+# confined to direct children of $scratchParent so this can never reach
+# anything else there (clean_maps, a custom base folder, output itself, ...).
+find "$scratchParent" -mindepth 1 -maxdepth 1 -iname '.upload-folder.*' -exec rm -rf {} +
 
-trap 'rm -rf "$tmpUploadPath" "$findListPath"' EXIT
-rm -rf "$tmpUploadPath" && mkdir -p "$tmpUploadPath"
+trap 'rm -rf "$scratchPath"' EXIT
+rm -rf "$scratchPath" && mkdir -p "$tmpUploadPath"
 
 # List every source map into a file first and check find's own exit status
 # before trusting the list. Piping straight into `while read` (as this used
@@ -62,15 +86,11 @@ rm -rf "$tmpUploadPath" && mkdir -p "$tmpUploadPath"
 # complete. `-H` makes find follow $outputMapPath itself if it is a
 # symlink (find's default never follows a command-line symlink, which
 # would otherwise silently look like an empty, but "successful", output).
-# The sweep above already removes every upload.tmp.*/.upload-folder.filelist.*
-# leftover, but these -not -path exclusions cover the same ground as a
-# second line of defence, same as $uploadPath/$tmpUploadPath below.
+# Scratch artifacts now live outside $outputMapPath entirely, so the only
+# exclusion still needed is $uploadPath itself (removed above, but this
+# stays as a second line of defence in case something recreates it).
 if ! find -H "$outputMapPath" -type f \( -iname '*.w3m' -o -iname '*.w3x' \) \
         -not -path "$uploadPath/*" \
-        -not -path "$tmpUploadPath/*" \
-        -not -path "$outputMapPath/upload.tmp.*" \
-        -not -path "$outputMapPath/upload.tmp.*/*" \
-        -not -path "$outputMapPath/.upload-folder.filelist.*" \
         -print0 > "$findListPath"; then
     echo "Error: failed to fully list the maps under '$outputMapPath' (see the find error above). Refusing to publish a possibly-incomplete upload folder." >&2
     exit 1
@@ -181,11 +201,12 @@ if [[ "$sourceFilesCount" -eq 0 ]]; then
     echo "Note: no source maps found under $outputMapPath; upload/ will be empty."
 fi
 
-# Everything checked out: swap the verified scratch dir into place. The
-# EXIT trap stays armed - it only ever targets $tmpUploadPath (which no
-# longer exists once moved, so removing it again is a harmless no-op) and
-# $findListPath, which still needs cleaning up on this, the success path,
-# too.
+# Everything checked out: move the verified upload/ out of the scratch
+# folder and into $outputMapPath. $scratchPath and $outputMapPath share
+# the same parent ($scratchParent), hence the same filesystem, so this is
+# still a plain rename, not a copy. The EXIT trap stays armed -
+# $scratchPath still holds $findListPath afterwards, which still needs
+# cleaning up on this, the success path, too.
 mv "$tmpUploadPath" "$uploadPath"
 
 echo "Built upload folder from $sourceFilesCount source maps: $distinctFilesCount distinct files in $uploadPath."

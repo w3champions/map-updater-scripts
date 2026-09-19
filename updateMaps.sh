@@ -1,6 +1,14 @@
 #!/bin/bash
 set -e
 
+outputMapPath="./maps/w3c_maps/output"
+
+# Whatever happens below, a previous batch must not stay at the path operators
+# upload from. Only the collected folder goes here: the rest of output/ is
+# emptied once the arguments are accepted, so a rejected run keeps the last
+# build, and the guard below still protects an output/ given as the source.
+rm -rf "$outputMapPath/upload"
+
 customBaseFolder="$1"
 filterArg="$2"
 
@@ -15,18 +23,11 @@ else
     cleanMapPath="./maps/w3c_maps/clean_maps"
 fi
 
-# An un-prefixed map is mirrored into output/ under its subfolder's name
-# RELATIVE TO $cleanMapPath (that's how e.g. clean_maps/tournament ends up
-# in output/tournament). Only a DIRECT child of $cleanMapPath named
-# "upload" (any letter case - Windows folder names are case-insensitive)
-# collides with output/upload, the folder build-upload-folder.sh
-# (re)creates and deletes on every run: a deeper one like clean_maps/foo/
-# upload lands in output/foo/upload instead, and $cleanMapPath itself
-# being named "upload" (a custom base folder argument) doesn't matter
-# either, since the base folder's own name never appears in relFolder.
-# There's no other route onto output/upload - mode subfolders only ever
-# come from the fixed prefixList below, which doesn't include "upload".
-# Catch the real case early, before any expensive map building starts.
+# An unprefixed map keeps its subfolder relative to the base folder, which is
+# how clean_maps/tournament reaches output/tournament. A direct child named
+# "upload" (in any letter case on Windows) would therefore be written to
+# output/upload, which build-upload-folder.sh replaces on every run. Deeper
+# folders and the base folder's own name do not map onto it.
 if [[ -n "$(find "$cleanMapPath" -mindepth 1 -maxdepth 1 -type d -iname upload -print -quit 2>/dev/null)" ]]; then
     echo "Error: '$cleanMapPath' has a subfolder named 'upload'. That name is reserved for the generated output/upload folder; rename the source subfolder and re-run."
     exit 1
@@ -39,7 +40,6 @@ if [[ -n "$filterArg" ]]; then
 fi
 
 mapExtractionPath="./maps/map.w3x"
-outputMapPath="./maps/w3c_maps/output"
 mpqPath="./MPQEditor.exe"
 currentDateTime=$(date '+%y%m%d_%H%M')
 buildMapPath="./maps/w3c_maps/tmp.w3x"
