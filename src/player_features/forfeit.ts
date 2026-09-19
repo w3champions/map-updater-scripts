@@ -57,7 +57,9 @@ export function enableForfeit() {
 
         let team = triggerPlayer.team;
 
-        requiredForfeitPlayers[team] = requiredForfeitPlayers[team] - 1;
+        if (requiredForfeitPlayers[team] > 2){
+            requiredForfeitPlayers[team] = requiredForfeitPlayers[team] - 1;
+        }
 		
         if (forfeitPlayers[team].indexOf(triggerPlayer.name) != -1) {
             forfeitPlayers[team].splice(forfeitPlayers[team].indexOf(triggerPlayer.name), 1);
