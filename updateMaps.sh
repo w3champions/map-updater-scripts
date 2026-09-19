@@ -15,6 +15,18 @@ else
     cleanMapPath="./maps/w3c_maps/clean_maps"
 fi
 
+# A source subfolder without a mode prefix is mirrored by name into output/
+# (that's how e.g. clean_maps/tournament ends up in output/tournament). If
+# one were named "upload" (any letter case - Windows folder names are
+# case-insensitive), its built maps would land in output/upload, the exact
+# folder build-upload-folder.sh (re)creates and deletes on every run -
+# silently losing those maps instead of collecting them. Catch it early,
+# before any expensive map building starts.
+if [[ -n "$(find "$cleanMapPath" -type d -iname upload -print -quit 2>/dev/null)" ]]; then
+    echo "Error: '$cleanMapPath' contains a subfolder named 'upload'. That name is reserved for the generated output/upload folder; rename the source subfolder and re-run."
+    exit 1
+fi
+
 IFS=',' read -r -a filterPrefixes <<< "$filterArg"
 filterEnabled=false
 if [[ -n "$filterArg" ]]; then

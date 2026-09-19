@@ -28,6 +28,7 @@ fi
 
 uploadPath="$outputMapPath/upload"
 tmpUploadPath="$outputMapPath/upload.tmp.$$"
+findListPath="$outputMapPath/.upload-folder.filelist.$$"
 
 # Remove any previous upload/ up front, same as before, so a run that fails
 # never leaves the previous batch's folder around to be mistaken for a
@@ -35,10 +36,24 @@ tmpUploadPath="$outputMapPath/upload.tmp.$$"
 # instead of into upload/ directly, and only swap it into place once every
 # file has been copied and verified - that way a failed run leaves NO
 # upload/ at all (never a half-populated one). The trap cleans the scratch
-# dir on any exit path (success clears the trap itself after the swap).
+# dir and file list on any exit path (success clears the trap itself after
+# the swap).
 rm -rf "$uploadPath"
-trap 'rm -rf "$tmpUploadPath"' EXIT
+trap 'rm -rf "$tmpUploadPath" "$findListPath"' EXIT
 rm -rf "$tmpUploadPath" && mkdir -p "$tmpUploadPath"
+
+# List every source map into a file first and check find's own exit status
+# before trusting the list. Piping straight into `while read` (as this used
+# to do via process substitution) hides a mid-traversal find failure - e.g.
+# an unreadable subfolder - behind the while loop's own (successful) exit
+# status, which would let a PARTIAL set get published as if it were
+# complete. `-H` makes find follow $outputMapPath itself if it is a
+# symlink (find's default never follows a command-line symlink, which
+# would otherwise silently look like an empty, but "successful", output).
+if ! find -H "$outputMapPath" -type f \( -iname '*.w3m' -o -iname '*.w3x' \) -not -path "$uploadPath/*" -not -path "$tmpUploadPath/*" -print0 > "$findListPath"; then
+    echo "Error: failed to fully list the maps under '$outputMapPath' (see the find error above). Refusing to publish a possibly-incomplete upload folder." >&2
+    exit 1
+fi
 
 sourceFilesCount=0
 
@@ -69,8 +84,37 @@ while IFS= read -r -d '' fullPath; do
     [[ "$relDir" == "$dirName" ]] && relDir="."
     sourceFilesCount=$((sourceFilesCount + 1))
 
+    # `tr` only case-folds single-byte (ASCII) letters, so it treats an
+    # accented pair like "É.w3x"/"é.w3x" as different names even though
+    # they are NOT different names on this pipeline's case-insensitive
+    # filesystem (Windows/macOS). Keep it only as a fast, portable guess.
     lowerName="$(printf '%s' "$fileName" | tr '[:upper:]' '[:lower:]')"
     idx=$(findSeenIndex "$lowerName")
+
+    targetPath="$tmpUploadPath/$fileName"
+    if [[ "$idx" -lt 0 && -e "$targetPath" ]]; then
+        # tr's ASCII-only fold above didn't flag this as a duplicate, but
+        # the destination filesystem's own case rules already collapse
+        # "$fileName" onto a file collected earlier - trust the filesystem
+        # over tr. Ask it (by inode, via -samefile, so this is correct
+        # regardless of locale/encoding) which entry that actually is, and
+        # resolve it back to our recorded index so it goes through the
+        # exact same duplicate/conflict handling as an ASCII case match.
+        priorOnDisk="$(find "$tmpUploadPath" -maxdepth 1 -samefile "$targetPath" -printf '%f\n' 2>/dev/null | head -n1)"
+        for i in "${!seenNames[@]}"; do
+            if [[ "${seenNames[$i]}" == "$priorOnDisk" ]]; then
+                idx=$i
+                break
+            fi
+        done
+
+        if [[ "$idx" -lt 0 ]]; then
+            # Should not happen - defensive fallback so we never fall
+            # through to a `cp` that would silently overwrite this file.
+            echo "Error: '$fileName' (in $relDir) collides with an already-collected file in $tmpUploadPath under the destination filesystem's case rules, but it could not be matched back to a known source file." >&2
+            exit 1
+        fi
+    fi
 
     if [[ "$idx" -ge 0 ]]; then
         priorName="${seenNames[$idx]}"
@@ -98,18 +142,30 @@ while IFS= read -r -d '' fullPath; do
         exit 1
     fi
 
-    cp "$fullPath" "$tmpUploadPath/$fileName"
+    cp "$fullPath" "$targetPath"
     seenLowerNames+=("$lowerName")
     seenNames+=("$fileName")
     seenDirs+=("$relDir")
-done < <(find "$outputMapPath" -type f \( -iname '*.w3m' -o -iname '*.w3x' \) -not -path "$uploadPath/*" -not -path "$tmpUploadPath/*" -print0)
+done < "$findListPath"
 
 distinctFilesCount=${#seenNames[@]}
 
-# Everything checked out: swap the verified scratch dir into place and
-# disarm the cleanup trap so the finished folder survives.
+# Zero maps found is not treated as an error: updateMaps.sh's own game-mode
+# filter (see its README section) can legitimately match nothing for a
+# given base folder/filter combination, and updateMaps.sh itself already
+# treats that as a non-fatal, completed run rather than a failure. Still
+# call it out, since after a real full build it can only mean something
+# upstream went wrong.
+if [[ "$sourceFilesCount" -eq 0 ]]; then
+    echo "Note: no source maps found under $outputMapPath; upload/ will be empty."
+fi
+
+# Everything checked out: swap the verified scratch dir into place. The
+# EXIT trap stays armed - it only ever targets $tmpUploadPath (which no
+# longer exists once moved, so removing it again is a harmless no-op) and
+# $findListPath, which still needs cleaning up on this, the success path,
+# too.
 mv "$tmpUploadPath" "$uploadPath"
-trap - EXIT
 
 echo "Built upload folder from $sourceFilesCount source maps: $distinctFilesCount distinct files in $uploadPath."
 
