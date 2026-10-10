@@ -308,6 +308,13 @@ if [[ ${#failedMaps[@]} -gt 0 ]]; then
             echo "The job did not report an exit status; it was killed or crashed."
         fi
         if [[ -f "$jobStateDir/$i.log" ]]; then
+            # The root cause is usually printed first and followed by long
+            # stack traces, so it would scroll out of the tail below.
+            firstError="$(grep -m1 -E '^[A-Za-z]*Error' "$jobStateDir/$i.log" || true)"
+            if [[ -n "$firstError" ]]; then
+                echo "First error: $firstError"
+                echo
+            fi
             tail -n 20 "$jobStateDir/$i.log"
         else
             echo "No log was captured for this map."

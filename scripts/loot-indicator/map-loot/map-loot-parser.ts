@@ -1,5 +1,4 @@
-import UnitsDoo from "mdx-m3-viewer-th/dist/cjs/parsers/w3x/unitsdoo/file.js";
-import War3MapW3i from "mdx-m3-viewer-th/dist/cjs/parsers/w3x/w3i/file.js";
+import {War3MapUnitsDooReforged, War3MapW3iReforged} from "./reforged-parsers";
 import * as fs from "fs-extra";
 import DroppedItemSet from "mdx-m3-viewer-th/dist/cjs/parsers/w3x/unitsdoo/droppeditemset";
 import {RawUnitItemDrop} from "../../../src/player_features/loot-indicator/modules/unit-item-drops";
@@ -41,11 +40,11 @@ export function getMapItemDrops(mapPath: string): RawUnitItemDrop[] {
 }
 
 function loadUnitsDoo(mapPath: string) {
-    const war3MapW3i = new War3MapW3i();
+    const war3MapW3i = new War3MapW3iReforged();
     war3MapW3i.load(fs.readFileSync(`${mapPath}/war3map.w3i`))
     // writeAsJson(`${mapPath}/war3map.w3i.json`, war3MapW3i);
 
-    const unitsDoo = new UnitsDoo();
+    const unitsDoo = new War3MapUnitsDooReforged();
     unitsDoo.load(fs.readFileSync(`${mapPath}/war3mapUnits.doo`), war3MapW3i.getBuildVersion())
     return {unitsDoo, war3MapW3i};
 }
